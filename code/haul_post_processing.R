@@ -63,6 +63,9 @@ edit_sgt <- sqlQuery(channel, query_command)
 # TIME_FLAG = EVENT
 # this one is events
 
+# height data:
+# pull mean height data after CALPYSO done
+
 # write_csv(edit_haul, path = here("edit_haul.csv"))
 # write_csv(edit_sgp, path = here("edit_sgp.csv"))
 # write_csv(edit_sgt, path = here("edit_sgt.csv"))
@@ -145,52 +148,37 @@ sor_data <- full_join(haul_dat, event_dat) %>%
   dplyr::filter(bad_data == FALSE) %>%
   add_column(start = NA, end = NA) 
 
-# new_data <- NULL
-  # mutate(start = NULL, end = NULL) %>% 
-# # for EACH HAUL, extract rows between event 3 and 7 (there will be many event = NA rows between 3 and 7 that you want)
-# # you need purrr for each haul, and time >= time at event = 3 and <= time at event = 7, save row, otherwise filter out (remove) row
-# 1) time of event 3 at each haul (purrr for each haul, mutate START col with time of event 3 for that haul)
-# 2) time of event 7 at each haul (purrr for each haul, mutate STOP col with time of event 7 for that haul)
-# 3) for each haul, save rows between times of event 3 and 7 (purrr each haul, dplyr::filter times between START and STOP cols)
-
-# functions: purrr, case_when, while, 
-
-# for(i in unique(data$haul))
-# {
-#   data_sub <- data %>% 
-#     dplyr::filter(haul == i) 
-#   start_t <- data_sub %>% dplyr::filter(event == 3) %>% dplyr::select(date_time)
-#   end_t <- data_sub %>% dplyr::filter(event == 7) %>% dplyr::select(date_time)
-#   data_sub <- data_sub %>% 
-#     mutate(start = start_t$date_time, end = end_t$date_time) %>% 
-#     dplyr::filter(date_time >= start & date_time <= end)
-#   new_data <- bind_rows(new_data, data_sub)
-# 
-# }
-
-# sor_data_test = sor_data %>% dplyr::filter(haul == 1, vessel == vessel[1])
-# get_pings(sor_data_test, hauln = 1, vesseln = vessel[1])
-# get_pings2(sor_data_test)
-# 
-# 
-# ping_data <- sor_data %>% 
-#   group_by(vessel, haul) %>% 
-#   dplyr::group_map(~get_pings(data = .x, 
-#                               hauln = .x$haul, 
-#                               vesseln = .x$vessel))
+# sor_data_test <- sor_data %>% dplyr::filter(haul == 51, vessel == vessel[1])
+# test_pings <- get_pings2(data = sor_data_test)
+# sor_data_test2 <- sor_data_test %>% arrange(event) %>% dplyr::filter(!is.na(event))
+# test_pings <- get_pings2(data = sor_data_test2[2:5,])
 
 ping_data <- sor_data %>% 
   group_by(vessel, haul) %>% 
   dplyr::group_map(~get_pings2(data = .x)) 
 
-
+# final pings have pings between on and off bottom time; filter net spread between 10 and 22 m (measurement value)
 final_pings <- do.call(rbind, ping_data) %>% 
   left_join(sor_data %>% dplyr::select(-start, -end)) %>% #by = c("cruise", "date_time", "cabinet_sensor_flag", "measurement_value", "datum_code", "event")) #add vessel and haul info back into selected rows
-  filter(measurement_value >= 10, measurement_value <= 22)
+  filter(measurement_value >= 10, 
+         measurement_value <= 22)
 
-final_pings
+# for SOR, check whether any hauls have fewer than 4 pings (will break code)
+check_pings <- final_pings %>% 
+  group_by(vessel, haul) %>% 
+  summarise(n_pings = n()) %>% 
+  dplyr::filter(n_pings < 5)
+check_pings
 
-# ** manual method for checks ---------------------------------------------
+good_ping_hauls <- final_pings %>% 
+  anti_join(check_pings)
+
+bad_ping_hauls <- final_pings %>% 
+  inner_join(check_pings)
+
+
+
+# * * manual method for checks ---------------------------------------------
 
 # MANUAL METHOD BELOW: for testing and weeding out any problem tows causing errors
 # n <-  1
@@ -218,62 +206,53 @@ final_pings
 
 # final_sor_data <- do.call(rbind, test_list)
 
+# * * testing code --------------------------------------------------------
+
+# ping_test <- good_ping_hauls %>% dplyr::filter(vessel == vessel[1], haul == 1) %>% 
+#   as.data.frame()
+# plot(x = ping_test$date_time, y = ping_test$measurement_value)
+# 
+# sor_test <- sequentialOR(data = ping_test, method = 'ss', 
+#                          # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var 
+#                          formula = measurement_value ~ date_time,
+#                          n.reject = 1, n.stop = 0.5, threshold.stop = TRUE, 
+#                          tail = "both", plot = T, progress.plot = F)
+# # rmse
+# plot(x = sor_test$rmse$N, y = sor_test$rmse$RMSE, main = "RMSE")
+# # pings
+# not_rejected <- sor_test$obs_rank %>% dplyr::filter(is.na(SOR_RANK))
+# # initial data
+# plot(x = ping_test$date_time, ping_test$measurement_value, 
+#      ylim = c(10, 22), main = "original")
+# # after sor
+# plot(x = not_rejected$date_time, not_rejected$measurement_value, 
+#      ylim = c(10,22), main = "after sor")
+# 
+# start_time <- Sys.time()
+# n <-  1
+# test_list <-  list()
+# for(h in unique(good_ping_hauls$haul)[1:5])
+# {
+#   for(v in unique(good_ping_hauls$vessel))
+#   {
+#     sor_data_sub <- good_ping_hauls %>% dplyr::filter(haul == h, vessel == v)
+#     # if(sor_data_sub$event ) #detect if sor data is missing event 3 or 7
+#     test_list[[n]] <- sequentialOR(data = sor_data_sub, method = 'ss', 
+#                                    # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var 
+#                                    formula = measurement_value ~ date_time,
+#                                    n.reject = 1, n.stop = 0.5, threshold.stop = TRUE, 
+#                                    tail = "both", plot = T, progress.plot = F)
+#     n <- n+1
+#   }
+#   stop_time <- Sys.time()
+# }
+
 
 # * * do SOR --------------------------------------------------------------
 
-# loop over hauls here (or parallel) AND VESSELS
-#     for(i in haul1 to haulx)
-# then put data into fxn
-
-
-# * * * test --------------------------------------------------------------
-
-ping_test <- final_pings %>% dplyr::filter(vessel == vessel[1], haul == 1) %>% 
-  as.data.frame()
-plot(x = ping_test$date_time, y = ping_test$measurement_value)
-
-sor_test <- sequentialOR(data = ping_test, method = 'ss', 
-                       # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var 
-                       formula = measurement_value ~ date_time,
-                       n.reject = 1, n.stop = 0.5, threshold.stop = TRUE, 
-                       tail = "both", plot = T, progress.plot = F)
-# rmse
-plot(x = sor_test$rmse$N, y = sor_test$rmse$RMSE, main = "RMSE")
-# pings
-not_rejected <- sor_test$obs_rank %>% dplyr::filter(is.na(SOR_RANK))
-# initial data
-plot(x = ping_test$date_time, ping_test$measurement_value, 
-     ylim = c(10, 22), main = "original")
-# after sor
-plot(x = not_rejected$date_time, not_rejected$measurement_value, 
-     ylim = c(10,22), main = "after sor")
-
-start_time <- Sys.time()
-n <-  1
-test_list <-  list()
-for(h in unique(final_pings$haul)[1:5])
-{
-  for(v in unique(final_pings$vessel))
-  {
-    sor_data_sub <- final_pings %>% dplyr::filter(haul == h, vessel == v)
-    # if(sor_data_sub$event ) #detect if sor data is missing event 3 or 7
-    test_list[[n]] <- sequentialOR(data = sor_data_sub, method = 'ss', 
-                                   # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var 
-                                   formula = measurement_value ~ date_time,
-                                   n.reject = 1, n.stop = 0.5, threshold.stop = TRUE, 
-                                   tail = "both", plot = T, progress.plot = F)
-    n <- n+1
-  }
-  stop_time <- Sys.time()
-}
-
-
-
-# * * * all SOR -----------------------------------------------------------
-
-sor_all <- final_pings %>% 
+sor_all <- good_ping_hauls %>% 
   group_by(vessel, haul) %>% 
-  dplyr::group_map(~sequentialOR(data = .x, #as.data.frame(final_pings), 
+  dplyr::group_map(~sequentialOR(data = .x, #as.data.frame(good_ping_hauls), 
                                  method = 'ss', 
                                  # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var 
                                  formula = measurement_value ~ date_time,
@@ -281,11 +260,23 @@ sor_all <- final_pings %>%
                                  tail = "both", plot = T, progress.plot = F))
 
 # then you want: do.call(rbind, sor_all) %>% left_join(sor_data, by = c(...))
-sor_final <- do.call(rbind, sor_all) %>% left_join(final_pings)
+sor_final <- do.call(rbind, sor_all) %>% left_join(good_ping_hauls)
 # ca; want n.reject set 1 to reject one point at a time
 # ca: I expect the predictor is time, and the response in measurement_value, but check
 # ca: add stan's plots with updates (two plots for: rejected and not rejected; or one plot with colors for rejected vs not)
 # ca: add flag for hauls to check? (track haul id for ones with issues)
+
+
+# get mean SOR ------------------------------------------------------------
+
+
+# generate SOR plots ------------------------------------------------------
+
+
+# reject SOR --------------------------------------------------------------
+
+# no pings or very few; fewer than 50 pings cutoff after SOR
+# # if all pings are clustered in one time period of the tow, rather than spread across the whole time period
 
 # -------------------------------------------------------------------------
  # CIA: older section
@@ -356,6 +347,7 @@ plot(x = sor_sr$rmse$RMSE)
 
 
 # missing data ------------------------------------------------------------
+
 
 
 # export corrected haul data ----------------------------------------------

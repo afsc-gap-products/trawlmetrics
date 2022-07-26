@@ -31,6 +31,7 @@ get_pings2 <- function(data)
   data_new <- data %>%
     mutate(start = start_t$date_time, end = end_t$date_time) %>%
     dplyr::filter(date_time >= start & date_time <= end) %>%
-    dplyr::filter(!is.na(measurement_value))
+    dplyr::filter(!is.na(measurement_value)) 
+  
   return(data_new)
 }
