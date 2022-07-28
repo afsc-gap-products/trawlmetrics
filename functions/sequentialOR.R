@@ -110,7 +110,19 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
   }
 
   if(plot == T) print(plot(NN, RMSE, xlim = c(nrow(data) + n.reject, n.stop - n.reject)))
+  # write_csv(data, here("output", "SOR_files", paste0("vessel-",unique(data$vessel),"_haul-",unique(data$haul), "_obs_rank.csv")))
+  # rmse <-  data.frame(N = NN, RMSE = RMSE)
+  # write_csv(rmse, here("output", "SOR_files", paste0("vessel-",unique(data$vessel),"_haul-",unique(data$haul), "_rmse.csv")))
+  
+  mean_spread <- data %>% 
+    dplyr::filter(is.na(SOR_RANK)) %>% 
+    summarize(n_pings = n(),
+              mean = mean(measurement_value))
+  results_row <- bind_cols( vessel = unique(data$vessel), haul = unique(data$haul), 
+                           mean_spread, sd = sd(resids))
 
-  return(list(obs_rank = data, rmse = data.frame(N = NN, RMSE = RMSE, PARSLOPE = PARSLOPE)))
+  return(list(results = results_row,
+              obs_rank = data, 
+              rmse = data.frame(N = NN, RMSE = RMSE )))         
 
 }
