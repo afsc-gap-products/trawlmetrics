@@ -43,7 +43,7 @@ for(i in haul.list){
  par(mfrow=c(3,1),mar=c(2, 4, 1, 2))
  plot(xx[,2],yy,ylim=c(0,40),main=paste('Haul',haul,'all data'),
 	xlim=c(on.bottom-360,off.bottom+360))
- md1=smooth.spline(yy~xx[,2],spar=.8)
+ md1=smooth.spline(yy~xx[,2],spar=.8) #ca: iteratively fits smooth splines for calc resids and figures (from model 3- md4 or md3? to calc resids); spline = 0.8 includes 80% of points; need to add params to Sean's code
  smooth=predict(md1)
  lines(smooth,col='red')}
  xx1=xx[xx[,2]>on.bottom & xx[,2]<off.bottom,]
@@ -72,7 +72,7 @@ for(i in haul.list){
 
  resids=yy3-smooth3$y
  max.dist = max(abs(resids))
- if(sd(resids)<5) {
+ if(sd(resids)<5) { #ca: stop distance calc, based on sd of hauls; equation from 2011 paper; threshold stopping value (hard-coded); would need to add to sean's code
   stop.dist=-0.3034*sd(resids)^2 + 2.9428*sd(resids)-0.1112
   } else {stop.dist=7}
  idx=which(abs(resids)==max.dist)
@@ -87,7 +87,7 @@ for(i in haul.list){
   #lines(smooth,col='red')
   resids=yy4-smooth$y
   max.dist = max(abs(resids))
-  if(max.dist>stop.dist){
+  if(max.dist>stop.dist){ #ca: stop rules- threshold (user spec in Sean's code); 
    idx=which(abs(resids)==max.dist)
    #a = locator(n=1)
    } else {
