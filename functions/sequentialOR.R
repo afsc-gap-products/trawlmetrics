@@ -101,7 +101,17 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
         RMSE <- RMSE[1:i]
         NN <- NN[1:i]
         print(paste0("Stopping threshold reached. Stopped after iteration " , i))
-        return(list(obs_rank = data, rmse = data.frame(N = NN, RMSE = RMSE))) #add max residual to rmse data frame
+        mean_spread <- data %>% 
+          dplyr::filter(is.na(SOR_RANK)) %>% 
+          summarize(n_pings = n(),
+                    mean = mean(measurement_value))
+        results_row <- bind_cols( #vessel = unique(data$vessel), haul = unique(data$haul), 
+                                  mean_spread, sd = sd(resids))
+        
+        return(list(results = results_row,
+                    obs_rank = data,
+                    rmse = data.frame(N = NN, RMSE = RMSE )))
+        # return(list(obs_rank = data, rmse = data.frame(N = NN, RMSE = RMSE))) #add max residual to rmse data frame
       }
     }
 
@@ -118,11 +128,12 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
     dplyr::filter(is.na(SOR_RANK)) %>% 
     summarize(n_pings = n(),
               mean = mean(measurement_value))
-  results_row <- bind_cols( vessel = unique(data$vessel), haul = unique(data$haul), 
+  results_row <- bind_cols( #vessel = unique(data$vessel), haul = unique(data$haul), 
                            mean_spread, sd = sd(resids))
 
   return(list(results = results_row,
-              obs_rank = data, 
-              rmse = data.frame(N = NN, RMSE = RMSE )))         
+              obs_rank = data,
+              rmse = data.frame(N = NN, RMSE = RMSE )))
+  # return(results_row)
 
 }

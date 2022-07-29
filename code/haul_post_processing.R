@@ -68,8 +68,8 @@ edit_sgt <- sqlQuery(channel, query_command)
 # pull mean height data after CALPYSO done
 
 # write_csv(edit_haul, path = here("edit_haul.csv"))
-# write_csv(edit_sgp, path = here("edit_sgp.csv"))
-# write_csv(edit_sgt, path = here("edit_sgt.csv"))
+# write_csv(edit_sgp, path = here("output ,"test_edit_sgp.csv"))
+# write_csv(edit_sgt, path = here("output ,"test_edit_sgt.csv"))
 
 # data cleaning -----------------------------------------------------------
 
@@ -283,10 +283,10 @@ for(h in unique(good_ping_hauls$haul))
 
 # * * do SOR --------------------------------------------------------------
 # test
-sor_test <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[1]], haul %in% unique(good_ping_hauls$haul)[1:10])
+sor_test <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[1]], haul %in% unique(good_ping_hauls$haul)[31:40])
 
 start_time <- Sys.time()
-sor_vessel1 <- sor_test %>% 
+sor_vessel1 <- sor_test %>%  # good_ping_hauls %>% 
   group_by(vessel, haul) %>% 
   # as.data.frame() %>% 
   dplyr::group_map(~sequentialOR(data = .x, #as.data.frame(good_ping_hauls), 
@@ -299,13 +299,21 @@ stop_time <- Sys.time()
 
 # get mean SOR ------------------------------------------------------------
 
+sor_v1_dat <- list()
+sor_v1_data <- tibble() 
+sor_res <- list()
+sor_v1_results <- tibble()
 for(i in 1:length(sor_vessel1))
 {
-  sor_v1_data <- bind_rows(sor_vessel1[[i]]$obs_rank)
-  sor_v1_results <- bind_rows(sor_vessel1[[i]]$results)
+  sor_v1_dat[[i]] <- sor_vessel1[[i]]$obs_rank %>% inner_join(sor_test)
+  sor_v1_data <- sor_v1_data %>% bind_rows(sor_v1_dat[[i]])
+  sor_res[[i]] <- bind_cols(sor_vessel1[[i]]$results, vessel = unique(sor_v1_dat[[i]]$vessel), haul = unique(sor_v1_dat[[i]]$haul))
+  sor_v1_results <- sor_v1_results %>% bind_rows(sor_res[[i]])
+  
+  # CIA: generate plots here, with title including vessel and haul number; before and after plots
 }
 
-# sor_test_final <- sor_v1 %>% inner_join(sor_test)
+
 # sor_final <- sor_test_final
 # 
 # # the following is breaking rstudio:
