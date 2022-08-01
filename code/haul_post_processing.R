@@ -28,8 +28,8 @@ vessels <- c(94, 162)
 region <- "BS"
 
 # for troublshooting problem data:
-skip_haul <-  c(145)
-skip_vessel <- c(94)
+skip_haul <-  c()
+skip_vessel <- c()
 
 # connect to oracle -------------------------------------------------------
 
@@ -46,15 +46,6 @@ odbcGetInfo(channel)
 # data --------------------------------------------------------------------
 # call from oracle
 
-# query_command <- paste0(" select * from race_data.edit_hauls where performance >= 0;")
-# haul_data_raw <- sqlQuery(channel, query_command)
-# 
-# query_command <- paste0(" select * from race_data.edit_events;")
-# event_data_raw <- sqlQuery(channel, query_command)
-# 
-# query_command <- paste0(" select * from race_data.v_extract_edit_haul where cruise in (", cruise,") and region = '", region, "';")
-# edit_haul <- sqlQuery(channel, query_command)
-
 query_command <- paste0(" select * from race_data.v_extract_edit_sgp where cruise in (", cruise,") and region = '", region, "';")
 edit_sgp <- sqlQuery(channel, query_command)
 # VALUE renamed MEASUREMENT_VALUE
@@ -70,6 +61,7 @@ edit_sgt <- sqlQuery(channel, query_command)
 # pull mean height data after CALPYSO done
 query_command <- paste0(" select * from race_data.edit_hauls where cruise_id in (", cruise_idnum[1], ",", cruise_idnum[2], ");") # and region = '", region, "';")
 edit_height <- sqlQuery(channel, query_command)
+# this is also the raw RACE_DATA:EDIT_HAULS table for updating at the end
 
 
 # write_csv(edit_haul, path = here("edit_haul.csv"))
@@ -108,7 +100,9 @@ height_dat <- edit_height %>%
          edit_wire_out_units_FM = if_else(edit_wire_out_units == "FT", "FM", "FM")) %>% 
   mutate(invscope = 1/edit_wire_out)
 
-
+edit_hauls_table_raw <- edit_height %>% 
+  as_tibble() %>% 
+  clean_names()
 
 # sequential outlier rejection (SOR) --------------------------------------
 
@@ -176,11 +170,7 @@ sor_data <- haul_dat %>%
   dplyr::filter(bad_data == FALSE) %>%
   add_column(start = NA, end = NA) 
 
-# sor_data_test <- sor_data %>% dplyr::filter(haul == 51, vessel == vessel[1])
-# test_pings <- get_pings2(data = sor_data_test)
-# sor_data_test2 <- sor_data_test %>% arrange(event) %>% dplyr::filter(!is.na(event))
-# test_pings <- get_pings2(data = sor_data_test2[2:5,])
-
+# get pings that are between the on-bottom (event 3) and off-bottom (event 7) times
 ping_data <- sor_data %>% 
   group_by(vessel, haul) %>% 
   dplyr::group_map(~get_pings2(data = .x)) 
@@ -188,7 +178,21 @@ ping_data <- sor_data %>%
 # final pings have pings between on and off bottom time; filter net spread between 10 and 22 m (measurement value)
 final_pings <- do.call(rbind, ping_data) %>% 
   left_join(sor_data %>% dplyr::select(-start, -end)) #%>% #by = c("cruise", "date_time", "cabinet_sensor_flag", "measurement_value", "datum_code", "event")) #add vessel and haul info back into selected rows
-  
+
+# check for hauls that have no data wi/in scope and add back in:
+orig_hauls <- haul_dat %>% 
+  distinct(vessel, haul) %>% 
+  arrange(vessel, haul)
+filtered_hauls <- final_pings %>% 
+  distinct(vessel, haul) %>% 
+  arrange(vessel, haul)
+missing_hauls <- anti_join(orig_hauls, filtered_hauls)
+# 2022: vest: 172, 163, 117, 118 <- no pings
+missing_pings <- haul_dat %>% 
+  dplyr::filter(haul %in% missing_hauls$haul,
+                vessel%in% missing_hauls$vessel) %>%
+  # mutate(date_time = lubridate::ymd(date_time)) %>% 
+  distinct(cruise, vessel, haul) 
 
 # good ping hauls are hauls with > 4 pings; hauls of concern have <50 pings
 # for SOR, check whether any hauls have fewer than 4 pings (will break code)
@@ -202,13 +206,18 @@ good_ping_hauls <- final_pings %>%
   anti_join(check_pings)
 
 bad_ping_hauls <- final_pings %>% 
-  inner_join(check_pings)
+  inner_join(check_pings) %>% 
+  distinct(cruise, vessel, haul) %>% 
+  bind_rows(missing_pings) %>% 
+  arrange(vessel, haul)
 
 # flag hauls to check that have fewer than 50 pings
 flag_pings <- final_pings %>% 
-  group_by(vessel, haul) %>% 
+  group_by(cruise, vessel, haul) %>% 
   summarise(n_pings = n()) %>% 
-  dplyr::filter(n_pings < 50)
+  dplyr::filter(n_pings < 50) %>% 
+  bind_rows(missing_pings) %>% 
+  arrange(vessel, haul)
 flag_pings
 
 flag_ping_hauls <- final_pings %>% 
@@ -220,27 +229,32 @@ flag_ping_hauls <- final_pings %>%
 # test
 # sor_test <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[1]], haul %in% unique(good_ping_hauls$haul)[1:10])
 
-start_time <- Sys.time()
-n <-  1
-test_list <-  list()
-for(v in unique(good_ping_hauls$vessel))
-{
-  sor_data_sub1 <- good_ping_hauls %>% dplyr::filter(vessel == v)
-  for(h in unique(sor_data_sub1$haul))
-  {
-    sor_data_sub <- good_ping_hauls %>% dplyr::filter(haul == h, vessel == v)
-    # if(sor_data_sub$event ) #detect if sor data is missing event 3 or 7
-    test_list[[n]] <- sequentialOR(data = sor_data_sub, method = 'ss',
-                                   # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var
-                                   formula = measurement_value ~ date_time,
-                                   n.reject = 1, n.stop = 0.5, threshold.stop = TRUE,
-                                   tail = "both", plot = T, progress.plot = F)
-    # ca; want n.reject set 1 to reject one point at a time
-    # ca: the predictor is time, and the response in measurement_value
-    n <- n+1
-  }
-  stop_time <- Sys.time()
-}
+
+
+
+# following loop version also breaks RStudio...?
+
+# start_time <- Sys.time()
+# n <-  1
+# test_list <-  list()
+# for(v in unique(good_ping_hauls$vessel))
+# {
+#   sor_data_sub1 <- good_ping_hauls %>% dplyr::filter(vessel == v)
+#   for(h in unique(sor_data_sub1$haul))
+#   {
+#     sor_data_sub <- good_ping_hauls %>% dplyr::filter(haul == h, vessel == v)
+#     # if(sor_data_sub$event ) #detect if sor data is missing event 3 or 7
+#     test_list[[n]] <- sequentialOR(data = sor_data_sub, method = 'ss',
+#                                    # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var
+#                                    formula = measurement_value ~ date_time,
+#                                    n.reject = 1, n.stop = 0.5, threshold.stop = TRUE,
+#                                    tail = "both", plot = T, progress.plot = F)
+#     # ca; want n.reject set 1 to reject one point at a time
+#     # ca: the predictor is time, and the response in measurement_value
+#     n <- n+1
+#   }
+#   stop_time <- Sys.time()
+# }
 
 
 # parallel version crashes R
@@ -257,6 +271,17 @@ for(v in unique(good_ping_hauls$vessel))
 #                                  tail = "both", plot = T, progress.plot = F))
 # stop_time <- Sys.time()
 
+# if you need to run in chunks and read in .csvs:
+sor_data <- 
+  list.files(pattern = "*data.csv",
+             path = here("output", "SOR_files")) %>% 
+  map_df(~read_csv(.))
+
+sor_results <- 
+  list.files(pattern = "*results.csv",
+             path = ) %>% 
+  map_df(~read_csv(.))
+
 # get mean SOR ------------------------------------------------------------
 
 sor_v1_dat <- list()
@@ -269,8 +294,6 @@ for(i in 1:length(sor_vessel1))
   sor_v1_data <- sor_v1_data %>% bind_rows(sor_v1_dat[[i]])
   sor_res[[i]] <- bind_cols(sor_vessel1[[i]]$results, vessel = unique(sor_v1_dat[[i]]$vessel), haul = unique(sor_v1_dat[[i]]$haul))
   sor_v1_results <- sor_v1_results %>% bind_rows(sor_res[[i]])
-  
-  # CIA: generate plots here, with title including vessel and haul number; before and after plots
   
   # pings
   not_rejected <- sor_v1_dat[[i]] %>% dplyr::filter(is.na(SOR_RANK))
@@ -318,13 +341,6 @@ for(i in 1:length(sor_vessel1))
         path = here("output", "SOR_graphics"), width = 10, height = 6)
 }
 
-
-# ca: add stan's plots with updates (two plots for: rejected and not rejected; or one plot with colors for rejected vs not)
-# ca: add flag for hauls to check? (track haul id for ones with issues)
-
-# generate SOR plots ------------------------------------------------------
-
-
 # reject SOR --------------------------------------------------------------
 
 # no pings or very few; fewer than 50 pings cutoff after SOR
@@ -338,7 +354,6 @@ review_hauls <- sor_v1_results %>%
 
 review_hauls_final <- review_hauls 
 # CIA: add mechanism to review these hauls
-# -------------------------------------------------------------------------
 
 # marport-netmind correction ----------------------------------------------
 # Note: this is for EBS- does GOA have diff correction?
@@ -381,20 +396,27 @@ all_height_corr <- height_dat %>%
 # * spread ----------------------------------------------------------------
 
 # Net width ~ inverse scope + height + (inverse scope * height)
+# USE: spread from SOR with correction, corrected heights
+# Predict: missing spreads (anything that didn't go through SOR) -- flag_pings
 #  # 2017 tech memo (note inverse scope = 1/wire out)
-
-# CIA: you are here-- I don't follow this section-- what is our input and how do we get missing widths?
 
 input_glm <- sor_v1_results %>% #add wire out and inv scope, and net height
   left_join(all_height_corr) %>% 
   drop_na(mean, invscope, edit_net_height)
 
-fill_width = glm(mean ~ invscope + edit_net_height + invscope*edit_net_height, 
-                 data=c(missing_width),family="gaussian")
+fill_width <- glm(mean ~ invscope + edit_net_height + invscope*edit_net_height, 
+                 data=c(input_glm),family="gaussian")
 summary(fill_width)
 plot(fill_width)
 confint(fill_width)
 
+fill_glm <- flag_pings %>% 
+  left_join(all_height_corr)
+
+predict_missing <- stats::predict.glm(object = fill_width, newdata = fill_glm)
+
+final_filled_in <- bind_cols(mean = predict_missing, fill_glm) %>% 
+  bind_rows(input_glm)
 
 # export corrected haul data ----------------------------------------------
 
@@ -418,3 +440,11 @@ confint(fill_width)
 # 1) generate tables with mean, sd, pings for height and spread
 # 2) re-create race_data:edit_haul table to replace ; CHECK carefully ; download this table prior as .csv and save
 # 3) produce updated table and ask Heather how to merge
+
+# ToDO:
+
+# pull RACE_DATA:EDIT_HAULS: edit_hauls_table_raw
+# edit: edit_net_spread, net_spread method, net_spread_pings, net_spread_standard_deviation, 
+#       edit_net_height, net_height_method, net_height_pings, net_height_standard deviation
+# switch col names to all uppercase janitor::clean_names(case = "all_caps")
+# save table to sql
