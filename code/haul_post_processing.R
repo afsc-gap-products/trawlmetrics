@@ -229,6 +229,54 @@ flag_ping_hauls <- final_pings %>%
 # test
 # sor_test <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[1]], haul %in% unique(good_ping_hauls$haul)[1:10])
 
+# section method when more stremlined version break rstudio
+max_v1 <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[1]]) %>% distinct(haul) #%>% dim()
+max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[2]]) %>% distinct(haul) #%>% dim()
+
+set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessel[[1]]),
+            bind_cols(hauls = max_v1$haul[51:100],  vess = vessel[[1]]),
+            bind_cols(hauls = max_v1$haul[101:150], vess = vessel[[1]]),
+            bind_cols(hauls = max_v1$haul[151:max(max_v1$haul)],   vess = vessel[[1]]),
+            bind_cols(hauls = max_v2$haul[1:50],    vess = vessel[[2]]),
+            bind_cols(hauls = max_v2$haul[51:100],  vess = vessel[[2]]),
+            bind_cols(hauls = max_v2$haul[101:150], vess = vessel[[2]]),
+            bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessel[[2]]))
+
+for(i in 1) #:length(set))
+{
+  sor_test <- good_ping_hauls %>% 
+    dplyr::filter(vessel == unique(set[[i]]$vess), haul %in% set[[i]]$hauls)
+  
+  start_time <- Sys.time()
+  print(paste("Start time:", start_time))
+  sor_set <- sor_test %>%  # good_ping_hauls %>% 
+    group_by(vessel, haul) %>% 
+    # as.data.frame() %>% 
+    dplyr::group_map(~sequentialOR(data = .x, #as.data.frame(good_ping_hauls), 
+                                   method = 'ss', 
+                                   # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var 
+                                   formula = measurement_value ~ date_time,
+                                   n.reject = 1, n.stop = 0.5, threshold.stop = TRUE, 
+                                   tail = "both", plot = T, progress.plot = F))
+  current_set <- i
+  
+  stop_time <- Sys.time()
+  print(paste("Stop time:", stop_time))
+  gc()
+}
+
+for(j in 1:length(sor_set))
+{
+  this_vessel <- set[[current_set]]$vess[j]
+  this_haul <- set[[current_set]]$hauls[j]
+  
+  write_csv(sor_set[[j]]$obs_rank %>% inner_join(sor_test), 
+            here("output", "SOR_files", 
+                 paste0("vessel-", this_vessel, "_haul-", this_haul, "_data.csv")))
+  write_csv(sor_set[[j]]$results, here("output", "SOR_files", 
+                                       paste0("vessel-", this_vessel, "_haul-", this_haul, "_results.csv")))
+}
+
 
 
 
