@@ -75,6 +75,11 @@ write_csv(edit_sgp, path = here("output" ,"test_edit_sgp.csv"))
 write_csv(edit_sgt, path = here("output" ,"test_edit_sgt.csv"))
 write_csv(edit_height, path = here("output" ,"test_edit_height.csv"))
 
+# in case you need to save a nd read in data
+# edit_sgp <- read_csv(here("output" ,"test_edit_sgp.csv"))
+# edit_sgt <- read_csv(here("output" ,"test_edit_sgt.csv"))
+# edit_height <- read_csv(here("output" ,"test_edit_height.csv"))
+
 # data cleaning -----------------------------------------------------------
 
 event_dat <- edit_sgt %>% 
