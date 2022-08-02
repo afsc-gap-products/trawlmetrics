@@ -22,7 +22,7 @@ purrr::walk(functions, ~ source(here::here("functions", .x)))
 # annual cruise_id
 cruise <- c(202201) #202201
 # cruise id num 726 = vessel 94; cruise id 756 = vessel 162
-cruise_idnum <- c(726, 756) # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
+cruise_idnum <- c(755, 756) # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
 vessel <- c(94, 162)
 vessels <- c(94, 162)
 region <- "BS"
@@ -54,6 +54,11 @@ odbcGetInfo(channel)
 # data --------------------------------------------------------------------
 # call from oracle
 
+# check cruise id num
+query_command <- paste0(" select * from race_data.v_cruises where year = 2021 and survey_definition_id = 98;") # 98 = BS survey ; NBS = 143 #(", cruise,") and region = '", region, "';")
+cruise_id_info <- sqlQuery(channel, query_command)
+
+
 query_command <- paste0(" select * from race_data.v_extract_edit_sgp where cruise in (", cruise,") and region = '", region, "';")
 edit_sgp <- sqlQuery(channel, query_command)
 # VALUE renamed MEASUREMENT_VALUE
@@ -76,9 +81,9 @@ write_csv(edit_sgt, path = here("output" ,"test_edit_sgt.csv"))
 write_csv(edit_height, path = here("output" ,"test_edit_height.csv"))
 
 # in case you need to save a nd read in data
-# edit_sgp <- read_csv(here("output" ,"test_edit_sgp.csv"))
-# edit_sgt <- read_csv(here("output" ,"test_edit_sgt.csv"))
-# edit_height <- read_csv(here("output" ,"test_edit_height.csv"))
+edit_sgp <- read_csv(here("output" ,"test_edit_sgp.csv"))
+edit_sgt <- read_csv(here("output" ,"test_edit_sgt.csv"))
+edit_height <- read_csv(here("output" ,"test_edit_height.csv"))
 
 # data cleaning -----------------------------------------------------------
 
@@ -111,6 +116,7 @@ height_dat <- edit_height %>%
          edit_wire_out_FM = round(if_else(edit_wire_out_units == "FT", edit_wire_out*0.166667, as.numeric(edit_wire_out)),0),
          edit_wire_out_units_FM = if_else(edit_wire_out_units == "FT", "FM", "FM")) %>% 
   mutate(invscope = 1/edit_wire_out)
+# note: all wire out should be in intervals of 25
 
 edit_hauls_table_raw <- edit_height %>% 
   as_tibble() %>% 
@@ -256,8 +262,9 @@ set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessel[[1]]),
             bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessel[[2]]))
 
 # set[99] <- list(bind_cols(hauls = max_v1$haul[1:10],    vess = vessel[[1]])) #testing set
-
-for(i in 1) #:length(set))
+set[99] <- list(bind_cols(hauls = max_v1$haul[111:150],    vess = vessel[[1]])) 
+#  this set 1x, 2x, 3x, 4
+for(i in 99) #:length(set))
 {
   sor_test <- good_ping_hauls %>% 
     dplyr::filter(vessel == unique(set[[i]]$vess), haul %in% set[[i]]$hauls)
@@ -349,6 +356,7 @@ sor_data <-
   map_df(~read_csv(.)) %>% 
   mutate(vessel_haul = as.integer(paste0(vessel, haul)))
 
+# sd(sor_data$measurement_value)
 sor_results <- 
   list.files(pattern = "*results.csv",
              path = here("output", "SOR_files"),
@@ -426,10 +434,11 @@ for(i in unique(sor_data$vessel_haul))
 review_hauls <- sor_results %>% 
   mutate(process = "SOR") %>% 
   dplyr::filter(n_pings <= 50) %>% 
+  mutate(cruise = cruise) %>% 
   full_join(flag_pings) %>% 
   mutate(process = if_else(is.na(process), "preSOR", "SOR"))
 
-review_hauls_final <- review_hauls 
+review_hauls_final <- review_hauls #%>% View()
 # CIA: add mechanism to review these hauls
 
 # marport-netmind correction ----------------------------------------------
@@ -445,21 +454,26 @@ net_spread <- sor_results %>%
 # * height ----------------------------------------------------------------
 # calc height by taking average height of all hauls with same wire out amount
 
+# SEPARATE BY VESSEL
+
 fill_height <- height_dat %>% 
+  # group_by() %>% 
   dplyr::filter(net_height_pings > 150) %>%
-  group_by(edit_wire_out_FM) %>% 
+  group_by(edit_wire_out_FM, vessel) %>% 
   summarize(mean_ht = mean(edit_net_height))
 
 missing_height <- height_dat %>% 
   dplyr::filter(net_height_pings <= 150 | is.na(net_height_pings)) %>% 
   left_join(fill_height) %>% 
   mutate(edit_net_height = mean_ht) %>% 
-  dplyr::select(-mean_ht)
+  dplyr::select(-mean_ht)%>% 
+  mutate(net_height_method = 4)
 
 all_height_corr <- height_dat %>% 
   dplyr::filter(net_height_pings > 150) %>%
   bind_rows(missing_height) %>% 
-  arrange(vessel, haul)
+  arrange(vessel, haul) 
+
 
 # spot check:
 # height_dat %>% dplyr::filter(haul == 38, vessel ==94)
@@ -477,23 +491,37 @@ all_height_corr <- height_dat %>%
 # Predict: missing spreads (anything that didn't go through SOR) -- flag_pings
 #  # 2017 tech memo (note inverse scope = 1/wire out)
 
-input_glm <- sor_results %>% #add wire out and inv scope, and net height
+input_glm <- net_spread %>% #add wire out and inv scope, and net height
   left_join(all_height_corr) %>% 
-  drop_na(mean, invscope, edit_net_height)
+  drop_na(mean_spread_corr, invscope, edit_net_height) %>% 
+  mutate(net_spread_method = 7)
 
-fill_width <- glm(mean ~ invscope + edit_net_height + invscope*edit_net_height, 
+fill_width <- glm(mean_spread_corr ~ invscope + edit_net_height + invscope*edit_net_height, 
                  data=c(input_glm),family="gaussian")
 summary(fill_width)
-plot(fill_width)
-confint(fill_width)
+# plot(fill_width)
+# confint(fill_width)
+summary(fill_width)$coefficients
 
 fill_glm <- flag_pings %>% 
   left_join(all_height_corr)
 
 predict_missing <- stats::predict.glm(object = fill_width, newdata = fill_glm)
 
-final_filled_in <- bind_cols(mean = predict_missing, fill_glm) %>% 
-  bind_rows(input_glm)
+#CIA: I don't like this! We are putting in the SD of the original pings, but not using those pings in any way to get the mean for this haul
+old_sd_missing_spread <- flag_pings %>% 
+  mutate(cruise_id = case_when(vessel == vessels[1] ~ cruise_idnum[1],
+                               vessel == vessels[2] ~ cruise_idnum[2])) %>% 
+  inner_join(edit_hauls_table_raw) %>% 
+  dplyr::select(cruise, vessel, haul, sd = net_spread_standard_deviation)
+
+final_filled_in <- bind_cols(mean_spread_corr = predict_missing, fill_glm) %>% 
+  mutate(net_spread_method = 4) %>%
+  full_join(old_sd_missing_spread) %>% 
+  bind_rows(input_glm) %>% 
+  rename(edit_net_spread = mean_spread_corr,
+         net_spread_pings = n_pings,
+         net_spread_standard_deviation = sd)
 
 # export corrected haul data ----------------------------------------------
 
@@ -521,7 +549,53 @@ final_filled_in <- bind_cols(mean = predict_missing, fill_glm) %>%
 # ToDO:
 
 # pull RACE_DATA:EDIT_HAULS: edit_hauls_table_raw
-# edit: edit_net_spread, net_spread method, net_spread_pings, net_spread_standard_deviation, 
+# edit: edit_net_spread, net_spread_method, net_spread_pings, net_spread_standard_deviation, 
 #       edit_net_height, net_height_method, net_height_pings, net_height_standard deviation
 # switch col names to all uppercase janitor::clean_names(case = "all_caps")
 # save table to sql
+
+# set an audit note
+
+race_data_edit_hauls <- final_filled_in %>% 
+  dplyr::select(-mean, - vessel_haul) %>% 
+  janitor::clean_names(case = "all_caps") %>% 
+  dplyr::select(CRUISE_ID, #set specific column order for ORACLE
+                HAUL_ID,
+                CRUISE,
+                VESSEL,
+                HAUL,
+                EDIT_NET_SPREAD,
+                NET_SPREAD_PINGS,
+                NET_SPREAD_METHOD,
+                NET_SPREAD_STANDARD_DEVIATION,
+                EDIT_NET_HEIGHT,
+                EDIT_NET_HEIGHT_UNITS,
+                NET_HEIGHT_METHOD,
+                NET_HEIGHT_PINGS,
+                NET_HEIGHT_STANDARD_DEVIATION,
+                EDIT_WIRE_OUT,
+                EDIT_WIRE_OUT_UNITS,
+                WIRE_OUT_METHOD,
+                EDIT_WIRE_OUT_FM,
+                EDIT_WIRE_OUT_UNITS_FM,
+                INVSCOPE)
+
+# compare to orig dat
+edit_hauls_table_raw
+anti_join(final_filled_in, edit_hauls_table_raw, by = c("cruise_id", "haul"))
+anti_join(edit_hauls_table_raw, final_filled_in, by = c("cruise_id", "haul"))
+# final_filled_in %>% dplyr::filter(cruise_id == 756, haul %in% bad_ping_hauls$haul) #these are missing
+
+dup_check <- final_filled_in %>% dplyr::select(cruise_id, haul) %>% duplicated()
+dupes <- final_filled_in %>% 
+  dplyr::select(cruise_id, haul) %>% 
+  bind_cols(dupes = dup_check) %>% 
+  dplyr::filter(dupes == TRUE) %>% 
+  arrange(cruise_id, haul)
+final_filled_in %>% 
+  dplyr::filter(haul %in% dupes$haul & cruise_id %in% dupes$cruise_id) %>% 
+  arrange(cruise_id, haul) %>% View()
+
+write_csv(race_data_edit_hauls, file = here("output", "race_data_edit_hauls_table.csv"))
+
+write_csv(sor_results, file = here("output", "sor_results_all.csv"))
