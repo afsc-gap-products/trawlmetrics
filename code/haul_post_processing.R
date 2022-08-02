@@ -27,6 +27,14 @@ vessel <- c(94, 162)
 vessels <- c(94, 162)
 region <- "BS"
 
+# 21 comparison
+# cruise <- c(202101) #202201
+# # cruise id num 726 = vessel 94; cruise id 756 = vessel 162
+# cruise_idnum <- c(752) # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
+# vessel <- c(162)
+# vessels <- c(162)
+# region <- "BS"
+
 # for troublshooting problem data:
 skip_haul <-  c()
 skip_vessel <- c()
@@ -63,10 +71,9 @@ query_command <- paste0(" select * from race_data.edit_hauls where cruise_id in 
 edit_height <- sqlQuery(channel, query_command)
 # this is also the raw RACE_DATA:EDIT_HAULS table for updating at the end
 
-
-# write_csv(edit_haul, path = here("edit_haul.csv"))
 write_csv(edit_sgp, path = here("output" ,"test_edit_sgp.csv"))
 write_csv(edit_sgt, path = here("output" ,"test_edit_sgt.csv"))
+write_csv(edit_height, path = here("output" ,"test_edit_height.csv"))
 
 # data cleaning -----------------------------------------------------------
 
@@ -109,22 +116,31 @@ edit_hauls_table_raw <- edit_height %>%
 # * Stan's method ---------------------------------------------------------
 
 # events=read.events()
-events <- read.csv(here('data', 'AlaskaKnight_202101_Events.csv'))
-str(events)
-# CRUISE VESSEL HAUL EVENT DTIME
+# events <- read.csv(here('data', 'AlaskaKnight_202101_Events.csv'))
+# str(events)
+# # CRUISE VESSEL HAUL EVENT DTIME
+# event_dat <- events %>% 
+#   as_tibble() %>% 
+#   clean_names() %>% 
+#   mutate(date_time = lubridate::mdy_hms(dtime))
+#   # rename(date_time = DTIME) %>% 
+# 
+# # haul.data=read.hauls()
+# haul.data <- read.csv(here('data', 'AlaskaKnight_202101_Spread.csv'))
+# str(haul.data)
+# # RECORD_ID HAUL_ID CRUISE_ID VESSEL CRUISE HAUL DATE_TIME CABINET_SENSOR_FLAG MEASUREMENT_VALUE DATUM_CODE
+# haul_dat <- haul.data %>% 
+#   as_tibble() %>% 
+#   clean_names() %>% 
+#   mutate(date_time = lubridate::mdy_hms(date_time)) %>% 
+#   dplyr::select(cruise, vessel, haul, date_time, cabinet_sensor_flag, measurement_value, datum_code)
 
-# haul.data=read.hauls()
-haul.data <- read.csv(here('data', 'AlaskaKnight_202101_Spread.csv'))
-str(haul.data)
-# RECORD_ID HAUL_ID CRUISE_ID VESSEL CRUISE HAUL DATE_TIME CABINET_SENSOR_FLAG MEASUREMENT_VALUE DATUM_CODE
-
-
-# Call SOR function
-sor(haul.data,events,flag=12) #graphics output change
-output_sor_table()
-dev.off()
-sor.means <- estimate.means(events)  #graphics output change
-write.csv(sor.means, 'sor_means.csv')
+# # Call SOR function
+# sor(haul.data,events,flag=12) #graphics output change
+# output_sor_table()
+# dev.off()
+# sor.means <- estimate.means(events)  #graphics output change
+# write.csv(sor.means, 'sor_means.csv')
 
 # notes: change graphics displays to save output
 # which model type does stand use in SOR? predict: linear model?
@@ -151,14 +167,6 @@ write.csv(sor.means, 'sor_means.csv')
 
 
 # * clean SOR data -------------------------------------------------------------------------
-# event_dat <- read_csv(here('data', 'AlaskaKnight_202101_Events.csv')) %>% 
-#   clean_names %>% 
-#   mutate(date_time = lubridate::mdy_hms(dtime)) %>% 
-#   dplyr::select(-dtime)
-# haul_dat <- read_csv(here('data', 'AlaskaKnight_202101_Spread.csv')) %>% 
-#   clean_names %>% 
-#   mutate(date_time = lubridate::mdy_hms(date_time))
-
 
 # Subset pings for only ones that are between on and off bottom time
 sor_data <- haul_dat %>% 
@@ -242,6 +250,8 @@ set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessel[[1]]),
             bind_cols(hauls = max_v2$haul[101:150], vess = vessel[[2]]),
             bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessel[[2]]))
 
+# set[99] <- list(bind_cols(hauls = max_v1$haul[1:10],    vess = vessel[[1]])) #testing set
+
 for(i in 1) #:length(set))
 {
   sor_test <- good_ping_hauls %>% 
@@ -270,15 +280,22 @@ for(j in 1:length(sor_set))
   this_vessel <- set[[current_set]]$vess[j]
   this_haul <- set[[current_set]]$hauls[j]
   
+  sor_set[[j]]$results <- sor_set[[j]]$results %>% 
+    mutate(vessel = this_vessel,
+           haul = this_haul)
+  
+  sor_set[[j]]$rmse <- sor_set[[j]]$rmse %>% 
+    mutate(vessel = this_vessel,
+           haul = this_haul)
+  
   write_csv(sor_set[[j]]$obs_rank %>% inner_join(sor_test), 
             here("output", "SOR_files", 
                  paste0("vessel-", this_vessel, "_haul-", this_haul, "_data.csv")))
   write_csv(sor_set[[j]]$results, here("output", "SOR_files", 
                                        paste0("vessel-", this_vessel, "_haul-", this_haul, "_results.csv")))
+  write_csv(sor_set[[j]]$rmse, here("output", "SOR_files", 
+                                       paste0("vessel-", this_vessel, "_haul-", this_haul, "_rmse.csv")))
 }
-
-
-
 
 # following loop version also breaks RStudio...?
 
@@ -322,51 +339,59 @@ for(j in 1:length(sor_set))
 # if you need to run in chunks and read in .csvs:
 sor_data <- 
   list.files(pattern = "*data.csv",
-             path = here("output", "SOR_files")) %>% 
-  map_df(~read_csv(.))
+             path = here("output", "SOR_files"),
+             full.names = T) %>% 
+  map_df(~read_csv(.)) %>% 
+  mutate(vessel_haul = as.integer(paste0(vessel, haul)))
 
 sor_results <- 
   list.files(pattern = "*results.csv",
-             path = ) %>% 
-  map_df(~read_csv(.))
+             path = here("output", "SOR_files"),
+             full.names = T ) %>% 
+  map_df(~read_csv(.)) %>% 
+  mutate(vessel_haul = as.integer(paste0(vessel, haul)))
 
-# get mean SOR ------------------------------------------------------------
+sor_rmse <- 
+  list.files(pattern = "*rmse.csv",
+             path = here("output", "SOR_files"),
+             full.names = T ) %>% 
+  map_df(~read_csv(.)) %>% 
+  mutate(vessel_haul = as.integer(paste0(vessel, haul)))
 
-sor_v1_dat <- list()
-sor_v1_data <- tibble() 
-sor_res <- list()
-sor_v1_results <- tibble()
-for(i in 1:length(sor_vessel1))
+# CIA: need to replace sor_vessel1[[]] below with data/results read in
+
+# get SOR plots ------------------------------------------------------------
+
+# sor_data
+# sor_results
+# sor_rmse
+
+for(i in unique(sor_data$vessel_haul))
 {
-  sor_v1_dat[[i]] <- sor_vessel1[[i]]$obs_rank %>% inner_join(sor_test)
-  sor_v1_data <- sor_v1_data %>% bind_rows(sor_v1_dat[[i]])
-  sor_res[[i]] <- bind_cols(sor_vessel1[[i]]$results, vessel = unique(sor_v1_dat[[i]]$vessel), haul = unique(sor_v1_dat[[i]]$haul))
-  sor_v1_results <- sor_v1_results %>% bind_rows(sor_res[[i]])
+  data_sub <- sor_data %>% dplyr::filter(vessel_haul == i)
+  results_sub <- sor_results %>% dplyr::filter(vessel_haul == i)
+  rmse_sub <- sor_rmse %>% dplyr::filter(vessel_haul == i)
   
   # pings
-  not_rejected <- sor_v1_dat[[i]] %>% dplyr::filter(is.na(SOR_RANK))
-  rejected <- sor_v1_dat[[i]] %>% dplyr::filter(!is.na(SOR_RANK))
+  not_rejected <- data_sub %>% dplyr::filter(is.na(SOR_RANK))
+  rejected <- data_sub %>% dplyr::filter(!is.na(SOR_RANK))
   
   # initial data
-  # plot(x = sor_v1_dat[[i]]$date_time, sor_v1_dat[[i]]$measurement_value,
-  #      ylim = c(10, 22), main = "original")
-  p_init <- sor_v1_dat[[i]] %>%
+  p_init <- data_sub %>%
     ggplot()+
     geom_point(aes(x = date_time, y = measurement_value), shape = 1, size = 2.5) +
     scale_y_continuous(limits=c(10, 22), expand = c(0, 0)) +
     theme_bw() +
     labs(x = "time", y = "spread", title = "Before SOR",
-         subtitle = paste("Vessel", unique(sor_v1_dat[[i]]$vessel), "Haul", unique(sor_v1_dat[[i]]$haul)))
+         subtitle = paste("Vessel", unique(data_sub$vessel), "Haul", unique(data_sub$haul)))
   # after sor
-  # plot(x = not_rejected$date_time, not_rejected$measurement_value,
-  #      ylim = c(10,22), main = "after sor")
   p_post <- not_rejected %>%
     ggplot()+
     geom_point(aes(x = date_time, y = measurement_value), shape = 1, size = 2.5) +
     scale_y_continuous(limits=c(10, 22), expand = c(0, 0)) +
     theme_bw() +
     labs(x = "time", y = "spread", title = "After SOR",
-         subtitle = paste("Vessel", unique(sor_v1_dat[[i]]$vessel), "Haul", unique(sor_v1_dat[[i]]$haul)))
+         subtitle = paste("Vessel", unique(data_sub$vessel), "Haul", unique(data_sub$haul)))
   
   p_both <- ggplot()+
     geom_point(data = not_rejected, aes(x = date_time, y = measurement_value), shape = 16, size = 2.5, alpha = 0.35) +
@@ -374,19 +399,18 @@ for(i in 1:length(sor_vessel1))
     scale_y_continuous(limits=c(10, 22), expand = c(0, 0)) +
     theme_bw() +
     labs(x = "time", y = "spread", title = "All pings (red = rejected by SOR)",
-         subtitle = paste("Vessel", unique(sor_v1_dat[[i]]$vessel), "Haul", unique(sor_v1_dat[[i]]$haul)))
-    
+         subtitle = paste("Vessel", unique(data_sub$vessel), "Haul", unique(data_sub$haul)))
+  
   # rmse
-  # plot(x = sor_vessel1[[i]]$rmse$N, y = sor_vessel1[[i]]$rmse$RMSE, main = "RMSE")
-  p_rmse <- sor_vessel1[[i]]$rmse %>%
+  p_rmse <- rmse_sub %>%
     ggplot()+
     geom_point(aes(x = N, y = RMSE), shape = 17, size = 2.5) +
     theme_bw() +
     labs(x = "iteration number", y = "rmse", title = "RMSE",
-         subtitle = paste("Vessel", unique(sor_v1_dat[[i]]$vessel), "Haul", unique(sor_v1_dat[[i]]$haul)))
- p_full <- plot_grid(p_init, p_post, p_both, p_rmse) # blank plot:, ggplot() + theme_bw() + theme(panel.border = element_blank()))
- ggsave(p_full, filename = paste0("vessel-", unique(sor_v1_dat[[i]]$vessel), "_haul-", unique(sor_v1_dat[[i]]$haul), "_sor_plot.png"),
-        path = here("output", "SOR_graphics"), width = 10, height = 6)
+         subtitle = paste("Vessel", unique(rmse_sub$vessel), "Haul", unique(rmse_sub$haul)))
+  p_full <- plot_grid(p_init, p_post, p_both, p_rmse) # blank plot:, ggplot() + theme_bw() + theme(panel.border = element_blank()))
+  ggsave(p_full, filename = paste0("vessel-", unique(data_sub$vessel), "_haul-", unique(data_sub$haul), "_sor_plot.png"),
+         path = here("output", "SOR_graphics"), width = 10, height = 6)
 }
 
 # reject SOR --------------------------------------------------------------
@@ -394,7 +418,7 @@ for(i in 1:length(sor_vessel1))
 # no pings or very few; fewer than 50 pings cutoff after SOR
 # # if all pings are clustered in one time period of the tow, rather than spread across the whole time period
 
-review_hauls <- sor_v1_results %>% 
+review_hauls <- sor_results %>% 
   mutate(process = "SOR") %>% 
   dplyr::filter(n_pings <= 50) %>% 
   full_join(flag_pings) %>% 
@@ -407,7 +431,7 @@ review_hauls_final <- review_hauls
 # Note: this is for EBS- does GOA have diff correction?
 # Converting to Netmind: netmind spread = 0.935684155 * mean marport spread (after sequential outlier rejection) + 0.400465037
 
-net_spread <- sor_v1_results %>% 
+net_spread <- sor_results %>% 
   mutate(mean_spread_corr = 0.935684155 * mean + 0.400465037)
 
 # missing data ------------------------------------------------------------
@@ -448,7 +472,7 @@ all_height_corr <- height_dat %>%
 # Predict: missing spreads (anything that didn't go through SOR) -- flag_pings
 #  # 2017 tech memo (note inverse scope = 1/wire out)
 
-input_glm <- sor_v1_results %>% #add wire out and inv scope, and net height
+input_glm <- sor_results %>% #add wire out and inv scope, and net height
   left_join(all_height_corr) %>% 
   drop_na(mean, invscope, edit_net_height)
 
