@@ -249,20 +249,20 @@ flag_ping_hauls <- final_pings %>%
 # sor_test <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[1]], haul %in% unique(good_ping_hauls$haul)[1:10])
 
 # section method when more stremlined version break rstudio
-max_v1 <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[1]]) %>% distinct(haul) #%>% dim()
-max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[2]]) %>% distinct(haul) #%>% dim()
+max_v1 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[1]]) %>% distinct(haul) #%>% dim()
+max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[2]]) %>% distinct(haul) %>% arrange() #%>% dim()
 
-set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessel[[1]]),
-            bind_cols(hauls = max_v1$haul[51:100],  vess = vessel[[1]]),
-            bind_cols(hauls = max_v1$haul[101:150], vess = vessel[[1]]),
-            bind_cols(hauls = max_v1$haul[151:max(max_v1$haul)],   vess = vessel[[1]]),
-            bind_cols(hauls = max_v2$haul[1:50],    vess = vessel[[2]]),
-            bind_cols(hauls = max_v2$haul[51:100],  vess = vessel[[2]]),
-            bind_cols(hauls = max_v2$haul[101:150], vess = vessel[[2]]),
-            bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessel[[2]]))
+set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessels[[1]]),                   #1
+            bind_cols(hauls = max_v1$haul[51:100],  vess = vessels[[1]]),                   #2
+            bind_cols(hauls = max_v1$haul[101:150], vess = vessels[[1]]),                   #3
+            bind_cols(hauls = max_v1$haul[151:max(max_v1$haul)],  vess = vessels[[1]]),     #4
+            bind_cols(hauls = max_v2$haul[1:50],    vess = vessels[[2]]),                   #5
+            bind_cols(hauls = max_v2$haul[51:100],  vess = vessels[[2]]),                   #6
+            bind_cols(hauls = max_v2$haul[101:150], vess = vessels[[2]]),                   #7
+            bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessels[[2]]))   #8
 
 # set[99] <- list(bind_cols(hauls = max_v1$haul[1:10],    vess = vessel[[1]])) #testing set
-set[99] <- list(bind_cols(hauls = max_v1$haul[111:150],    vess = vessel[[1]])) 
+set[99] <- list(bind_cols(hauls = c(117, 118, 145, 163, 165, 167, 169, 172),    vess = vessels[[2]])) 
 #  this set 1x, 2x, 3x, 4
 for(i in 99) #:length(set))
 {
@@ -493,6 +493,7 @@ all_height_corr <- height_dat %>%
 
 input_glm <- net_spread %>% #add wire out and inv scope, and net height
   left_join(all_height_corr) %>% 
+  dplyr::filter(n_pings >= 50) %>% # drop hauls that have fewer than 50 pings- not enough data to get good estimates
   drop_na(mean_spread_corr, invscope, edit_net_height) %>% 
   mutate(net_spread_method = 7)
 
@@ -503,8 +504,16 @@ summary(fill_width)
 # confint(fill_width)
 summary(fill_width)$coefficients
 
-fill_glm <- flag_pings %>% 
+new_flag_pings <- net_spread %>% #some n_pings may have dropped below 50 after SOR
+  dplyr::filter(n_pings < 50) %>% 
+  mutate(cruise = cruise) %>% 
+  dplyr::select(cruise, vessel, haul, n_pings) %>% 
+  full_join(flag_pings %>% dplyr::select(-n_pings)) %>% 
+  arrange(vessel, haul) 
+
+fill_glm <- new_flag_pings %>% 
   left_join(all_height_corr)
+  
 
 predict_missing <- stats::predict.glm(object = fill_width, newdata = fill_glm)
 
@@ -578,7 +587,18 @@ race_data_edit_hauls <- final_filled_in %>%
                 WIRE_OUT_METHOD,
                 EDIT_WIRE_OUT_FM,
                 EDIT_WIRE_OUT_UNITS_FM,
-                INVSCOPE)
+                INVSCOPE) %>%   
+  mutate(across(everything(), as.character))
+
+# convert NA to blanks for Oracle
+race_data_edit_hauls[is.na(race_data_edit_hauls)] <- ""                     # Replace NA with blank
+race_data_edit_hauls
+
+write_csv(race_data_edit_hauls, file = here("output", "race_data_edit_hauls_table.csv"))
+
+write_csv(sor_results, file = here("output", "sor_results_all.csv"))
+
+# final data check section ------------------------------------------------
 
 # compare to orig dat
 edit_hauls_table_raw
@@ -594,8 +614,9 @@ dupes <- final_filled_in %>%
   arrange(cruise_id, haul)
 final_filled_in %>% 
   dplyr::filter(haul %in% dupes$haul & cruise_id %in% dupes$cruise_id) %>% 
-  arrange(cruise_id, haul) %>% View()
+  arrange(cruise_id, haul) #%>% View()
 
-write_csv(race_data_edit_hauls, file = here("output", "race_data_edit_hauls_table.csv"))
+# fill_glm %>% dplyr::filter(vessel == 94, haul == 51)
+# input_glm %>% dplyr::filter(vessel == 94, haul == 51)
 
-write_csv(sor_results, file = here("output", "sor_results_all.csv"))
+
