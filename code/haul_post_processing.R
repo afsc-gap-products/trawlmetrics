@@ -409,10 +409,15 @@ for(i in unique(sor_data$vessel_haul))
   p_both <- ggplot()+
     geom_point(data = not_rejected, aes(x = date_time, y = measurement_value), shape = 16, size = 2.5, alpha = 0.35) +
     geom_point(data = rejected, aes(x = date_time, y = measurement_value), shape = 16, size = 2.5, col = "red", alpha = 0.5) +
+    geom_hline(data = results_sub, aes(yintercept=mean), col = "blue", cex = 1) +
     scale_y_continuous(limits=c(10, 22), expand = c(0, 0)) +
     theme_bw() +
-    labs(x = "time", y = "spread", title = "All pings (red = rejected by SOR)",
-         subtitle = paste("Vessel", unique(data_sub$vessel), "Haul", unique(data_sub$haul)))
+    theme(plot.caption = element_text(hjust = 0)) +
+    labs(x = "time", y = "spread", title = "All pings ",
+         subtitle = paste(#"Vessel", unique(data_sub$vessel), "Haul", unique(data_sub$haul), 
+                          "n_pings =",results_sub$n_pings, " mean = ", round(results_sub$mean, 2), 
+                          " sd =", round(results_sub$sd, 2)),
+         caption = "red = rejected by SOR, blue = mean")
   
   # rmse
   p_rmse <- rmse_sub %>%
@@ -420,7 +425,7 @@ for(i in unique(sor_data$vessel_haul))
     geom_point(aes(x = N, y = RMSE), shape = 17, size = 2.5) +
     theme_bw() +
     labs(x = "iteration number", y = "rmse", title = "RMSE",
-         subtitle = paste("Vessel", unique(rmse_sub$vessel), "Haul", unique(rmse_sub$haul)))
+         subtitle = paste()) #"Vessel", unique(rmse_sub$vessel), "Haul", unique(rmse_sub$haul)))
   p_full <- plot_grid(p_init, p_post, p_both, p_rmse) # blank plot:, ggplot() + theme_bw() + theme(panel.border = element_blank()))
   ggsave(p_full, filename = paste0("vessel-", unique(data_sub$vessel), "_haul-", unique(data_sub$haul), "_sor_plot.png"),
          path = here("output", "SOR_graphics"), width = 10, height = 6)
@@ -528,9 +533,12 @@ final_filled_in <- bind_cols(mean_spread_corr = predict_missing, fill_glm) %>%
   mutate(net_spread_method = 4) %>%
   full_join(old_sd_missing_spread) %>% 
   bind_rows(input_glm) %>% 
+  mutate(n_pings2 = if_else(is.na(n_pings), 0, n_pings)) %>%
+  mutate(net_height_pings = if_else(is.na(net_height_pings), 0, net_height_pings)) %>%
   rename(edit_net_spread = mean_spread_corr,
-         net_spread_pings = n_pings,
+         net_spread_pings = n_pings2,
          net_spread_standard_deviation = sd)
+  
 
 # export corrected haul data ----------------------------------------------
 
@@ -598,6 +606,8 @@ write_csv(race_data_edit_hauls, file = here("output", "race_data_edit_hauls_tabl
 
 write_csv(sor_results, file = here("output", "sor_results_all.csv"))
 
+write_csv(fill_glm,  file = here("output", "replace_net_spread.csv"))
+
 # final data check section ------------------------------------------------
 
 # compare to orig dat
@@ -619,4 +629,6 @@ final_filled_in %>%
 # fill_glm %>% dplyr::filter(vessel == 94, haul == 51)
 # input_glm %>% dplyr::filter(vessel == 94, haul == 51)
 
-
+edit_hauls_table_raw %>% distinct(edit_net_height_units)
+edit_hauls_table_raw %>% distinct(edit_net_spread_units)
+edit_hauls_table_raw %>% dplyr::filter(cruise_id == 755, haul == 129) %>% dplyr::select(net_height_standard_deviation)
