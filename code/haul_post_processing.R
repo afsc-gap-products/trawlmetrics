@@ -20,12 +20,22 @@ purrr::walk(functions, ~ source(here::here("functions", .x)))
 
 # USER SPECIFIED
 # annual cruise_id
-cruise <- c(202201) #202201
+
+# 22 NBS
+cruise <- c(202202) #
 # cruise id num 726 = vessel 94; cruise id 756 = vessel 162
-cruise_idnum <- c(755, 756) # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
+cruise_idnum <- c(757, 758) # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
 vessel <- c(94, 162)
 vessels <- c(94, 162)
 region <- "BS"
+
+# 22 EBS
+# cruise <- c(202201) #202201
+# # cruise id num 726 = vessel 94; cruise id 756 = vessel 162
+# cruise_idnum <- c(755, 756) # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
+# vessel <- c(94, 162)
+# vessels <- c(94, 162)
+# region <- "BS"
 
 # 21 comparison
 # cruise <- c(202101) #202201
@@ -36,7 +46,7 @@ region <- "BS"
 # region <- "BS"
 
 # for troublshooting problem data:
-skip_haul <-  c()
+skip_haul <-  c() #change to hauljoins?
 skip_vessel <- c()
 
 # connect to oracle -------------------------------------------------------
@@ -57,7 +67,7 @@ odbcGetInfo(channel)
 # check cruise id num
 query_command <- paste0(" select * from race_data.v_cruises where year = 2021 and survey_definition_id = 98;") # 98 = BS survey ; NBS = 143 #(", cruise,") and region = '", region, "';")
 cruise_id_info <- sqlQuery(channel, query_command)
-
+# CIA: fix
 
 query_command <- paste0(" select * from race_data.v_extract_edit_sgp where cruise in (", cruise,") and region = '", region, "';")
 edit_sgp <- sqlQuery(channel, query_command)
@@ -80,7 +90,7 @@ write_csv(edit_sgp, path = here("output" ,"test_edit_sgp.csv"))
 write_csv(edit_sgt, path = here("output" ,"test_edit_sgt.csv"))
 write_csv(edit_height, path = here("output" ,"test_edit_height.csv"))
 
-# in case you need to save a nd read in data
+# in case you need to save and read in data
 edit_sgp <- read_csv(here("output" ,"test_edit_sgp.csv"))
 edit_sgt <- read_csv(here("output" ,"test_edit_sgt.csv"))
 edit_height <- read_csv(here("output" ,"test_edit_height.csv"))
@@ -248,6 +258,15 @@ flag_ping_hauls <- final_pings %>%
 # test
 # sor_test <- good_ping_hauls %>% dplyr::filter(vessel == vessel[[1]], haul %in% unique(good_ping_hauls$haul)[1:10])
 
+# NOTES: I'm sorry this is clunky.
+# Running all hauls though SOR at once crashes RStudio. So, in the for loop:
+#  for(i in #) you need to fill in the set number for sets 1 to 8 to run in chunks
+#  run this for loop, then run the following loop: for(j in 1:length(sor_set))
+#   to save everything. 
+# I find the SOR runs faster if you go Session -> Restart R at this point before 
+#   running the next i iteration (just make sure you've run the j loop and saved everything first!).
+
+
 # section method when more stremlined version break rstudio
 max_v1 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[1]]) %>% distinct(haul) #%>% dim()
 max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[2]]) %>% distinct(haul) %>% arrange() #%>% dim()
@@ -262,7 +281,7 @@ set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessels[[1]]),       
             bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessels[[2]]))   #8
 
 # set[99] <- list(bind_cols(hauls = max_v1$haul[1:10],    vess = vessel[[1]])) #testing set
-set[99] <- list(bind_cols(hauls = c(117, 118, 145, 163, 165, 167, 169, 172),    vess = vessels[[2]])) 
+# set[99] <- list(bind_cols(hauls = c(117, 118, 145, 163, 165, 167, 169, 172),    vess = vessels[[2]])) 
 #  this set 1x, 2x, 3x, 4
 for(i in 99) #:length(set))
 {
@@ -275,7 +294,7 @@ for(i in 99) #:length(set))
     group_by(vessel, haul) %>% 
     # as.data.frame() %>% 
     dplyr::group_map(~sequentialOR(data = .x, #as.data.frame(good_ping_hauls), 
-                                   method = 'ss', 
+                                   method = 'ss', #smooth spline
                                    # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var 
                                    formula = measurement_value ~ date_time,
                                    n.reject = 1, n.stop = 0.5, threshold.stop = TRUE, 
@@ -388,6 +407,8 @@ for(i in unique(sor_data$vessel_haul))
   # pings
   not_rejected <- data_sub %>% dplyr::filter(is.na(SOR_RANK))
   rejected <- data_sub %>% dplyr::filter(!is.na(SOR_RANK))
+  
+  # CIA: add n pings, mean, sd info to before and after plots
   
   # initial data
   p_init <- data_sub %>%
@@ -519,7 +540,6 @@ new_flag_pings <- net_spread %>% #some n_pings may have dropped below 50 after S
 fill_glm <- new_flag_pings %>% 
   left_join(all_height_corr)
   
-
 predict_missing <- stats::predict.glm(object = fill_width, newdata = fill_glm)
 
 #CIA: I don't like this! We are putting in the SD of the original pings, but not using those pings in any way to get the mean for this haul
@@ -586,16 +606,17 @@ race_data_edit_hauls <- final_filled_in %>%
                 NET_SPREAD_METHOD,
                 NET_SPREAD_STANDARD_DEVIATION,
                 EDIT_NET_HEIGHT,
-                EDIT_NET_HEIGHT_UNITS,
+                # EDIT_NET_HEIGHT_UNITS,
                 NET_HEIGHT_METHOD,
                 NET_HEIGHT_PINGS,
-                NET_HEIGHT_STANDARD_DEVIATION,
-                EDIT_WIRE_OUT,
-                EDIT_WIRE_OUT_UNITS,
-                WIRE_OUT_METHOD,
-                EDIT_WIRE_OUT_FM,
-                EDIT_WIRE_OUT_UNITS_FM,
-                INVSCOPE) %>%   
+                NET_HEIGHT_STANDARD_DEVIATION
+                # EDIT_WIRE_OUT,
+                # EDIT_WIRE_OUT_UNITS,
+                # WIRE_OUT_METHOD,
+                # EDIT_WIRE_OUT_FM,
+                # EDIT_WIRE_OUT_UNITS_FM,
+                # INVSCOPE
+                ) %>%   
   mutate(across(everything(), as.character))
 
 # convert NA to blanks for Oracle
