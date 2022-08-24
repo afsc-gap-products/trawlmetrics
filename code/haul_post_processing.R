@@ -93,13 +93,13 @@ edit_height <- sqlQuery(channel, query_command)
 # this is also the raw RACE_DATA:EDIT_HAULS table for updating at the end
 
 write_csv(edit_sgp, path = here("output" , paste0(survey,"_test_edit_sgp.csv")))
-write_csv(edit_sgt, path = here("output", paste0(survey,"test_edit_sgt.csv")))
-write_csv(edit_height, path = here("output" , paste0(survey, "test_edit_height.csv")))
+write_csv(edit_sgt, path = here("output", paste0(survey,"_test_edit_sgt.csv")))
+write_csv(edit_height, path = here("output" , paste0(survey, "_test_edit_height.csv")))
 
 # in case you need to save and read in data
-edit_sgp <- read_csv(here("output" , paste0(survey, "test_edit_sgp.csv")))
-edit_sgt <- read_csv(here("output" , paste0(survey, "test_edit_sgt.csv")))
-edit_height <- read_csv(here("output" , paste0(survey, "test_edit_height.csv")))
+edit_sgp <- read_csv(here("output" , paste0(survey, "_test_edit_sgp.csv")))
+edit_sgt <- read_csv(here("output" , paste0(survey, "_test_edit_sgt.csv")))
+edit_height <- read_csv(here("output" , paste0(survey, "_test_edit_height.csv")))
 
 # data cleaning -----------------------------------------------------------
 
@@ -634,8 +634,10 @@ race_data_edit_hauls <- final_filled_in %>%
 race_data_edit_hauls[is.na(race_data_edit_hauls)] <- ""                     # Replace NA with blank
 race_data_edit_hauls
 
+# FINAL FILE FOR ORACLE:
 write_csv(race_data_edit_hauls, file = here("output", "race_data_edit_hauls_table.csv"))
 
+# save some extra stuff
 write_csv(sor_results, file = here("output", "sor_results_all.csv"))
 
 write_csv(fill_glm,  file = here("output", "replace_net_spread.csv"))
