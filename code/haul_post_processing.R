@@ -16,6 +16,11 @@ functions <- list.files(here::here("functions"))
 purrr::walk(functions, ~ source(here::here("functions", .x)))
 
 
+# folders -----------------------------------------------------------------
+
+dir.create(here::here("output"), showWarnings = F)
+dir.create(here::here("output", "SOR_files"), showWarnings = F)
+
 # annually-dependent fixed values -----------------------------------------
 
 # USER SPECIFIED
@@ -28,6 +33,7 @@ cruise_idnum <- c(757, 758) # make sure cruise id num 1 = vessel 1 and cruise id
 vessel <- c(94, 162)
 vessels <- c(94, 162)
 region <- "BS"
+survey <- "NBS_2022"
 
 # 22 EBS
 # cruise <- c(202201) #202201
@@ -86,14 +92,14 @@ query_command <- paste0(" select * from race_data.edit_hauls where cruise_id in 
 edit_height <- sqlQuery(channel, query_command)
 # this is also the raw RACE_DATA:EDIT_HAULS table for updating at the end
 
-write_csv(edit_sgp, path = here("output" ,"test_edit_sgp.csv"))
-write_csv(edit_sgt, path = here("output" ,"test_edit_sgt.csv"))
-write_csv(edit_height, path = here("output" ,"test_edit_height.csv"))
+write_csv(edit_sgp, path = here("output" , paste0(survey,"_test_edit_sgp.csv")))
+write_csv(edit_sgt, path = here("output", paste0(survey,"test_edit_sgt.csv")))
+write_csv(edit_height, path = here("output" , paste0(survey, "test_edit_height.csv")))
 
 # in case you need to save and read in data
-edit_sgp <- read_csv(here("output" ,"test_edit_sgp.csv"))
-edit_sgt <- read_csv(here("output" ,"test_edit_sgt.csv"))
-edit_height <- read_csv(here("output" ,"test_edit_height.csv"))
+edit_sgp <- read_csv(here("output" , paste0(survey, "test_edit_sgp.csv")))
+edit_sgt <- read_csv(here("output" , paste0(survey, "test_edit_sgt.csv")))
+edit_height <- read_csv(here("output" , paste0(survey, "test_edit_height.csv")))
 
 # data cleaning -----------------------------------------------------------
 
@@ -280,10 +286,15 @@ set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessels[[1]]),       
             bind_cols(hauls = max_v2$haul[101:150], vess = vessels[[2]]),                   #7
             bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessels[[2]]))   #8
 
+set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessels[[1]]),                    #1
+            bind_cols(hauls = max_v1$haul[51:max(max_v1$haul)],    vess = vessels[[1]]),     #2
+            bind_cols(hauls = max_v2$haul[1:50],    vess = vessels[[2]]),                    #3
+            bind_cols(hauls = max_v2$haul[51:max(max_v2$haul)],    vess = vessels[[2]]))     #4
+
 # set[99] <- list(bind_cols(hauls = max_v1$haul[1:10],    vess = vessel[[1]])) #testing set
 # set[99] <- list(bind_cols(hauls = c(117, 118, 145, 163, 165, 167, 169, 172),    vess = vessels[[2]])) 
 #  this set 1x, 2x, 3x, 4
-for(i in 99) #:length(set))
+for(i in 1) #:length(set))
 {
   sor_test <- good_ping_hauls %>% 
     dplyr::filter(vessel == unique(set[[i]]$vess), haul %in% set[[i]]$hauls)
