@@ -19,6 +19,9 @@
 
 sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, threshold.stop = NULL, tail = "both", plot = T, progress.plot = F,  ...) {
 
+  vess <- unique(data$vessel)
+  hauln <- unique(data$haul)
+  
   tail <- tolower(tail)
   method <- tolower(method)
 
@@ -133,7 +136,8 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
 
   return(list(results = results_row,
               obs_rank = data,
-              rmse = data.frame(N = NN, RMSE = RMSE )))
+              rmse = data.frame(N = NN, RMSE = RMSE),
+              info = c(vessel = vess, haul = hauln)))
   # return(results_row)
 
 }

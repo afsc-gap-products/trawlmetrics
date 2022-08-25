@@ -19,7 +19,8 @@ purrr::walk(functions, ~ source(here::here("functions", .x)))
 # folders -----------------------------------------------------------------
 
 dir.create(here::here("output"), showWarnings = F)
-dir.create(here::here("output", "SOR_files"), showWarnings = F)
+dir.create(here::here("output", paste0("SOR_files_", survey)), showWarnings = F)
+dir.create(here::here("output", paste0("SOR_graphics_", survey)), showWarnings = F)
 
 # annually-dependent fixed values -----------------------------------------
 
@@ -274,27 +275,27 @@ flag_ping_hauls <- final_pings %>%
 
 
 # section method when more stremlined version break rstudio
-max_v1 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[1]]) %>% distinct(haul) #%>% dim()
-max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[2]]) %>% distinct(haul) %>% arrange() #%>% dim()
+max_v1 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[1]]) %>% distinct(haul) %>% arrange(haul)#%>% dim()
+max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[2]]) %>% distinct(haul) %>% arrange(haul) #%>% dim()# max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[2]]) %>% distinct(haul) %>% arrange(haul) #%>% dim()# max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[2]]) %>% distinct(haul) %>% arrange(haul) #%>% dim()# max_v2 <- good_ping_hauls %>% dplyr::filter(vessel == vessels[[2]]) %>% distinct(haul) %>% arrange(haul) #%>% dim()
 
-set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessels[[1]]),                   #1
-            bind_cols(hauls = max_v1$haul[51:100],  vess = vessels[[1]]),                   #2
-            bind_cols(hauls = max_v1$haul[101:150], vess = vessels[[1]]),                   #3
-            bind_cols(hauls = max_v1$haul[151:max(max_v1$haul)],  vess = vessels[[1]]),     #4
-            bind_cols(hauls = max_v2$haul[1:50],    vess = vessels[[2]]),                   #5
-            bind_cols(hauls = max_v2$haul[51:100],  vess = vessels[[2]]),                   #6
-            bind_cols(hauls = max_v2$haul[101:150], vess = vessels[[2]]),                   #7
-            bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessels[[2]]))   #8
+# set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessels[[1]]),                   #1
+#             bind_cols(hauls = max_v1$haul[51:100],  vess = vessels[[1]]),                   #2
+#             bind_cols(hauls = max_v1$haul[101:150], vess = vessels[[1]]),                   #3
+#             bind_cols(hauls = max_v1$haul[151:max(max_v1$haul)],  vess = vessels[[1]]),     #4
+#             bind_cols(hauls = max_v2$haul[1:50],    vess = vessels[[2]]),                   #5
+#             bind_cols(hauls = max_v2$haul[51:100],  vess = vessels[[2]]),                   #6
+#             bind_cols(hauls = max_v2$haul[101:150], vess = vessels[[2]]),                   #7
+#             bind_cols(hauls = max_v2$haul[151: max(max_v2$haul)],   vess = vessels[[2]]))   #8
 
 set <- list(bind_cols(hauls = max_v1$haul[1:50],    vess = vessels[[1]]),                    #1
             bind_cols(hauls = max_v1$haul[51:max(max_v1$haul)],    vess = vessels[[1]]),     #2
             bind_cols(hauls = max_v2$haul[1:50],    vess = vessels[[2]]),                    #3
             bind_cols(hauls = max_v2$haul[51:max(max_v2$haul)],    vess = vessels[[2]]))     #4
 
-# set[99] <- list(bind_cols(hauls = max_v1$haul[1:10],    vess = vessel[[1]])) #testing set
+# set[99] <- list(bind_cols(hauls = max_v2$haul[1:3],    vess = vessel[[2]])) #testing set
 # set[99] <- list(bind_cols(hauls = c(117, 118, 145, 163, 165, 167, 169, 172),    vess = vessels[[2]])) 
 #  this set 1x, 2x, 3x, 4
-for(i in 1) #:length(set))
+for(i in 4) #:length(set))
 {
   sor_test <- good_ping_hauls %>% 
     dplyr::filter(vessel == unique(set[[i]]$vess), haul %in% set[[i]]$hauls)
@@ -319,8 +320,15 @@ for(i in 1) #:length(set))
 
 for(j in 1:length(sor_set))
 {
-  this_vessel <- set[[current_set]]$vess[j]
-  this_haul <- set[[current_set]]$hauls[j]
+  # this_vessel <- set[[current_set]]$vess[j]
+  # this_haul <- set[[current_set]]$hauls[j]
+  
+  get_vess_haul <- sor_set[[j]]$obs_rank %>% inner_join(sor_test) %>% 
+    dplyr::select(vessel, haul) %>% 
+    distinct()
+  
+  this_vessel <- get_vess_haul$vessel
+  this_haul <- get_vess_haul$haul
   
   sor_set[[j]]$results <- sor_set[[j]]$results %>% 
     mutate(vessel = this_vessel,
@@ -331,11 +339,11 @@ for(j in 1:length(sor_set))
            haul = this_haul)
   
   write_csv(sor_set[[j]]$obs_rank %>% inner_join(sor_test), 
-            here("output", "SOR_files", 
+            here("output", paste0("SOR_files_", survey), 
                  paste0("vessel-", this_vessel, "_haul-", this_haul, "_data.csv")))
-  write_csv(sor_set[[j]]$results, here("output", "SOR_files", 
+  write_csv(sor_set[[j]]$results, here("output", paste0("SOR_files_", survey), 
                                        paste0("vessel-", this_vessel, "_haul-", this_haul, "_results.csv")))
-  write_csv(sor_set[[j]]$rmse, here("output", "SOR_files", 
+  write_csv(sor_set[[j]]$rmse, here("output", paste0("SOR_files_", survey), 
                                        paste0("vessel-", this_vessel, "_haul-", this_haul, "_rmse.csv")))
 }
 
@@ -381,7 +389,7 @@ for(j in 1:length(sor_set))
 # if you need to run in chunks and read in .csvs:
 sor_data <- 
   list.files(pattern = "*data.csv",
-             path = here("output", "SOR_files"),
+             path = here("output", paste0("SOR_files_", survey)),
              full.names = T) %>% 
   map_df(~read_csv(.)) %>% 
   mutate(vessel_haul = as.integer(paste0(vessel, haul)))
@@ -389,14 +397,14 @@ sor_data <-
 # sd(sor_data$measurement_value)
 sor_results <- 
   list.files(pattern = "*results.csv",
-             path = here("output", "SOR_files"),
+             path = here("output", paste0("SOR_files_", survey)),
              full.names = T ) %>% 
   map_df(~read_csv(.)) %>% 
   mutate(vessel_haul = as.integer(paste0(vessel, haul)))
 
 sor_rmse <- 
   list.files(pattern = "*rmse.csv",
-             path = here("output", "SOR_files"),
+             path = here("output", paste0("SOR_files_", survey)),
              full.names = T ) %>% 
   map_df(~read_csv(.)) %>% 
   mutate(vessel_haul = as.integer(paste0(vessel, haul)))
@@ -460,7 +468,7 @@ for(i in unique(sor_data$vessel_haul))
          subtitle = paste()) #"Vessel", unique(rmse_sub$vessel), "Haul", unique(rmse_sub$haul)))
   p_full <- plot_grid(p_init, p_post, p_both, p_rmse) # blank plot:, ggplot() + theme_bw() + theme(panel.border = element_blank()))
   ggsave(p_full, filename = paste0("vessel-", unique(data_sub$vessel), "_haul-", unique(data_sub$haul), "_sor_plot.png"),
-         path = here("output", "SOR_graphics"), width = 10, height = 6)
+         path = here("output", paste0("SOR_graphics_", survey)), width = 10, height = 6)
 }
 
 # reject SOR --------------------------------------------------------------
@@ -635,12 +643,12 @@ race_data_edit_hauls[is.na(race_data_edit_hauls)] <- ""                     # Re
 race_data_edit_hauls
 
 # FINAL FILE FOR ORACLE:
-write_csv(race_data_edit_hauls, file = here("output", "race_data_edit_hauls_table.csv"))
+write_csv(race_data_edit_hauls, file = here("output", paste0("race_data_edit_hauls_table_", survey, ".csv")))
 
 # save some extra stuff
-write_csv(sor_results, file = here("output", "sor_results_all.csv"))
+write_csv(sor_results, file = here("output", paste0("sor_results_all_", survey, ".csv")))
 
-write_csv(fill_glm,  file = here("output", "replace_net_spread.csv"))
+write_csv(fill_glm,  file = here("output", paste0("replace_net_spread_", survey, ".csv")))
 
 # final data check section ------------------------------------------------
 
