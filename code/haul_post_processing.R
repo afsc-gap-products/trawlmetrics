@@ -674,3 +674,26 @@ final_filled_in %>%
 edit_hauls_table_raw %>% distinct(edit_net_height_units)
 edit_hauls_table_raw %>% distinct(edit_net_spread_units)
 edit_hauls_table_raw %>% dplyr::filter(cruise_id == 755, haul == 129) %>% dplyr::select(net_height_standard_deviation)
+
+# ___
+
+final_ca <- read_csv(here("output", "race_data_edit_hauls_table_NBS_2022.csv")) 
+final_ds <- read_csv(here("output", "race_data_edit_hauls_table_ds.csv"))
+
+anti_join(final_ca, final_ds)
+anti_join(final_ds, final_ca)
+
+bind_rows(anti_join(final_ca, final_ds),
+          anti_join(final_ds, final_ca)) %>% View()
+
+final_ca %>% dplyr::filter(VESSEL == 162, HAUL == 65)
+final_ds %>% dplyr::filter(VESSEL == 162, HAUL == 65)
+
+final_ca %>% dplyr::filter(VESSEL == 162, HAUL == 70)
+final_ds %>% dplyr::filter(VESSEL == 162, HAUL == 70)
+
+dup_check <- final_ds %>% dplyr::select(CRUISE_ID, HAUL) %>% duplicated()
+table(dup_check)
+
+dup_check <- final_ca %>% dplyr::select(CRUISE_ID, HAUL) %>% duplicated()
+table(dup_check)
