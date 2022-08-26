@@ -25,13 +25,12 @@ dir.create(here::here("output", paste0("SOR_graphics_", survey)), showWarnings =
 # annually-dependent fixed values -----------------------------------------
 
 # USER SPECIFIED
-# annual cruise_id
+this_user <- "AkselrudC" #your name here :)
 
 # 22 NBS
-cruise <- c(202202) #
-# cruise id num 726 = vessel 94; cruise id 756 = vessel 162
+cruise <- c(202202) # cruise number
 cruise_idnum <- c(757, 758) # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
-vessel <- c(94, 162)
+vessel <- c(94, 162) 
 vessels <- c(94, 162)
 region <- "BS"
 survey <- "NBS_2022"
@@ -640,10 +639,32 @@ race_data_edit_hauls <- final_filled_in %>%
 
 # convert NA to blanks for Oracle
 race_data_edit_hauls[is.na(race_data_edit_hauls)] <- ""                     # Replace NA with blank
-race_data_edit_hauls
+last_edit_haul <- race_data_edit_hauls %>% 
+  mutate(CREATE_DATE = Sys.time(),
+         CREATE_USER = this_user)
 
 # FINAL FILE FOR ORACLE:
 write_csv(race_data_edit_hauls, file = here("output", paste0("race_data_edit_hauls_table_", survey, ".csv")))
+
+# clear the table to start fresh
+query_command <- paste0(" DELETE FROM RACE_DATA.EDIT_HAUL_IMPORT_SOR_UPDATES WHERE CRUISE_ID IN (", cruise_idnum[1], ",", cruise_idnum[2],");") # RACE_DATA.TEST_CAITLIN #98 = BS survey ; NBS = 143 #(", cruise,") and region = '", region, "';")
+sqlQuery(channel, query_command)
+
+# saves to table (need append = TRUE because of access permissions)
+sqlSave(channel = channel, 
+        dat = data.frame(last_edit_haul), 
+        tablename = "RACE_DATA.EDIT_HAUL_IMPORT_SOR_UPDATES", # "RACE_DATA.TEST_CAITLIN", #RACE_DATA.EDIT_HAUL_IMPORT_SOR_UPDATES", 
+        append = TRUE,
+        rownames = FALSE, 
+        colnames = FALSE, 
+        verbose = FALSE,
+        safer = FALSE, 
+        addPK = FALSE, 
+        # typeInfo, 
+        # varTypes,
+        fast = TRUE, 
+        test = FALSE, 
+        nastring = NULL)
 
 # save some extra stuff
 write_csv(sor_results, file = here("output", paste0("sor_results_all_", survey, ".csv")))
@@ -684,7 +705,8 @@ anti_join(final_ca, final_ds)
 anti_join(final_ds, final_ca)
 
 bind_rows(anti_join(final_ca, final_ds),
-          anti_join(final_ds, final_ca)) %>% View()
+          anti_join(final_ds, final_ca)) %>% #View()
+  write_csv(here("output", "bridging_final_table.csv"))
 
 final_ca %>% dplyr::filter(VESSEL == 162, HAUL == 65)
 final_ds %>% dplyr::filter(VESSEL == 162, HAUL == 65)
