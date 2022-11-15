@@ -4,7 +4,6 @@
 # Created: 2022-03-04
 # Modified: 2022-03-04
 
-
 # libraries ---------------------------------------------------------------
 library(tidyverse)
 library(RODBC)
@@ -15,13 +14,6 @@ library(cowplot)
 functions <- list.files(here::here("functions"))
 purrr::walk(functions, ~ source(here::here("functions", .x)))
 
-
-# folders -----------------------------------------------------------------
-
-dir.create(here::here("output"), showWarnings = F)
-dir.create(here::here("output", paste0("SOR_files_", survey)), showWarnings = F)
-dir.create(here::here("output", paste0("SOR_graphics_", survey)), showWarnings = F)
-
 # annually-dependent fixed values -----------------------------------------
 
 # USER SPECIFIED
@@ -30,7 +22,7 @@ this_user <- "AkselrudC" #your name here :)
 # 22 NBS
 cruise <- c(202202) # cruise number
 cruise_idnum <- c(757, 758) # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
-vessel <- c(94, 162) 
+# vessel <- c(94, 162) 
 vessels <- c(94, 162)
 region <- "BS"
 survey <- "NBS_2022"
@@ -54,6 +46,12 @@ survey <- "NBS_2022"
 # for troublshooting problem data:
 skip_haul <-  c() #change to hauljoins?
 skip_vessel <- c()
+
+# folders -----------------------------------------------------------------
+
+dir.create(here::here("output"), showWarnings = F)
+dir.create(here::here("output", paste0("SOR_files_", survey)), showWarnings = F)
+dir.create(here::here("output", paste0("SOR_graphics_", survey)), showWarnings = F)
 
 # connect to oracle -------------------------------------------------------
 
