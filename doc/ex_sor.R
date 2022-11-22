@@ -1,13 +1,27 @@
 library(trawlmetrics)
 
 # 2022 NBS Alaska Knight ---------------------------------------------------------------------------
-
 cruise1 = 202202
 cruise_idnum1 = 758
 vessel1 = 162
 region1 = "NBS"
 survey1 = "NBS_2022"
 width_range1 = c(10, 22)
+
+# Copy system files for testing. Remove for actual data processing.
+dir.create(here::here("output", "NBS", 202202, 162), recursive = TRUE)
+
+sys_paths1 <- c(
+  system.file(package = "trawlmetrics", "extdata/edit_height_202202_162.rds"),
+  system.file(package = "trawlmetrics", "extdata/edit_sgp_202202_162.rds"),
+  system.file(package = "trawlmetrics", "extdata/edit_sgt_202202_162.rds")
+)
+
+file.copy(from = sys_paths1, 
+          to = gsub(pattern = system.file(package = "trawlmetrics", "extdata"),
+                    replacement = here::here("output", "NBS", 202202, 162),
+                    x = sys_paths1), 
+          overwrite = TRUE)
 
 # Retrieve haul and net mensuration data from race_data then write spread and height data from individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
 # - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
@@ -18,7 +32,9 @@ sor_setup_directory(cruise = cruise1, # cruise number
                     region = region1,
                     survey = survey1,
                     width_range = width_range1,
-                    convert_marport_to_netmind = TRUE)
+                    convert_marport_to_netmind = TRUE,
+                    skip_save_rds = FALSE # For demo/testing purposes. Change to TRUE for actual data processing.
+                    )
 
 # Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
 # Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
@@ -50,6 +66,21 @@ region2 = "NBS"
 survey2 = "NBS_2022"
 width_range2 = c(10, 22)
 
+# Copy system files for testing. Remove for actual data processing.
+dir.create(here::here("output", "NBS", 202202, 94), recursive = TRUE)
+
+sys_paths2 <- c(
+  system.file(package = "trawlmetrics", "extdata/edit_height_202202_94.rds"),
+  system.file(package = "trawlmetrics", "extdata/edit_sgp_202202_94.rds"),
+  system.file(package = "trawlmetrics", "extdata/edit_sgt_202202_94.rds")
+)
+
+file.copy(from = sys_paths2, 
+          to = gsub(pattern = system.file(package = "trawlmetrics", "extdata"),
+                    replacement = here::here("output", "NBS", 202202, 94),
+                    x = sys_paths2), 
+          overwrite = TRUE)
+
 # Retrieve haul and net mensuration data from race_data then write spread and height data from individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
 # - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
 # - Hauls: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_pings.rds
@@ -59,7 +90,9 @@ sor_setup_directory(cruise = cruise2, # cruise number
                     region = region2,
                     survey = survey2,
                     width_range = width_range2,
-                    convert_marport_to_netmind = TRUE)
+                    convert_marport_to_netmind = TRUE,
+                    skip_save_rds = FALSE # For demo/testing purposes. Change to TRUE for actual data processing.
+                    )
 
 # Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
 # Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds

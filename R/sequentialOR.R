@@ -92,7 +92,7 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
       if(max(abs(resids)) < threshold.stop) {
         RMSE <- RMSE[1:i]
         NN <- NN[1:i]
-        print(paste0("Stopping threshold reached. Stopped after iteration " , i))
+        print(paste0("sequentialOR: Stopping threshold reached. Stopped after iteration " , i))
         mean_spread <- data %>% 
           dplyr::filter(is.na(SOR_RANK)) %>% 
           summarize(n_pings = n(),

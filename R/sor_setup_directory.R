@@ -9,10 +9,11 @@
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022)
 #' @param channel Open RODBC channel. If NULL, function will prompt for user ID.
 #' @param convert_marport_to_netmind Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()? 
+#' @param skip_save_rds For testing and demo purposes. Should queried data be written to a directory.
 #' @export
 
 
-sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, channel = NULL, width_range = c(10, 22), convert_marport_to_netmind = TRUE) {
+sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, channel = NULL, width_range = c(10, 22), convert_marport_to_netmind = TRUE, skip_save_rds = FALSE) {
   
   region <- toupper(region)
   
@@ -65,17 +66,24 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
                                                    cruise_idnum, ";"))
   
   message("setup_sor_directory: Writing racebase data to rds files in ", output_dir)
-  # Save spread, height, and haul events to output_dir
-  # saveRDS(edit_sgp_df, file = paste0(here::here(output_dir, paste0(survey, "_test_edit_sgp.rds"))))
-  # saveRDS(edit_sgt_df, file = paste0(here::here(output_dir, paste0(survey, "_test_edit_sgt.rds"))))
-  # saveRDS(edit_height_df, file = paste0(here::here(output_dir, paste0(survey, "_test_edit_height.rds"))))
   
+  if(skip_save_rds) {
+    # Save spread, height, and haul events to output_dir
+    saveRDS(edit_sgp_df, file = paste0(here::here(output_dir, paste0("edit_sgp_", cruise, "_", vessel,  ".rds"))))
+    saveRDS(edit_sgt_df, file = paste0(here::here(output_dir, paste0("edit_sgt_", cruise, "_", vessel,  ".rds"))))
+    saveRDS(edit_height_df, file = paste0(here::here(output_dir, paste0("edit_height_", cruise, "_", vessel,  ".rds"))))
+  }
+    
+    
+    # Replace csv files with rds files for 2023
+    message("setup_sor_directory: Reading rds files from ", output_dir)
+    edit_sgp <- readRDS(file = paste0(here::here(output_dir, paste0("edit_sgp_", cruise, "_", vessel,  ".rds"))))
+    edit_sgt <- readRDS(file = paste0(here::here(output_dir, paste0("edit_sgt_", cruise, "_", vessel,  ".rds"))))
+    edit_height <- readRDS(file = paste0(here::here(output_dir, paste0("edit_height_", cruise, "_", vessel,  ".rds"))))
   
-  # Replace csv files with rds files for 2023
-  message("setup_sor_directory: Reading rds files from ", output_dir)
-  edit_sgp <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_sgp.csv")))
-  edit_sgt <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_sgt.csv")))
-  edit_height <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_height.csv")))
+  # edit_sgp <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_sgp.csv")))
+  # edit_sgt <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_sgt.csv")))
+  # edit_height <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_height.csv")))
   
   event_dat <- edit_sgt %>% 
     dplyr::as_tibble() %>% 
@@ -150,7 +158,7 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
       height_df <- dplyr::bind_rows(height_df, height_pings)
     }
     
-    message("setup_sor_directory: Writing ping data to ", paste0(ping_files_dir, "/pings_", paste(unique_hauls_df[jj,], collapse = "_"), ".rds"))
+    message("setup_sor_directory: Writing ping data to ", paste0(ping_files_dir, "/", paste(unique_hauls_df[jj,], collapse = "_"), "_pings.rds"))
     saveRDS(object = list(spread = spread_pings,
                           height = height_pings,
                           events = haul_events_dat,

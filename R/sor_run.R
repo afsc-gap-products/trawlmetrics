@@ -73,11 +73,15 @@ sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL) 
         )
     }
     
+    message("run_sor: Writing SOR output to ",  output_path[ii])
     saveRDS(object = sel_dat, file = output_path[ii])
   }
   
   # Write corrected mean spread to a file that can be used to estimate spread for missing data
+  
+  all_spread_path <- here::here("output", region, cruise, vessel, 
+             paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", vessel, ".rds"))
+  message("run_sor: Writing aggregated SOR spread results to ",  all_spread_path)
   saveRDS(object = mean_spread_df,
-          file = here::here("output", region, cruise, vessel, 
-                            paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", vessel, ".rds")))
+          file = all_spread_path)
 }

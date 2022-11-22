@@ -12,7 +12,8 @@ sor_setup_directory(
   survey,
   channel = NULL,
   width_range = c(10, 22),
-  convert_marport_to_netmind = TRUE
+  convert_marport_to_netmind = TRUE,
+  skip_save_rds = FALSE
 )
 }
 \arguments{
@@ -29,6 +30,8 @@ sor_setup_directory(
 \item{channel}{Open RODBC channel. If NULL, function will prompt for user ID.}
 
 \item{convert_marport_to_netmind}{Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()?}
+
+\item{skip_save_rds}{For testing and demo purposes. Should queried data be written to a directory.}
 }
 \description{
 Function to retrieve data for sequential outlier rejection from RACEBASE and split data by haul.
