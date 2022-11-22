@@ -1,0 +1,26 @@
+Package: trawlmetrics
+Type: Package
+Title: Trawl effort correction and gear performance measures
+Version: 0.0.1
+Authors@R: c(person("Caitlin", "Allen-Akselrud", email = "caitlin.allen_akselrud@noaa.gov", role = c("aut", "cre")),
+    person("Liz", "Dawson", email = "liz.dawson@noaa.gov", role = c("aut")),
+    person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("ctb")),
+    person("Stan", "Kotwicki", email = "stan.kotwicki@noaa.gov", role = c("ctb")))
+Maintainer: Sean Rohan <sean.rohan@noaa.gov>
+Depends: R (>= 3.5),
+    RODBC,
+    getPass,
+    here,
+    janitor,
+    cowplot,
+    tidyverse
+Description: Correct errors in net mensuration data, such as removing outliers in spread and height via sequential outlier rejection.
+License: GPL (>=2)
+Encoding: UTF-8
+LazyData: false
+RoxygenNote: 7.2.1
+Imports: colorspace,
+    viridis
+Suggests: knitr, 
+    rmarkdown
+VignetteBuilder: knitr
