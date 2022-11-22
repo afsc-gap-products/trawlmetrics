@@ -1,49 +1,87 @@
 library(trawlmetrics)
 
-cruise = 202202 # cruise number
-cruise_idnum = 758 # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
-vessel = 162
-region = "EBS"
-survey = "NBS_2022"
-width_range = c(10, 22)
+# 2022 NBS Alaska Knight ---------------------------------------------------------------------------
 
-sor_setup_directory(cruise = cruise, # cruise number
-                    cruise_idnum = cruise_idnum, # make sure cruise id num 1 = vessel 1 and cruise id num 2 = vessel 2
-                    vessel = vessel,
-                    region = "EBS",
-                    survey = "NBS_2022",
-                    width_range = c(10, 22),
-                    convert_marport_to_netmind = FALSE)
+cruise1 = 202202
+cruise_idnum1 = 758
+vessel1 = 162
+region1 = "NBS"
+survey1 = "NBS_2022"
+width_range1 = c(10, 22)
 
-sor_run(cruise = cruise, # cruise number
-        vessel = vessel,
-        region = "EBS",
-        survey = "NBS_2022")
+# Retrieve haul and net mensuration data from race_data then write spread and height data from individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
+# - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
+# - Hauls: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_pings.rds
+sor_setup_directory(cruise = cruise1, # cruise number
+                    cruise_idnum = cruise_idnum1,
+                    vessel = vessel1,
+                    region = region1,
+                    survey = survey1,
+                    width_range = width_range1,
+                    convert_marport_to_netmind = TRUE)
 
+# Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
+# Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
+sor_run(cruise = cruise1,
+        vessel = vessel1,
+        region = region1,
+        survey = survey1)
 
-sor_plot_results(cruise = cruise, # cruise number
-                 vessel = vessel,
-                 region = "EBS",
-                 survey = "NBS_2022")
+# Plot results of sequential outlier rejection for visual inspection.
+# Plots: [subdirectory]/ping_files_{survey}/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
+sor_plot_results(cruise = cruise1,
+                 vessel = vessel1,
+                 region = region1,
+                 survey = survey1)
 
+# Fill in missing height data using the mean height for a given scope then estimate missing spread using a GLM. Write results to .rds files.
+# Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
 sor_fill_missing(height_paths = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/HEIGHT_EBS_202202_162.rds",
                  spread_paths = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/SPREAD_AFTER_SOR_EBS_202202_162.rds",
                  rds_dir = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/ping_files_NBS_2022")
 
-ex_files <- list.files("C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/ping_files_NBS_2022", pattern = "_final.rds", full.names = TRUE)
 
-for(ii in 1:length(ex_files)) {
-  test <- readRDS(ex_files[ii])
-  print(test)
-  print(ex_files[ii])
-  readline(prompt = "hi")
-}
+# 2022 NBS Vesteraalen  ----------------------------------------------------------------------------
+
+cruise2 = 202202
+cruise_idnum2 = 757
+vessel2 = 94
+region2 = "NBS"
+survey2 = "NBS_2022"
+width_range2 = c(10, 22)
+
+# Retrieve haul and net mensuration data from race_data then write spread and height data from individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
+# - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
+# - Hauls: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_pings.rds
+sor_setup_directory(cruise = cruise2, # cruise number
+                    cruise_idnum = cruise_idnum2,
+                    vessel = vessel2,
+                    region = region2,
+                    survey = survey2,
+                    width_range = width_range2,
+                    convert_marport_to_netmind = TRUE)
+
+# Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
+# Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
+sor_run(cruise = cruise2,
+        vessel = vessel2,
+        region = region2,
+        survey = survey2)
+
+# Plot results of sequential outlier rejection for visual inspection.
+# Plots: [subdirectory]/ping_files_{survey}/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
+sor_plot_results(cruise = cruise2,
+                 vessel = vessel2,
+                 region = region2,
+                 survey = survey2)
+
+# Fill in missing height data using the mean height for a given scope then estimate missing spread using a GLM. Write results to .rds files.
+# Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
+sor_fill_missing(height_paths = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/HEIGHT_EBS_202202_162.rds",
+                 spread_paths = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/SPREAD_AFTER_SOR_EBS_202202_162.rds",
+                 rds_dir = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/ping_files_NBS_2022")
 
 
-readRDS(file = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/SPREAD_AFTER_SOR_EBS_202202_162.rds")
+# Combine data from both vessels -------------------------------------------------------------------
 
-test <- readRDS(file = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/ping_files_NBS_2022/202202_162_1_sor.rds")
-is.null(test[["sor_results"]])
-
-
-readRDS(file = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/HEIGHT_EBS_202202_162.rds")
+# [Need to make a function]
