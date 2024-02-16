@@ -48,10 +48,7 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
   message("setup_sor_directory: Retreiving data from racebase")
   # Get spread measurements from race_data
   edit_sgp_df <- RODBC::sqlQuery(channel = channel, 
-                              query = paste0(" select * from race_data.v_cruises where year = ", 
-                                             survey_year, 
-                                             "and survey_definition_id = ", 
-                                             survey_definition_id, ";"))
+                              query = paste0(" select * from race_data.v_extract_edit_sgp where cruise in (", cruise,") and region = '", region, "';"))
   
   # Get haul events from race_data; TIME_FLAG = EVENT
   edit_sgt_df <- RODBC::sqlQuery(channel = channel, 
