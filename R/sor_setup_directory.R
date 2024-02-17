@@ -21,7 +21,7 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
     width_range <- c(10, 22)
   }
   
-  stopifnot("setup_sor_directory: Region must be 'EBS' or 'NBS'" = region %in% c("EBS", "NBS"))  
+  stopifnot("setup_sor_directory: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
   channel <- get_connected(schema = "AFSC")
   
   # Setup file paths and directories  
@@ -41,17 +41,14 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
              recursive = TRUE)
   
   # Run queries
-  survey_definition_id <- c(98, 143)[match(region, c("EBS", "NBS"))]
-  survey_region <- c('BS', 'BS')[match(region, c("EBS", "NBS"))]
+  survey_definition_id <- c(98, 143, 47, 52)[match(region, c("EBS", "NBS", "GOA", "AI"))]
+  survey_region <- c('BS', 'BS', 'GOA', 'AI')[match(region, c("EBS", "NBS", "GOA", "AI"))]
   survey_year <- floor(cruise/100)
   
   message("setup_sor_directory: Retreiving data from racebase")
   # Get spread measurements from race_data
   edit_sgp_df <- RODBC::sqlQuery(channel = channel, 
-                              query = paste0(" select * from race_data.v_cruises where year = ", 
-                                             survey_year, 
-                                             "and survey_definition_id = ", 
-                                             survey_definition_id, ";"))
+                              query = paste0(" select * from race_data.v_extract_edit_sgp where cruise in (", cruise,") and region = '", region, "';"))
   
   # Get haul events from race_data; TIME_FLAG = EVENT
   edit_sgt_df <- RODBC::sqlQuery(channel = channel, 

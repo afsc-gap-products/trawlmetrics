@@ -12,7 +12,7 @@
 sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL) {
   
     region <- toupper(region)
-    stopifnot("run_sor: Region must be 'EBS' or 'NBS'" = region %in% c("EBS", "NBS"))  
+    stopifnot("run_sor: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
     
     rds_dir <- here::here("output", region, cruise, vessel, paste0("ping_files_", survey))
     stopifnot("run_sor: Directory from rds_dir does not exist." = dir.exists(rds_dir))
