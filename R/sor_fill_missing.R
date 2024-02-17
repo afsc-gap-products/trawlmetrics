@@ -80,7 +80,8 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
 
     # Estimate width if missing
     est_spread <- FALSE
-    if(is.null(sel_dat$spread)) {
+    
+    if(is.null(sel_dat$spread) | is.null(sel_dat[['sor_results']]$mean)) {
       est_spread <- TRUE
     } 
     
@@ -91,7 +92,7 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
         net_spread_pings = 0,
         net_spread_method = 4,
         net_spread_standard_deviation = 0)
-    } else{
+    } else {
       final_spread <- data.frame(edit_net_spread = sel_dat[['sor_results']]$mean,
                                  net_spread_pings = sel_dat[['sor_results']]$n_pings,
                                  net_spread_method = 7,
