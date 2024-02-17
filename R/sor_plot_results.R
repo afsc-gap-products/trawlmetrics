@@ -10,7 +10,7 @@
 sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL) {
   
   region <- toupper(region)
-  stopifnot("run_sor: Region must be 'EBS' or 'NBS'" = region %in% c("EBS", "NBS"))  
+  stopifnot("setup_sor_directory: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
   
   # Setup file paths to input (rds_dir) and output (output_dir) directories
   rds_dir <- here::here("output", region, cruise, vessel, paste0("ping_files_", survey))
@@ -28,6 +28,8 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
     sel_dat <- readRDS(file = rds_path[ii])
     
     if(is.null(sel_dat$spread)) { next }
+    
+    if(is.null(sel_dat$sor_ping_ranks)) { next }
       # pings
       not_rejected <- sel_dat$sor_ping_ranks %>% 
         dplyr::filter(is.na(SOR_RANK))
