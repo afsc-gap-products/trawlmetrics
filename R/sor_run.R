@@ -6,10 +6,11 @@
 #' @param cruise Cruise number as a numeric vector (e.g. 202202). Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight. Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022). Must provide rds_dir or all of region, vessel, cruise, survey.
+#' @param min_pings_for_sor Minimum number of ping required to conduct sequential outlier rejection (default = 50).
 #' @return Reads in measurement data from _ping.rds files from rds_dir and writes corrected results to _sor.rds files in rds_dir.
 #' @export
 
-sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL) {
+sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL, min_pings_for_sor = 50) {
   
     region <- toupper(region)
     stopifnot("run_sor: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
@@ -38,7 +39,7 @@ sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL) 
       if(is.null(sel_dat$spread)) {
         message("run_sor: No measurement data in ",  rds_path[ii], " Writing output without correcting pings.")
       } else {
-        if(nrow(sel_dat$spread) < 50) {
+        if(nrow(sel_dat$spread) < min_pings_for_sor) {
           message("run_sor: Skipping SOR on ",  rds_path[ii], ". Less than 50 spread pings.")
         } else {
           message("run_sor: Running SOR on ",  rds_path[ii])
