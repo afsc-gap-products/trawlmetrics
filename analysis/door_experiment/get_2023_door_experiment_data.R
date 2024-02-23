@@ -3,6 +3,7 @@
 # Sean Rohan <sean.rohan@noaa.gov>
 
 # remotes::install_github(repo = "afsc-gap-products/postsurvey_hauldata_processing")
+install.packages("plotly")
 
 library(trawlmetrics)
 
@@ -85,48 +86,76 @@ for(ii in 1:length(unique_hauls)) {
                              DATE_TIME >= sel_events$DATE_TIME[sel_events$EVENT_TYPE_ID == 3],
                              DATE_TIME <= sel_events$DATE_TIME[sel_events$EVENT_TYPE_ID <= 7])
   
-  # Sequential outlier rejection ----
-  sel_width$vessel <- sel_hauls$VESSEL[1]
-  sel_width$cruise <- sel_hauls$CRUISE[1]
-  sel_width$haul <- sel_hauls$HAUL[1]
-  
-  sor_results <- sel_width |>
-    dplyr::rename(measurement_value = NET_WIDTH) |>
-    trawlmetrics::sequentialOR(formula = measurement_value ~ DATE_TIME, 
-                               method = 'ss', 
-                               n.reject = 1, 
-                               n.stop = 0.5, 
-                               threshold.stop = TRUE)
-  
-  sel_width <- sor_results$obs_rank |>
-    dplyr::filter(is.na(SOR_RANK)) |>
-    dplyr::select(DATE_TIME, NET_WIDTH = measurement_value, HAUL_ID)
-  
-  sor_width <- rbind(sor_width, sel_width)
+  # Sequential outlier rejection when there are at least 50 pings ----
+  if(nrow(sel_width) >= 50) {
+    
+    sel_width$vessel <- sel_hauls$VESSEL[1]
+    sel_width$cruise <- sel_hauls$CRUISE[1]
+    sel_width$haul <- sel_hauls$HAUL[1]
+    
+    sor_results <- sel_width |>
+      dplyr::rename(measurement_value = NET_WIDTH) |>
+      sequentialOR(formula = measurement_value ~ DATE_TIME, 
+                   method = 'ss', 
+                   n.reject = 1, 
+                   n.stop = 0.5, 
+                   threshold.stop = TRUE)
+    
+    sel_width <- sor_results$obs_rank |>
+      dplyr::filter(is.na(SOR_RANK)) |>
+      dplyr::select(DATE_TIME, NET_WIDTH = measurement_value, HAUL_ID)
+    
+    sor_width <- rbind(sor_width, sel_width)
+    
+  } else {
+    
+    sor_width <- rbind(sor_width, sel_width)
+    
+  }
   
 }
 
+sor_width$index <- 1:nrow(sor_width)
+
+for(jj in 1:length(unique_hauls)) {
+  
+  sel_sor_width <- dplyr::filter(sor_width, HAUL_ID == unique_hauls[jj])
+  
+  plotly::ggplotly(
+  ggplot() +
+    geom_point(data = sel_sor_width, 
+               mapping = aes(x = DATE_TIME, y = NET_WIDTH, text = paste0("Index:",  INDEX))) +
+    geom_path(data = sel_sor_width, 
+               mapping = aes(x = DATE_TIME, y = NET_WIDTH)) +
+    scale_x_datetime(name = "Date/time (AKDT)") +
+    scale_y_continuous(name = "Net Width (m)") + 
+    theme_bw()
+  )
+  
+  readline("Press Enter to advance to the next plot.")
+
+}
 
 
-continue <- "n"
-
-sel_width$COMMENT <- NA
-sel_width$col <- "black"
-
-plot(x = sel_width$DATE_TIME, 
-     y = sel_width$NET_WIDTH, 
-     col = sel_width$col,
-     pch = 19,
-     xlab = "Time", 
-     ylab = "Width (m)", 
-     main = paste0("Haul: ", sel_events$HAUL[1]))
-
-
-plot(x = sel_width$DATE_TIME, 
-     y = sel_width$NET_WIDTH, 
-     col = sel_width$col,
-     pch = 19,
-     xlab = "Time", 
-     ylab = "Width (m)", 
-     main = paste0("Haul: ", sel_events$HAUL[1]),
-     type = 'l')
+# continue <- "n"
+# 
+# sel_width$COMMENT <- NA
+# sel_width$col <- "black"
+# 
+# plot(x = sel_width$DATE_TIME, 
+#      y = sel_width$NET_WIDTH, 
+#      col = sel_width$col,
+#      pch = 19,
+#      xlab = "Time", 
+#      ylab = "Width (m)", 
+#      main = paste0("Haul: ", sel_events$HAUL[1]))
+# 
+# 
+# plot(x = sel_width$DATE_TIME, 
+#      y = sel_width$NET_WIDTH, 
+#      col = sel_width$col,
+#      pch = 19,
+#      xlab = "Time", 
+#      ylab = "Width (m)", 
+#      main = paste0("Haul: ", sel_events$HAUL[1]),
+#      type = 'l')
