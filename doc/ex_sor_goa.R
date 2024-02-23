@@ -1,11 +1,11 @@
 library(trawlmetrics)
 
-# 2023 GOA Alaska Provider ---------------------------------------------------------------------------
-cruise1 = 202301
-cruise_idnum1 = 766
-vessel1 = 176
+# 2019 GOA Sea Storm ---------------------------------------------------------------------------
+cruise1 = 201901
+cruise_idnum1 = 730
+vessel1 = 143
 region1 = "GOA"
-survey1 = "GOA_2023"
+survey1 = "GOA_2019"
 width_range1 = c(10, 22)
 
 # Copy system files for testing. Remove for actual data processing.
@@ -42,4 +42,4 @@ sor_plot_results(cruise = cruise1,
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
 sor_fill_missing(height_paths = here::here("output", region1, cruise1, vessel1, paste0("HEIGHT_", region1, "_", cruise1, "_", vessel1, ".rds")),
                  spread_paths = here::here("output", region1, cruise1, vessel1, paste0("SPREAD_AFTER_SOR_", region1, "_", cruise1, "_", vessel1, ".rds")),
-                 rds_dir = here::here("output", region1, cruise1, vessel1, paste0("PING_FILES_", region1, "_", floor(cruise/100))))
+                 rds_dir = here::here("output", region1, cruise1, vessel1, paste0("PING_FILES_", region1, "_", floor(cruise1/100))))
