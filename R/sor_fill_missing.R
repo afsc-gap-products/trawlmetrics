@@ -15,8 +15,11 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
   # Read-in height and spread data
   height_df <- data.frame()
   spread_df <- data.frame()
+  
   for(ii in 1:length(height_paths)) {
+    
     height_df <- dplyr::bind_rows(height_df, readRDS(height_paths[ii]))
+    
   }
   
   for(jj in 1:length(spread_paths)) {
@@ -37,14 +40,9 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
   width_glm <- glm(mean ~ invscope + edit_net_height + invscope*edit_net_height, 
                     data = hs_df, family = "gaussian")
   
-  rds_paths <- character() 
+  rds_paths <-list.files(rds_dir, full.names = TRUE, pattern = "sor.rds")
   
-  for(kk in 1:length(rds_dir)) {
-    rds_paths <- c(rds_paths, list.files(rds_dir[kk], full.names = TRUE, pattern = "sor.rds"))
-  }
-  
-  message("sor_fill_missing: Found ", length(rds_paths), " files to read-in.")
-  
+  message("sor_fill_missing: Found ", length(rds_paths), " files to read in.")
   
   for(mm in 1:length(rds_paths)) {
     
@@ -76,10 +74,82 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
 
     # Estimate width if missing
     est_spread <- FALSE
+    accept_spread <- NA
     
-    if(is.null(sel_dat$spread) | is.null(sel_dat[['sor_results']]$mean)) {
+    # Case where there is no spread data
+    if(is.null(sel_dat$spread)) {
+      
+      message("sor_fill_missing: No spread data avilable. Spread will be estimated.")
       est_spread <- TRUE
+      
+    }
+    
+    # Case where there was spread data but not enough to conduct sequential outlier rejection
+    if(!is.null(sel_dat$spread) & is.null(sel_dat[['sor_results']]$mean)) {
+      
+      # Review spread
+      mean_spread <- round(mean(sel_dat[['spread']]$measurement_value), 1)
+      
+      sd_spread <- sd(sel_dat[['spread']]$measurement_value)
+      
+      n_pings <- length(sel_dat[['spread']]$measurement_value)
+      
+      on_off_events <- sel_dat$events[which(sel_dat$events$event %in% c(3,4,7)), ]
+      
+      min_date_time <- on_off_events$date_time[on_off_events$event == 4]
+      
+      spread_plot <- ggplot()+
+        geom_point(data = sel_dat[['spread']],
+                   mapping = aes(x = date_time,
+                                 y = measurement_value),
+                   shape = 1,
+                   size = 2.5) +
+        geom_segment(data = on_off_events,
+                  mapping = aes(x = date_time, xend = date_time, y = 10, yend = 22, color = factor(event))) +
+        geom_hline(yintercept = mean_spread, 
+                   linetype = 2, 
+                   color = "red") +
+        geom_text(mapping = aes(x = min_date_time,
+                  y = mean_spread + 0.5,
+                  label = paste0("Mean: ", mean_spread, " (n = ", n_pings, ")")),
+                  color = "red", hjust = -0.1) +
+        scale_color_manual(name = "Event", values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7")) +
+        scale_y_continuous(name = "Spread (m)",
+                           limits=c(10, 22), 
+                           expand = c(0, 0)) +
+        scale_x_datetime(name = "Time") +
+        theme_bw() +
+        labs(title = "Without SOR - Accept (y/n)?", subtitle = paste("Vessel", sel_dat$haul$vessel, "Haul", sel_dat$haul$haul))
+      
+      print(spread_plot)
+      
+      while(!(accept_spread %in% c("y", "n"))) {
+        
+        accept_spread <- readline(prompt = "Insufficient data for sequential outlier rejection. Accept mean spread from available points (y or n)?")
+        accept_spread <- tolower(accept_spread)
+        
+        if(!(accept_spread %in% c("y", "n"))) {
+          message("Invalid selection. Must enter y or n.")
+        }
+        
+        if(accept_spread == "y") {
+          
+          message("sor_fill_missing: Accepting mean spread.")
+          sel_dat$sor_results <- list(mean = mean_spread,
+                                      sd = sd_spread,
+                                      n_pings = n_pings)
+          
+        } else {
+          
+          message("sor_fill_missing: Rejecting mean spread. Spread will be estimated.")
+          
+          est_spread <- TRUE
+        }
+        
+      }
+
     } 
+    
     
     if(est_spread) {
       final_spread <- data.frame(edit_net_spread = predict.glm(object = width_glm, 
