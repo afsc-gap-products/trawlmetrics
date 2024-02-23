@@ -1,11 +1,11 @@
 library(trawlmetrics)
 
-# 2023 GOA Alaska Provider ---------------------------------------------------------------------------
-cruise1 = 202301
-cruise_idnum1 = 766
-vessel1 = 176
+# 2019 GOA Sea Storm ---------------------------------------------------------------------------
+cruise1 = 201901
+cruise_idnum1 = 730
+vessel1 = 143
 region1 = "GOA"
-survey1 = "GOA_2023"
+survey1 = "GOA_2019"
 width_range1 = c(10, 22)
 
 # Copy system files for testing. Remove for actual data processing.

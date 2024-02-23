@@ -57,12 +57,8 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
     est_width <- FALSE
     
     # Estimate height if height is NA or there are less than 150 height measurements
-    if(is.na(sel_dat[['height']]$net_height_pings)) {
+    if(is.na(sel_dat[['height']]$net_height_pings) | sel_dat[['height']]$net_height_pings < 150) {
       est_height <- TRUE
-    } else {
-      if(sel_dat[['height']]$net_height_pings < 150) {
-        est_height <- TRUE
-      }
     }
     
     if(est_height) {

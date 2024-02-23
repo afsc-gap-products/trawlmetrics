@@ -78,10 +78,6 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
     edit_sgt <- readRDS(file = paste0(here::here(output_dir, paste0("edit_sgt_", cruise, "_", vessel,  ".rds"))))
     edit_height <- readRDS(file = paste0(here::here(output_dir, paste0("edit_height_", cruise, "_", vessel,  ".rds"))))
   
-  # edit_sgp <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_sgp.csv")))
-  # edit_sgt <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_sgt.csv")))
-  # edit_height <- readr::read_csv(file = here::here(output_dir, paste0(survey, "_test_edit_height.csv")))
-  
   event_dat <- edit_sgt %>% 
     dplyr::as_tibble() %>% 
     janitor::clean_names() %>% 
