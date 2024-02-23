@@ -43,3 +43,10 @@ sor_plot_results(cruise = cruise1,
 sor_fill_missing(height_paths = here::here("output", region1, cruise1, vessel1, paste0("HEIGHT_", region1, "_", cruise1, "_", vessel1, ".rds")),
                  spread_paths = here::here("output", region1, cruise1, vessel1, paste0("SPREAD_AFTER_SOR_", region1, "_", cruise1, "_", vessel1, ".rds")),
                  rds_dir = here::here("output", region1, cruise1, vessel1, paste0("PING_FILES_", region1, "_", floor(cruise1/100))))
+
+
+# Add updated data to Oracle and write output to .csv
+sor_save_results(final_dir = here::here("output", region1, cruise1, vessel1, paste0("PING_FILES_", region1, "_", floor(cruise1/100))), 
+                 create_user = "ROHANS", 
+                 survey = survey1, 
+                 cruise_idnum = cruise_idnum1)
