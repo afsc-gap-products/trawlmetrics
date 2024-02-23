@@ -2,12 +2,12 @@
 #' 
 #' Function to retrieve data for sequential outlier rejection from RACEBASE and split data by haul.
 #' 
+#' @param channel An RODBC channel. Will prompt user to get connected if NULL.
 #' @param region Survey region as a 1L character vector (EBS or NBS)
 #' @param cruise Cruise number as a numeric vector (e.g. 202202)
 #' @param cruise_idnum Cruise ID number as a numeric vector (e.g. 757)
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight.
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022)
-#' @param channel Open RODBC channel. If NULL, function will prompt for user ID.
 #' @param convert_marport_to_netmind Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()? 
 #' @param skip_save_rds For testing and demo purposes. Should queried data be written to a directory.
 #' @export

@@ -27,7 +27,7 @@ sor_setup_directory(
 
 \item{survey}{Survey name prefix to use in filename (e.g. NBS_2022)}
 
-\item{channel}{Open RODBC channel. If NULL, function will prompt for user ID.}
+\item{channel}{An RODBC channel. Will prompt user to get connected if NULL.}
 
 \item{convert_marport_to_netmind}{Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()?}
 
