@@ -215,13 +215,15 @@ for(jj in 1:length(unique_hauls)) {
 plot_width_sd <- ggplot() +
   geom_point(data = standard_hauls |> 
                dplyr::rename(`Net spread` = NET_SPREAD,
-                             `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION) |>
-               tidyr::pivot_longer(cols = c("Net spread", "Net spread standard deviation")),
+                             `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION,
+                             `Bottom depth` = BOTTOM_DEPTH,
+                             `Scope` = WIRE_OUT) |>
+               tidyr::pivot_longer(cols = c("Net spread", "Net spread standard deviation", "Bottom depth", "Scope")),
              mapping = aes(x = STATION, y = value, color = STATION)) +
   scale_y_continuous(name = "Meters") +
   scale_x_discrete(name = "Station") +
   scale_color_colorblind(name = "Station") +
-  facet_wrap(~name, nrow = 2, scales = "free") +
+  facet_wrap(~name, nrow = 4, scales = "free") +
   theme_bw()
 
 plot_width_timeseries <- ggplot() +
@@ -256,7 +258,7 @@ plot_width_timeseries <- ggplot() +
 
 png(filename = here::here("analysis", "door_experiment", "plots", "historical_width_sd.png"), 
     width = 169, 
-    height = 120, 
+    height = 200, 
     units = "mm", 
     res = 300)
 print(plot_width_sd)
