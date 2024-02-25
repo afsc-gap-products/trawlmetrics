@@ -211,12 +211,18 @@ for(jj in 1:length(unique_hauls)) {
 }
 
 
-# Plot standard haul average width and standard deviation
-ggplot() +
-  geom_point(data = standard_hauls,
-             mapping = aes(x = STATION, y = NET_SPREAD)) +
-  scale_y_continuous(name = "Net spread (m)") +
-  scale_x_discrete(name = "Station")
+# Plot average width and standard deviation
+plot_width_sd <- ggplot() +
+  geom_point(data = standard_hauls |> 
+               dplyr::rename(`Net spread` = NET_SPREAD,
+                             `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION) |>
+               tidyr::pivot_longer(cols = c("Net spread", "Net spread standard deviation")),
+             mapping = aes(x = STATION, y = value, color = STATION)) +
+  scale_y_continuous(name = "Meters") +
+  scale_x_discrete(name = "Station") +
+  scale_color_colorblind(name = "Station") +
+  facet_wrap(~name, nrow = 2, scales = "free") +
+  theme_bw()
 
 plot_width_timeseries <- ggplot() +
   geom_hline(data = standard_hauls |>
@@ -248,7 +254,20 @@ plot_width_timeseries <- ggplot() +
   facet_wrap(~STATION, nrow = 4) +
   theme_bw()
 
+png(filename = here::here("analysis", "door_experiment", "plots", "historical_width_sd.png"), 
+    width = 169, 
+    height = 120, 
+    units = "mm", 
+    res = 300)
+print(plot_width_sd)
+dev.off()
 
-png(filename = here::here("analysis", "door_experiment", "plots", "width_scope2depth_timeseries.png"), width = 169, height = 200, units = "mm", res = 300)
+png(filename = here::here("analysis", "door_experiment", "plots", "historical_width_scope2depth_timeseries.png"), 
+    width = 169, 
+    height = 200, 
+    units = "mm", 
+    res = 300)
 print(plot_width_timeseries)
 dev.off()
+
+
