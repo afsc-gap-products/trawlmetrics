@@ -1,7 +1,6 @@
 #' Sequential outlier rejection
 #'
 #' Iteratively fit a model to data and remove the most extreme residual. Three models are implemented here: ordinary least squares (lm), generalized linear model (glm), generalized additive model (GAM), or smooth spline (ss)
-#' @author Sean Rohan, updates by Caitlin Allen Akselrud
 #' 
 #' @param data Data frame containing predictor and response variables.
 #' @param method Character vector of length one indicating which function should be used to fit models. Options are 'lm', 'glm', 'gam', or 'ss'
@@ -14,11 +13,11 @@
 #' @param ... Additional arguments passed to function calls (family, offset, etc.)
 #'
 #' @return The function returns a list with (1) input data frame with an additional column indicating the order in which observations were rejected, (2) a data frame containing the number of observations used for model-fitting and the associated RMSE. If argument `plot=T`, also prints a plot of observations versus RMSE given the remaining observations.
-#'
+#' @author Sean Rohan, updates by Caitlin Allen Akselrud
 #' @references Kotwicki, S., M. H. Martin, and E. A. Laman. 2011. Improving area swept estimates from bottom trawl surveys. Fisheries Research 110(1):198–206.
 #' @export
 
-sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, threshold.stop = NULL, tail = "both", ...) {
+sor <- function(data, method = 'lm', formula, n.reject = 1, n.stop, threshold.stop = NULL, tail = "both", ...) {
 
   vess <- unique(data$vessel)
   hauln <- unique(data$haul)
@@ -27,7 +26,6 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
   method <- tolower(method)
 
   # Index rows
-  # rownames(data) <- 1:nrow(data)
 
   # Calculate absolute stopping point if n.stop is a proportion
   if(n.stop < 1) { #function will run until you hit some proportion of the data (eg .4 = 40% data looped over until it stops)
@@ -59,9 +57,12 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
     # CIA mod here- add smooth spline to options
     if(method == 'ss') {
       attach(data.sub, warn.conflicts = FALSE)
-      mod <- stats::smooth.spline(x = formula, # where formula = data.sub$response_var~data.sub$predictor.var
-                                  spar = .8) 
-      # CIA: stan's setup for smooth.spline=(yy~xx[,2],spar=.8) where yy is the global variable
+      mod <- stats::smooth.spline(formula, # where formula = data.sub$response_var~data.sub$predictor.var
+                                                   spar = .8) 
+                                                  #x = data.sub$predictor_var, 
+                                                   # y = data.sum$response_var, 
+                                                   # formula = y~x); #need to fix this
+    # CIA: stan's setup for smooth.spline=(yy~xx[,2],spar=.8) where yy is the global variable
     }
 
     # Append residuals to subsetted data
@@ -94,13 +95,12 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
           dplyr::filter(is.na(SOR_RANK)) %>% 
           summarize(n_pings = n(),
                     mean = mean(measurement_value))
-        results_row <- bind_cols( #vessel = unique(data$vessel), haul = unique(data$haul), 
-                                  mean_spread, sd = sd(resids))
+        results_row <- bind_cols(mean_spread, sd = sd(resids))
         
         return(list(results = results_row,
                     obs_rank = data,
                     rmse = data.frame(N = NN, RMSE = RMSE )))
-        # return(list(obs_rank = data, rmse = data.frame(N = NN, RMSE = RMSE))) #add max residual to rmse data frame
+
       }
     }
 
@@ -113,8 +113,7 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
     dplyr::filter(is.na(SOR_RANK)) %>% 
     summarize(n_pings = n(),
               mean = mean(measurement_value))
-  results_row <- bind_cols( #vessel = unique(data$vessel), haul = unique(data$haul), 
-                           mean_spread, sd = sd(resids))
+  results_row <- bind_cols(mean_spread, sd = sd(resids))
 
   return(list(results = results_row,
               obs_rank = data,
