@@ -13,13 +13,9 @@
 #' @export
 
 
-sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, channel = NULL, width_range = c(10, 22), convert_marport_to_netmind = TRUE, skip_save_rds = FALSE) {
+sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, channel = NULL, width_range = NULL, convert_marport_to_netmind = TRUE, skip_save_rds = FALSE) {
   
   region <- toupper(region)
-  
-  if(is.null(width_range)) {
-    width_range <- c(10, 22)
-  }
   
   stopifnot("setup_sor_directory: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
   channel <- get_connected(schema = "AFSC")
@@ -44,6 +40,16 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
   survey_definition_id <- c(98, 143, 47, 52)[match(region, c("EBS", "NBS", "GOA", "AI"))]
   survey_region <- c('BS', 'BS', 'GOA', 'AI')[match(region, c("EBS", "NBS", "GOA", "AI"))]
   survey_year <- floor(cruise/100)
+  
+  if(is.null(width_range) & survey_region == 'BS') {
+    width_range <- c(10, 22)
+  }
+  
+  if(is.null(width_range) & survey_region %in% c('GOA', 'AI')) {
+    width_range <- c(8, 22)
+  }
+  
+
   
   message("setup_sor_directory: Retreiving data from racebase")
   # Get spread measurements from race_data

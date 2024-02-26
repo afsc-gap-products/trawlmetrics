@@ -1,6 +1,6 @@
 #' Make plots of SOR results
 #'
-#' @param region Survey region as a 1L character vector (EBS or NBS). Must provide rds_dir or all of region, vessel, cruise, survey.
+#' @param region Survey region as a 1L character vector (EBS, NBS, GOA, or AI). Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param cruise Cruise number as a numeric vector (e.g. 202202). Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight. Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022). Must provide rds_dir or all of region, vessel, cruise, survey.
@@ -22,6 +22,11 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
   output_dir <- here::here("output", region, cruise, vessel, paste0("SOR_graphics_", survey))
   stopifnot("run_sor: Directory from rds_dir does not exist." = dir.exists(output_dir))
   
+  if(region %in% c("EBS", "NBS")) {
+    y_lim <- c(10, 22)
+  } else {
+    y_lim <- c(8, 22)
+  }
   
   for(ii in 1:length(rds_path)) {
     
@@ -45,7 +50,7 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
                        y = measurement_value), 
                    shape = 1, 
                    size = 2.5) +
-        scale_y_continuous(limits=c(10, 22), 
+        scale_y_continuous(limits = y_lim, 
                            expand = c(0, 0)) +
         theme_bw() +
         labs(x = "time", y = "spread", title = "Before SOR",
@@ -57,7 +62,7 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
                        y = measurement_value), 
                    shape = 1, 
                    size = 2.5) +
-        scale_y_continuous(limits=c(10, 22), expand = c(0, 0)) +
+        scale_y_continuous(limits = y_lim, expand = c(0, 0)) +
         theme_bw() +
         labs(x = "time", 
              y = "spread", 
@@ -82,7 +87,7 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
                    aes(yintercept=mean), 
                    col = "blue", 
                    cex = 1) +
-        scale_y_continuous(limits=c(10, 22), 
+        scale_y_continuous(limits = y_lim, 
                            expand = c(0, 0)) +
         theme_bw() +
         theme(plot.caption = element_text(hjust = 0)) +
