@@ -1,7 +1,7 @@
 Package: trawlmetrics
 Type: Package
 Title: Trawl effort correction and gear performance measures
-Version: 0.0.2
+Version: 2024.02.26
 Authors@R: c(person("Caitlin", "Allen-Akselrud", email = "caitlin.allen_akselrud@noaa.gov", role = c("aut", "cre")),
     person("Liz", "Dawson", email = "liz.dawson@noaa.gov", role = c("aut")),
     person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("ctb")),
