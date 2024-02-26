@@ -48,7 +48,9 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
   message("setup_sor_directory: Retreiving data from racebase")
   # Get spread measurements from race_data
   edit_sgp_df <- RODBC::sqlQuery(channel = channel, 
-                              query = paste0(" select * from race_data.v_extract_edit_sgp where cruise in (", cruise,") and region = '", region, "';"))
+                              query = paste0(" select * from race_data.v_extract_edit_sgp where cruise in (", cruise,") and region = '", survey_region, "';"))
+  
+  stopifnot("setup_sor_directory: No spread data in RACE_DATA.V_EXTRACT_EDIT_SGP for this vessel/cruise " = nrow(edit_sgp_df) > 0)
   
   # Get haul events from race_data; TIME_FLAG = EVENT
   edit_sgt_df <- RODBC::sqlQuery(channel = channel, 
@@ -57,10 +59,14 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
                                              ") and region = '", 
                                              survey_region, "';"))
   
+  stopifnot("setup_sor_directory: No event data in RACE_DATA.V_EXTRACT_EDIT_SGT for this vessel/cruise " = nrow(edit_sgt_df) > 0)
+  
   # Get Calypso's mean height calculations
   edit_height_df <- RODBC::sqlQuery(channel, 
                                     query = paste0(" select * from race_data.edit_hauls where cruise_id = ", 
                                                    cruise_idnum, ";"))
+  
+  stopifnot("setup_sor_directory: No height data in RACE_DATA.EDIT_HAULS for this vessel/cruise " = nrow(edit_height_df) > 0)
   
   message("setup_sor_directory: Writing racebase data to rds files in ", output_dir)
   
