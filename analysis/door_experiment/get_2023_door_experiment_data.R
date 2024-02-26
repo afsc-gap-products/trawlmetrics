@@ -1,5 +1,5 @@
 # Net width and height data from door comparison experiments
-# February 25, 2024
+# February 26, 2024
 # Sean Rohan <sean.rohan@noaa.gov>
 
 # remotes::install_github(repo = "afsc-gap-products/postsurvey_hauldata_processing")
@@ -8,9 +8,10 @@
 library(trawlmetrics)
 library(ggthemes)
 
+dir.create(here::here("analysis", "door_experiment", "plots"))
+
 # Get data from experimental tow stations (net width, net height, events, and haul) ----
 
-dir.create(here::here("analysis", "door_experiment", "plots"))
 
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
@@ -62,7 +63,7 @@ events <- RODBC::sqlQuery(channel = channel,
                           and c.cruise = 202301 
                           and h.haul_type = 7 
                           and et.event_type_id = e.event_type_id 
-                          and e.event_type_id in (2, 3, 5, 6, 7, 8, 9)") |>
+                          and e.event_type_id in (3, 7)") |>
   dplyr::mutate(DATE_TIME = lubridate::with_tz(
     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
     tzone = "America/Anchorage")
@@ -71,8 +72,26 @@ events <- RODBC::sqlQuery(channel = channel,
 
 hauls <- RODBC::sqlQuery(channel = channel,
                          query = "select * from racebase.haul where vessel = 162 and cruise = 202301 and haul_type = 7") |>
-  dplyr::inner_join(dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) |> unique()
+  dplyr::inner_join(dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) 
+                    |> unique()
                     )
+
+# Load treatment breaks, append HAUL_ID ----
+treatment_breaks <- read.csv(here::here("analysis", "door_experiment", "data", "2023_Door_Testing_Treatment_Times.csv")) |>
+  dplyr::filter(!is.na(treatment)) |>
+  dplyr::mutate(start_treatment = as.POSIXct(paste0(DATE, " ", start_treatment), 
+                                             format = "%m/%d/%Y %H:%M", 
+                                             tz = "America/Anchorage"),
+                end_treatment = as.POSIXct(paste0(DATE, " ", end_treatment), 
+                                           format = "%m/%d/%Y %H:%M", 
+                                           tz = "America/Anchorage")) |>
+  dplyr::rename(start = start_treatment, 
+                end = end_treatment) |>
+  dplyr::select(CRUISE, VESSEL, HAUL, DATE, treatment, start, end)
+
+treatment_breaks <- dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) |> 
+  unique() |> 
+  dplyr::inner_join(treatment_breaks, by = c("VESSEL", "CRUISE", "HAUL"))
 
 
 # Get data from standard hauls at experimental tow stations ----
@@ -126,7 +145,7 @@ standard_events <- RODBC::sqlQuery(channel = channel,
                           ") and h.cruise_id = c.cruise_id 
                           and c.survey_id = s.survey_id 
                           and et.event_type_id = e.event_type_id 
-                          and e.event_type_id in (2, 3, 5, 6, 7, 8, 9)")) |>
+                          and e.event_type_id in (3, 7)")) |>
   dplyr::mutate(DATE_TIME = lubridate::with_tz(
     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
     tzone = "America/Anchorage")
@@ -194,19 +213,66 @@ for(ii in 1:length(unique_hauls)) {
 sor_width$index <- 1:nrow(sor_width)
 
 
+# Function to assign treatment values to spread measurements ----
+set_treatment <- function(wd, trt) {
+  
+  unique_trt <- unique(trt$treatment)
+  
+  wd$treatment <- NA
+  
+  for(ii in 1:length(unique_trt)) {
+    
+    wd$treatment[wd$DATE_TIME >= trt$start[trt$treatment == unique_trt[ii]] & wd$DATE_TIME <= trt$end[trt$treatment == unique_trt[ii]]] <- unique_trt[ii]
+    
+
+    
+  }
+  
+  return(wd)
+  
+}
 
 for(jj in 1:length(unique_hauls)) {
   
   sel_sor_width <- dplyr::filter(sor_width, HAUL_ID == unique_hauls[jj])
   
+  sel_events <- dplyr::filter(events, HAUL_ID == unique_hauls[jj])
+  
+  sel_treatment <- dplyr::filter(treatment_breaks, HAUL_ID == unique_hauls[jj])
+  
+  sel_sor_width <- set_treatment(wd = sel_sor_width, trt = sel_treatment)
+  
+  sel_sor_width$treatment <- factor(sel_sor_width$treatment)
+  
+  treatment_vline <- tidyr::pivot_longer(sel_treatment, cols = c("start", "end")) |>
+    dplyr::rename(DATE_TIME = value)
+  
+  width_range <- range(sel_sor_width$NET_WIDTH) + c(-0.2, 0.2)
+  
   plotly::ggplotly(
   ggplot() +
-    geom_point(data = sel_sor_width, 
-               mapping = aes(x = DATE_TIME, y = NET_WIDTH, text = paste0("Index:",  index))) +
     geom_path(data = sel_sor_width, 
-               mapping = aes(x = DATE_TIME, y = NET_WIDTH)) +
+              mapping = aes(x = DATE_TIME, y = NET_WIDTH),
+              linewidth = 0.5, color = "grey50") +
+    geom_point(data = sel_sor_width, 
+               mapping = aes(x = DATE_TIME, 
+                             y = NET_WIDTH, 
+                             text = paste0("Index:",  index), 
+                             color = treatment)) +
+    geom_segment(data = treatment_vline,
+                 mapping = aes(x = DATE_TIME,
+                               xend = DATE_TIME,
+                               color = factor(treatment),
+                               linetype = name,
+                               y = width_range[1],
+                               yend = width_range[2])) +
+    geom_segment(data = sel_events,
+               mapping = aes(x = DATE_TIME, xend = DATE_TIME, y = width_range[1], yend = width_range[2], group = NAME)) +
     scale_x_datetime(name = "Date/time (AKDT)") +
     scale_y_continuous(name = "Net Width (m)") + 
+    scale_color_discrete(name = "Treatment") +
+    scale_linetype_manual(name = "Start/End", values = c("start" = 1, "end" = 2)) +
+    ggtitle(paste0("Year: ", floor(sel_events$CRUISE[1]/100), ", Vessel: ", sel_events$VESSEL[1], ", Haul: ", sel_events$HAUL[1])) +
     theme_bw()
   )
   
