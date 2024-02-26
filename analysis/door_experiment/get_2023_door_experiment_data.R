@@ -70,7 +70,9 @@ events <- RODBC::sqlQuery(channel = channel,
   dplyr::arrange(DATE_TIME)
 
 hauls <- RODBC::sqlQuery(channel = channel,
-                         query = "select * from racebase.haul where vessel = 162 and cruise = 202301 and haul_type = 7")
+                         query = "select * from racebase.haul where vessel = 162 and cruise = 202301 and haul_type = 7") |>
+  dplyr::inner_join(dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) |> unique()
+                    )
 
 
 # Get data from standard hauls at experimental tow stations ----
@@ -191,6 +193,8 @@ for(ii in 1:length(unique_hauls)) {
 
 sor_width$index <- 1:nrow(sor_width)
 
+
+
 for(jj in 1:length(unique_hauls)) {
   
   sel_sor_width <- dplyr::filter(sor_width, HAUL_ID == unique_hauls[jj])
@@ -198,7 +202,7 @@ for(jj in 1:length(unique_hauls)) {
   plotly::ggplotly(
   ggplot() +
     geom_point(data = sel_sor_width, 
-               mapping = aes(x = DATE_TIME, y = NET_WIDTH, text = paste0("Index:",  INDEX))) +
+               mapping = aes(x = DATE_TIME, y = NET_WIDTH, text = paste0("Index:",  index))) +
     geom_path(data = sel_sor_width, 
                mapping = aes(x = DATE_TIME, y = NET_WIDTH)) +
     scale_x_datetime(name = "Date/time (AKDT)") +
@@ -211,12 +215,20 @@ for(jj in 1:length(unique_hauls)) {
 }
 
 
-# Plot standard haul average width and standard deviation
-ggplot() +
-  geom_point(data = standard_hauls,
-             mapping = aes(x = STATION, y = NET_SPREAD)) +
-  scale_y_continuous(name = "Net spread (m)") +
-  scale_x_discrete(name = "Station")
+# Plot average width and standard deviation
+plot_width_sd <- ggplot() +
+  geom_point(data = standard_hauls |> 
+               dplyr::rename(`Net spread` = NET_SPREAD,
+                             `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION,
+                             `Bottom depth` = BOTTOM_DEPTH,
+                             `Scope` = WIRE_OUT) |>
+               tidyr::pivot_longer(cols = c("Net spread", "Net spread standard deviation", "Bottom depth", "Scope")),
+             mapping = aes(x = STATION, y = value, color = STATION)) +
+  scale_y_continuous(name = "Meters") +
+  scale_x_discrete(name = "Station") +
+  scale_color_colorblind(name = "Station") +
+  facet_wrap(~factor(name, levels = c("Net spread", "Net spread standard deviation", "Scope", "Bottom depth")), nrow = 4, scales = "free") +
+  theme_bw()
 
 plot_width_timeseries <- ggplot() +
   geom_hline(data = standard_hauls |>
@@ -248,7 +260,20 @@ plot_width_timeseries <- ggplot() +
   facet_wrap(~STATION, nrow = 4) +
   theme_bw()
 
+png(filename = here::here("analysis", "door_experiment", "plots", "historical_width_sd.png"), 
+    width = 169, 
+    height = 200, 
+    units = "mm", 
+    res = 300)
+print(plot_width_sd)
+dev.off()
 
-png(filename = here::here("analysis", "door_experiment", "plots", "width_scope2depth_timeseries.png"), width = 169, height = 200, units = "mm", res = 300)
+png(filename = here::here("analysis", "door_experiment", "plots", "historical_width_scope2depth_timeseries.png"), 
+    width = 169, 
+    height = 200, 
+    units = "mm", 
+    res = 300)
 print(plot_width_timeseries)
 dev.off()
+
+
