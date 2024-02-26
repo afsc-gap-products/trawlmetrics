@@ -112,7 +112,7 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
                    shape = 1,
                    size = 2.5) +
         geom_segment(data = on_off_events,
-                  mapping = aes(x = date_time, xend = date_time, y = 10, yend = 22, color = factor(event))) +
+                  mapping = aes(x = date_time, xend = date_time, y = 8, yend = 22, color = factor(event))) +
         geom_hline(yintercept = mean_spread, 
                    linetype = 2, 
                    color = "red") +
@@ -122,7 +122,7 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
                   color = "red", hjust = -0.1) +
         scale_color_manual(name = "Event", values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7")) +
         scale_y_continuous(name = "Spread (m)",
-                           limits=c(10, 22), 
+                           limits=c(8, 22), 
                            expand = c(0, 0)) +
         scale_x_datetime(name = "Time") +
         theme_bw() +
