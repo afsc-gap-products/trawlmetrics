@@ -11,7 +11,7 @@ sor_setup_directory(
   region,
   survey,
   channel = NULL,
-  width_range = c(10, 22),
+  width_range = NULL,
   convert_marport_to_netmind = TRUE,
   skip_save_rds = FALSE
 )

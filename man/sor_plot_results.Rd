@@ -11,7 +11,7 @@ sor_plot_results(vessel = NULL, cruise = NULL, region = NULL, survey = NULL)
 
 \item{cruise}{Cruise number as a numeric vector (e.g. 202202). Must provide rds_dir or all of region, vessel, cruise, survey.}
 
-\item{region}{Survey region as a 1L character vector (EBS or NBS). Must provide rds_dir or all of region, vessel, cruise, survey.}
+\item{region}{Survey region as a 1L character vector (EBS, NBS, GOA, or AI). Must provide rds_dir or all of region, vessel, cruise, survey.}
 
 \item{survey}{Survey name prefix to use in filename (e.g. NBS_2022). Must provide rds_dir or all of region, vessel, cruise, survey.}
 }
