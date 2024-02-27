@@ -28,7 +28,7 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
   
   # Create a data.frame of height and spread for model-fitting
   hs_df <- dplyr::inner_join(height_df, spread_df, by = c("vessel", "cruise", "haul")) %>%
-    tidyr::drop_na(edit_net_height, mean) # drop NA
+    dplyr::filter(!is.na(edit_net_height), !is.na(mean), net_height_pings >= 150)
   
   # Summarise height based on scope
   scope_height_df <- height_df %>% 
@@ -49,7 +49,6 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
     message("sor_fill_missing: Processing ", rds_paths[mm])
     
     sel_dat <- readRDS(file = rds_paths[mm])
-    # sel_dat <- readRDS(file = "C:/Users/sean.rohan/Work/afsc/postsurvey_hauldata_processing/output/EBS/202202/162/ping_files_NBS_2022/202202_162_10_sor.rds")
 
     est_height <- FALSE
     est_width <- FALSE
@@ -65,17 +64,22 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
       est_height <- TRUE
       
     }
+    
+    # stopifnot(!est_height)
 
     if(est_height) {
-      final_height <- data.frame(edit_net_height = sel_dat[['height']]$edit_net_height,
+      
+      final_height <- data.frame(edit_net_height = scope_height_df$mean_height[scope_height_df$edit_wire_out_FM == sel_dat$height$edit_wire_out_FM],
                                  net_height_method = 4,
                                  net_height_pings = sel_dat[['height']]$net_height_pings,
                                  net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
     } else{
-      final_height <- data.frame(edit_net_height = scope_height_df$mean_height[scope_height_df$edit_wire_out_FM == sel_dat$height$edit_wire_out_FM],
+      
+      final_height <- data.frame(edit_net_height = sel_dat[['height']]$edit_net_height,
                                  net_height_method = 6,
                                  net_height_pings = sel_dat[['height']]$net_height_pings,
                                  net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
+      
     }
     
 
