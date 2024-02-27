@@ -26,11 +26,12 @@ width <- RODBC::sqlQuery(channel = channel,
                          and c.cruise = 202301 
                          and nmh.data_type_id = 2 
                          and nm.value > 10 
-                         and nm.value < 22 
+                         and nm.value < 28 
                          and h.haul_type = 7") |>
   dplyr::mutate(DATE_TIME = lubridate::with_tz(
     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
-    tzone = "America/Anchorage")
+    tzone = "America/Anchorage",
+    NET_WIDTH = marport_to_netmind(NET_WIDTH))
     ) |>
   dplyr::arrange(DATE_TIME)
 
@@ -44,8 +45,6 @@ height <- RODBC::sqlQuery(channel = channel,
                           and s.survey_definition_id = 98 
                           and c.cruise = 202301 
                           and nmh.data_type_id = 3 
-                          and nm.value > 10 
-                          and nm.value < 22
                           and h.haul_type = 7") |>
   dplyr::mutate(DATE_TIME = lubridate::with_tz(
     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
@@ -115,7 +114,7 @@ standard_width <- RODBC::sqlQuery(channel = channel,
                          ") and h.haul_id = nmh.haul_id 
                          and nmh.data_type_id = 2 
                          and nm.value > 10 
-                         and nm.value < 22")) |>
+                         and nm.value < 30")) |>
   dplyr::mutate(DATE_TIME = lubridate::with_tz(
     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
     tzone = "America/Anchorage")
@@ -128,9 +127,7 @@ standard_height <- RODBC::sqlQuery(channel = channel,
                          where nm.net_mensuration_header_id = nmh.net_mensuration_header_id 
                          and h.haul_id in (", paste(standard_hauls$HAUL_ID, collapse = ", "), 
                                                  ") and h.haul_id = nmh.haul_id 
-                         and nmh.data_type_id = 3 
-                         and nm.value > 10 
-                         and nm.value < 22")) |>
+                         and nmh.data_type_id = 3")) |>
   dplyr::mutate(DATE_TIME = lubridate::with_tz(
     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
     tzone = "America/Anchorage")
@@ -232,6 +229,8 @@ set_treatment <- function(wd, trt) {
   
 }
 
+sor_width_treatment <- data.frame()
+
 for(jj in 1:length(unique_hauls)) {
   
   sel_sor_width <- dplyr::filter(sor_width, HAUL_ID == unique_hauls[jj])
@@ -240,45 +239,91 @@ for(jj in 1:length(unique_hauls)) {
   
   sel_treatment <- dplyr::filter(treatment_breaks, HAUL_ID == unique_hauls[jj])
   
+  if(nrow(sel_sor_width) < 1) {
+    next
+  }
   sel_sor_width <- set_treatment(wd = sel_sor_width, trt = sel_treatment)
   
   sel_sor_width$treatment <- factor(sel_sor_width$treatment)
+  
+  sor_width_treatment <- dplyr::bind_rows(sor_width_treatment, sel_sor_width)
   
   treatment_vline <- tidyr::pivot_longer(sel_treatment, cols = c("start", "end")) |>
     dplyr::rename(DATE_TIME = value)
   
   width_range <- range(sel_sor_width$NET_WIDTH) + c(-0.2, 0.2)
   
-  plotly::ggplotly(
-  ggplot() +
-    geom_path(data = sel_sor_width, 
-              mapping = aes(x = DATE_TIME, y = NET_WIDTH),
-              linewidth = 0.5, color = "grey50") +
-    geom_point(data = sel_sor_width, 
-               mapping = aes(x = DATE_TIME, 
-                             y = NET_WIDTH, 
-                             text = paste0("Index:",  index), 
-                             color = treatment)) +
-    geom_segment(data = treatment_vline,
-                 mapping = aes(x = DATE_TIME,
-                               xend = DATE_TIME,
-                               color = factor(treatment),
-                               linetype = name,
-                               y = width_range[1],
-                               yend = width_range[2])) +
-    geom_segment(data = sel_events,
-               mapping = aes(x = DATE_TIME, xend = DATE_TIME, y = width_range[1], yend = width_range[2], group = NAME)) +
-    scale_x_datetime(name = "Date/time (AKDT)") +
-    scale_y_continuous(name = "Net Width (m)") + 
-    scale_color_discrete(name = "Treatment") +
-    scale_linetype_manual(name = "Start/End", values = c("start" = 1, "end" = 2)) +
-    ggtitle(paste0("Year: ", floor(sel_events$CRUISE[1]/100), ", Vessel: ", sel_events$VESSEL[1], ", Haul: ", sel_events$HAUL[1])) +
-    theme_bw()
-  )
-  
-  readline("Press Enter to advance to the next plot.")
+  # plotly::ggplotly(
+  # ggplot() +
+  #   geom_path(data = sel_sor_width, 
+  #             mapping = aes(x = DATE_TIME, y = NET_WIDTH),
+  #             linewidth = 0.5, color = "grey50") +
+  #   geom_point(data = sel_sor_width, 
+  #              mapping = aes(x = DATE_TIME, 
+  #                            y = NET_WIDTH, 
+  #                            text = paste0("Index:",  index), 
+  #                            color = treatment)) +
+  #   geom_segment(data = treatment_vline,
+  #                mapping = aes(x = DATE_TIME,
+  #                              xend = DATE_TIME,
+  #                              color = factor(treatment),
+  #                              linetype = name,
+  #                              y = width_range[1],
+  #                              yend = width_range[2])) +
+  #   geom_segment(data = sel_events,
+  #              mapping = aes(x = DATE_TIME, xend = DATE_TIME, y = width_range[1], yend = width_range[2], group = NAME)) +
+  #   scale_x_datetime(name = "Date/time (AKDT)") +
+  #   scale_y_continuous(name = "Net Width (m)") + 
+  #   scale_color_discrete(name = "Treatment") +
+  #   scale_linetype_manual(name = "Start/End", values = c("start" = 1, "end" = 2)) +
+  #   ggtitle(paste0("Year: ", floor(sel_events$CRUISE[1]/100), ", Vessel: ", sel_events$VESSEL[1], ", Haul: ", sel_events$HAUL[1])) +
+  #   theme_bw()
+  # )
+  # 
+  # readline("Press Enter to advance to the next plot.")
 
 }
+
+# Plot available data from experiments
+ggplot(data = dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) |>
+         unique() |> 
+         dplyr::inner_join(width),
+       mapping = aes(x = DATE_TIME, y = NET_WIDTH)) +
+  geom_segment(data = events,
+               mapping = aes(x = DATE_TIME,
+                             xend = DATE_TIME,
+                             y = 9, yend = 25),
+               color = "red") +
+  geom_point() +
+  facet_wrap(~HAUL, scales = "free") +
+  theme_bw()
+
+ggplot() +
+  geom_point(data = dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) |>
+               unique() |> 
+               dplyr::inner_join(sor_width),
+             mapping = aes(x = DATE_TIME, y = NET_WIDTH)) +
+  geom_segment(data = events,
+               mapping = aes(x = DATE_TIME,
+                             xend = DATE_TIME,
+                             y = 9, yend = 25),
+               color = "red") +
+  facet_wrap(~HAUL, scales = "free_x") +
+  theme_bw()
+
+ggplot() +
+  geom_point(data = dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) |>
+               unique() |> 
+               dplyr::inner_join(sor_width_treatment),
+             mapping = aes(x = DATE_TIME, y = NET_WIDTH, color = factor(treatment))) +
+  geom_segment(data = events,
+               mapping = aes(x = DATE_TIME,
+                             xend = DATE_TIME,
+                             y = 9, yend = 25),
+               color = "red") +
+  scale_color_discrete(name = "Treatment") +
+  facet_wrap(~HAUL, scales = "free_x") +
+  theme_bw()
 
 
 # Plot average width and standard deviation
