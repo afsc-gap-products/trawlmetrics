@@ -134,7 +134,7 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
       dplyr::filter(vessel == unique_hauls_df$vessel[jj],
                     cruise == unique_hauls_df$cruise[jj],
                     haul == unique_hauls_df$haul[jj]) %>%
-      dplyr::filter(measurement_value >= min(width_range), # this is per trawl scope: net spread should be between 10 and 22 m
+      dplyr::filter(measurement_value >= min(width_range),
                     measurement_value <= max(width_range)) %>% 
       dplyr::full_join(haul_events_dat, by = c("cruise", "vessel", "haul", "date_time")) %>% 
       dplyr::arrange(date_time) %>% 
