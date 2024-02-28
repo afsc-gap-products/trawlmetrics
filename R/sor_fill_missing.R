@@ -164,7 +164,7 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
     
     if(est_spread) {
       final_spread <- data.frame(edit_net_spread = predict.glm(object = width_glm, 
-                                  newdata = data.frame(edit_net_height = sel_dat[['height']]$edit_net_height, 
+                                  newdata = data.frame(edit_net_height = final_height$edit_net_height, 
                                                        invscope = sel_dat[['height']]$invscope)),
         net_spread_pings = 0,
         net_spread_method = 4,
