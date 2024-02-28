@@ -18,11 +18,9 @@ sor_save_results <- function(final_dir, create_user = "", survey, cruise_idnum, 
   fpath <- character(length = 0L)
   
   for(jj in final_dir) {
-    
     fpath <- c(fpath, list.files(jj, 
                                  pattern = "final.rds",
                                  full.names = TRUE))
-    
   }
 
   

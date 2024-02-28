@@ -26,9 +26,6 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
   tail <- tolower(tail)
   method <- tolower(method)
 
-  # Index rows
-  # rownames(data) <- 1:nrow(data)
-
   # Calculate absolute stopping point if n.stop is a proportion
   if(n.stop < 1) { #function will run until you hit some proportion of the data (eg .4 = 40% data looped over until it stops)
     n.stop <- n.stop * nrow(data)
@@ -50,7 +47,7 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
   for(i in 1:iter) {
 
     # Subset data that hasn't been rejected
-    data.sub <- subset(data, is.na(SOR_RANK), drop = T) #subset all data where SOR rank = NA (data that haven't been rejected)
+    data.sub <- subset(data, is.na(SOR_RANK), drop = TRUE)
 
     # Select model
     if(method == 'lm') mod <- lm(formula, data = data.sub); #, ...); 
@@ -59,16 +56,16 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
     # CIA mod here- add smooth spline to options
     if(method == 'ss') {
       attach(data.sub, warn.conflicts = FALSE)
+      
       mod <- stats::smooth.spline(x = formula, # where formula = data.sub$response_var~data.sub$predictor.var
                                   spar = .8) 
-      # CIA: stan's setup for smooth.spline=(yy~xx[,2],spar=.8) where yy is the global variable
     }
 
     # Append residuals to subsetted data
     data.sub$resid <- resid(mod)
 
     # Assign order of rejection to input data frame based on residual rank-order #ca: finds max residual (use both to reject resid on either side)
-    # if(tail == "both") data$SOR_RANK[as.numeric(rownames(data.sub)[rev(order(abs(data.sub$resid)))])[rejection:(rejection+n.reject-1)]] <- c(rejection:(rejection+n.reject-1))
+
     if(tail == "both") data$SOR_RANK[which(data$index == data.sub$index[which.max(abs(data.sub$resid))])] <- i
     if(tail == "upper") data$SOR_RANK[which(data$index == data.sub$index[which.max(data.sub$resid)])] <- i
     if(tail == "lower") data$SOR_RANK[which(data$index == data.sub$index[which.min(data.sub$resid)])] <- i
@@ -76,7 +73,7 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
     # Calculate RMSE for iteration
     RMSE[i] <- mean(sqrt(residuals(mod)^2)) #all values still in dataset; magnitude of RMSE flips when you omitted a certain number of points
     NN[i] <- i #counter
-    # PARSLOPE[i] <- coef(mod)[2]
+
     # ca: add max residual
 
     # Stop based on a threshold, as in Kotwicki et al. (2011); same as sk, but not hard-coded stopping rule, need to pass threshold for stop
@@ -92,15 +89,13 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
         print(paste0("sequentialOR: Stopping threshold reached. Stopped after iteration " , i))
         mean_spread <- data %>% 
           dplyr::filter(is.na(SOR_RANK)) %>% 
-          summarize(n_pings = n(),
-                    mean = mean(measurement_value))
-        results_row <- bind_cols( #vessel = unique(data$vessel), haul = unique(data$haul), 
-                                  mean_spread, sd = sd(resids))
+          dplyr::summarize(n_pings = n(),
+                           mean = mean(measurement_value))
+        results_row <- dplyr::bind_cols(mean_spread, sd = sd(resids))
         
         return(list(results = results_row,
                     obs_rank = data,
                     rmse = data.frame(N = NN, RMSE = RMSE )))
-        # return(list(obs_rank = data, rmse = data.frame(N = NN, RMSE = RMSE))) #add max residual to rmse data frame
       }
     }
 
@@ -113,8 +108,7 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
     dplyr::filter(is.na(SOR_RANK)) %>% 
     summarize(n_pings = n(),
               mean = mean(measurement_value))
-  results_row <- bind_cols( #vessel = unique(data$vessel), haul = unique(data$haul), 
-                           mean_spread, sd = sd(resids))
+  results_row <- bind_cols(mean_spread, sd = sd(resids))
 
   return(list(results = results_row,
               obs_rank = data,

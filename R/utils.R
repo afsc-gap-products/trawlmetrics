@@ -25,15 +25,17 @@ get_connected <- function(channel = NULL, schema = NA){
 #' Filter pings based on date/time
 #' 
 #' @param data data.frame containing events, measurements, and date_times for events.
+#' @param start_event_code Start event code (e.g. 3 for on-bottom in the EBS/NBS, 4 for Equilibrium Time in the GOA and AI)
+#' @param end_event_code End event code (e.g. 7 for off-bottom in the EBS, NBS, GOA, and AI )
 #' @export
 
-get_pings2 <- function(data) {
+get_pings2 <- function(data, start_event_code, stop_event_code) {
   data_sub <- data %>% 
     dplyr::select(-datum_code, -cabinet_sensor_flag, -measurement_value) %>% 
     dplyr::distinct() 
-  start_t <- data_sub %>% dplyr::filter(event == 3) %>% 
+  start_t <- data_sub %>% dplyr::filter(event == start_event_code) %>% 
     dplyr::select(date_time)
-  end_t <- data_sub %>% dplyr::filter(event == 7) %>% 
+  end_t <- data_sub %>% dplyr::filter(event == end_event_code) %>% 
     dplyr::select(date_time)
   data_new <- data %>%
     dplyr::mutate(start = start_t$date_time, end = end_t$date_time) %>%
