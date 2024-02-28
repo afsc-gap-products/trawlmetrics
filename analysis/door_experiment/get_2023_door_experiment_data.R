@@ -1,4 +1,4 @@
-# Net width and height data from door comparison experiments
+# Net width and height data from 2023 door comparison experiments
 # February 26, 2024
 # Sean Rohan <sean.rohan@noaa.gov>
 

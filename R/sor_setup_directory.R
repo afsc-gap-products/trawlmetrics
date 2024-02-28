@@ -41,15 +41,21 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
   survey_region <- c('BS', 'BS', 'GOA', 'AI')[match(region, c("EBS", "NBS", "GOA", "AI"))]
   survey_year <- floor(cruise/100)
   
-  if(is.null(width_range) & survey_region == 'BS') {
-    width_range <- c(10, 22)
+  # Acceptable range for net spread values
+  if(is.null(width_range)) {
+    width_range <- switch(survey_region,
+                          'GOA' = c(8, 22),
+                          'AI' = c(8, 22),
+                          'BS' = c(10, 22))
   }
-  
-  if(is.null(width_range) & survey_region %in% c('GOA', 'AI')) {
-    width_range <- c(8, 22)
-  }
-  
 
+  # Event codes used for effort calculations
+  start_event_code <- switch(survey_region,
+                             'GOA' = 4,
+                             'AI' = 4,
+                             'BS' = 3)
+  
+  end_event_code <- 7
   
   message("setup_sor_directory: Retreiving data from racebase")
   # Get spread measurements from race_data
@@ -83,8 +89,6 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
     saveRDS(edit_height_df, file = paste0(here::here(output_dir, paste0("edit_height_", cruise, "_", vessel,  ".rds"))))
   }
     
-    
-    # Replace csv files with rds files for 2023
     message("setup_sor_directory: Reading rds files from ", output_dir)
     edit_sgp <- readRDS(file = paste0(here::here(output_dir, paste0("edit_sgp_", cruise, "_", vessel,  ".rds"))))
     edit_sgt <- readRDS(file = paste0(here::here(output_dir, paste0("edit_sgt_", cruise, "_", vessel,  ".rds"))))
@@ -140,7 +144,9 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
       dplyr::arrange(date_time) %>% 
       tibble::add_column(start = NA, end = NA)
     
-    spread_pings <- get_pings2(data = sor_data) %>%
+    spread_pings <- get_pings2(data = sor_data,
+                               start_event_code = start_event_code,
+                               end_event_code = end_event_code) %>%
       dplyr::select(-start, -end)
     
     if(!(nrow(spread_pings) >= 1)) {
