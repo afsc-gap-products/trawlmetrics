@@ -86,7 +86,8 @@ treatment_breaks <- read.csv(here::here("analysis", "door_experiment", "data", "
                                            tz = "America/Anchorage")) |>
   dplyr::rename(start = start_treatment, 
                 end = end_treatment) |>
-  dplyr::select(CRUISE, VESSEL, HAUL, DATE, treatment, start, end)
+  dplyr::mutate(scope_m = scope_fm * 1.8288) |>
+  dplyr::select(CRUISE, VESSEL, HAUL, DATE, treatment, start, end, scope_fm, scope_m, target_speed_kn, usable)
 
 treatment_breaks <- dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) |> 
   unique() |> 
@@ -159,6 +160,10 @@ standard_rb_hauls <- RODBC::sqlQuery(channel = channel,
       dplyr::select(standard_events, VESSEL, CRUISE, HAUL, HAUL_ID)
       )
     )
+
+test <- lm(formula = NET_SPREAD ~ BOTTOM_DEPTH + (BOTTOM_DEPTH/WIRE_OUT), data = standard_hauls)
+
+plot(standard_hauls$NET_SPREAD, resid(test))
 
 # Sequential outlier rejection on width for experimental hauls
 unique_hauls <- unique(events$HAUL_ID)
@@ -325,26 +330,109 @@ ggplot() +
   facet_wrap(~HAUL, scales = "free_x") +
   theme_bw()
 
+sor_good_treatments <- sor_width_treatment |>
+  dplyr::filter(!is.na(treatment)) |>
+  dplyr::mutate(treatment = as.numeric(as.character(treatment))) |>
+  dplyr::inner_join(treatment_breaks |>
+                      dplyr::filter(usable, HAUL < 15) |>
+                    dplyr::select(HAUL_ID, treatment, target_speed_kn, scope_m) |>
+                      unique(),
+                    by = c("HAUL_ID", "treatment")) |>
+  dplyr::group_by(HAUL_ID, target_speed_kn, scope_m, treatment) |>
+  dplyr::summarise(n_spread_pings = n(),
+                   NET_SPREAD = mean(NET_WIDTH),
+                   NET_SPREAD_STANDARD_DEVIATION = sd(NET_WIDTH),
+                   .groups = "keep"
+                   ) |>
+  dplyr::filter(n_spread_pings > 50) |>
+  dplyr::ungroup()
+
+
+usable_pings <- sor_width_treatment |>
+  dplyr::mutate(treatment = as.numeric(as.character(treatment))) |>
+  dplyr::left_join(dplyr::select(sor_good_treatments, HAUL_ID, treatment) |>
+                     dplyr::mutate(USE = TRUE)) |>
+  dplyr::mutate(USE = dplyr::if_else(is.na(USE), FALSE, USE)) |>
+  dplyr::inner_join(dplyr::select(hauls, HAUL_ID, HAUL))
+
+usable_pings <- events |>
+  dplyr::filter(EVENT_TYPE_ID == 3) |>
+  dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
+  dplyr::inner_join(usable_pings) |>
+  dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
+
+ping_events <- events |>
+  dplyr::filter(EVENT_TYPE_ID == 3) |>
+  dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
+  dplyr::inner_join(events) |>
+  dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
+
+haul_comparison <- sor_good_treatments |>
+  dplyr::inner_join(
+  dplyr::select(hauls, VESSEL, CRUISE, HAUL, HAUL_ID, BOTTOM_DEPTH, STATIONID)
+  ) |> dplyr::rename(`Net spread` = NET_SPREAD,
+                `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION,
+                `Bottom depth` = BOTTOM_DEPTH,
+                `Scope` = scope_m,
+                STATION = STATIONID) |>
+  dplyr::mutate(type = "New doors") |>
+  dplyr::bind_rows(standard_hauls |> 
+                     dplyr::rename(`Net spread` = NET_SPREAD,
+                                   `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION,
+                                   `Bottom depth` = BOTTOM_DEPTH,
+                                   `Scope` = WIRE_OUT) |>
+                     dplyr::mutate(type = "Standard tows")
+                   ) |>
+  tidyr::pivot_longer(cols = c("Net spread", "Net spread standard deviation", "Bottom depth", "Scope")) |>
+  dplyr::arrange(type)
+
+
+plot_usable_pings <- ggplot() +
+  geom_point(data = dplyr::filter(usable_pings, HAUL < 15),
+             mapping = aes(x = TIME_ELAPSED, y = NET_WIDTH, color = factor(treatment), alpha = USE)) +
+  geom_segment(data = dplyr::filter(ping_events, HAUL < 15),
+               mapping = aes(x = TIME_ELAPSED,
+                             xend = TIME_ELAPSED,
+                             y = 9, yend = 25),
+               color = "red") +
+  scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1), guide = "none") +
+  scale_color_discrete(name = "Treatment") +
+  scale_y_continuous(name = "Wing spread (m)") +
+  scale_x_continuous(name = "Time elapsed (min)") +
+  facet_wrap(~HAUL, scales = "free") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+
+png(filename = here::here("analysis", "door_experiment", "plots", "usable_83112_pings_2023.png"), 
+    width = 240, 
+    height = 180, 
+    units = "mm", 
+    res = 300)
+print(plot_usable_pings +
+        theme(legend.text = element_text(size = 14),
+              legend.title = element_text(size = 14),
+              axis.title = element_text(size = 18),
+              axis.text = element_text(size = 16),
+              strip.text = element_text(size = 14)))
+dev.off()
 
 # Plot average width and standard deviation
 plot_width_sd <- ggplot() +
-  geom_point(data = standard_hauls |> 
-               dplyr::rename(`Net spread` = NET_SPREAD,
-                             `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION,
-                             `Bottom depth` = BOTTOM_DEPTH,
-                             `Scope` = WIRE_OUT) |>
-               tidyr::pivot_longer(cols = c("Net spread", "Net spread standard deviation", "Bottom depth", "Scope")),
-             mapping = aes(x = STATION, y = value, color = STATION)) +
+  geom_point(data = haul_comparison,
+             mapping = aes(x = STATION, y = value, color = type, shape = type),
+             size = rel(4)) +
   scale_y_continuous(name = "Meters") +
   scale_x_discrete(name = "Station") +
-  scale_color_colorblind(name = "Station") +
-  facet_wrap(~factor(name, levels = c("Net spread", "Net spread standard deviation", "Scope", "Bottom depth")), nrow = 4, scales = "free") +
+  scale_color_colorblind(name = "Type") +
+  scale_shape(name = "Type", solid = FALSE) +
+  facet_wrap(~factor(name, levels = c("Net spread", "Net spread standard deviation", "Scope", "Bottom depth")), 
+             nrow = 4, 
+             scales = "free") +
   theme_bw()
 
 plot_width_timeseries <- ggplot() +
-  geom_hline(data = standard_hauls |>
-               dplyr::group_by(STATION) |>
-               dplyr::summarise(MEAN_SPREAD = mean(NET_SPREAD)), 
+  geom_hline(data = haul_comparison, 
              mapping = aes(yintercept = MEAN_SPREAD, color = STATION),
              linetype = 2) +
   geom_path(data = standard_hauls,
