@@ -213,11 +213,11 @@ mod_83112 <- gam(formula = NET_SPREAD ~ s(BOTTOM_DEPTH, SCOPE_TO_DEPTH, bs = "tp
 fit_83112 <- dplyr::filter(sor_good_treatments, GEAR == 44) |>
   dplyr::mutate(type = "4.5-m doors")
 
-fit_83112$fit <- predict(mod_83112, 
-                         newdata = fit_83112)
-
 standard_hauls$fit <- predict(mod_83112)
 standard_hauls$type <- "Standard 83-112"
+
+fit_83112$fit <- predict(mod_83112, 
+                         newdata = fit_83112)
 
 plot_spread_gam <- ggplot() +
   geom_point(data = standard_hauls,
@@ -242,60 +242,4 @@ print(plot_spread_gam +
               axis.title = element_text(size = 20),
               axis.text = element_text(size = 18)))
 dev.off()
-
-
-
-# standard_width <- RODBC::sqlQuery(channel = channel,
-#                                   query = paste0("select nm.date_time, nm.value net_width, h.haul_id 
-#                          from race_data.net_mensurations nm, race_data.net_mensuration_headers nmh, race_data.hauls h
-#                          where nm.net_mensuration_header_id = nmh.net_mensuration_header_id 
-#                          and h.haul_id in (", paste(standard_hauls$HAUL_ID, collapse = ", "), 
-#                                                  ") and h.haul_id = nmh.haul_id 
-#                          and nmh.data_type_id = 2 
-#                          and nm.value > 10 
-#                          and nm.value < 30")) |>
-#   dplyr::mutate(DATE_TIME = lubridate::with_tz(
-#     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
-#     tzone = "America/Anchorage")
-#   ) |>
-#   dplyr::arrange(DATE_TIME)
-# 
-# standard_height <- RODBC::sqlQuery(channel = channel,
-#                                    query = paste0("select nm.date_time, nm.value net_width, h.haul_id 
-#                          from race_data.net_mensurations nm, race_data.net_mensuration_headers nmh, race_data.hauls h
-#                          where nm.net_mensuration_header_id = nmh.net_mensuration_header_id 
-#                          and h.haul_id in (", paste(standard_hauls$HAUL_ID, collapse = ", "), 
-#                                                   ") and h.haul_id = nmh.haul_id 
-#                          and nmh.data_type_id = 3")) |>
-#   dplyr::mutate(DATE_TIME = lubridate::with_tz(
-#     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
-#     tzone = "America/Anchorage")
-#   ) |>
-#   dplyr::arrange(DATE_TIME)
-# 
-# standard_events <- RODBC::sqlQuery(channel = channel,
-#                                    query = paste0("select e.haul_id, e.date_time, e.event_type_id, et.name, h.haul, c.vessel_id vessel, c.cruise 
-#                           from race_data.events e, race_data.event_types et, race_data.hauls h, race_data.cruises c, race_data.surveys s 
-#                           where e.haul_id = h.haul_id 
-#                           and e.haul_id in (", paste(standard_hauls$HAUL_ID, collapse = ", "),
-#                                                   ") and h.cruise_id = c.cruise_id 
-#                           and c.survey_id = s.survey_id 
-#                           and et.event_type_id = e.event_type_id 
-#                           and e.event_type_id in (3, 7)")) |>
-#   dplyr::mutate(DATE_TIME = lubridate::with_tz(
-#     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
-#     tzone = "America/Anchorage")
-#   ) |>
-#   dplyr::arrange(DATE_TIME)
-# 
-# standard_rb_hauls <- RODBC::sqlQuery(channel = channel,
-#                                      query = paste0("select * from racebase.haul h 
-#                                                  where performance >= 0 
-#                                                  and haul_type = 3 
-#                                                  and stationid in ('", paste(unique(hauls$STATIONID), collapse = "', '"), "')")) |>
-#   dplyr::inner_join(
-#     unique(
-#       dplyr::select(standard_events, VESSEL, CRUISE, HAUL, HAUL_ID)
-#     )
-#   )
 

@@ -344,7 +344,28 @@ sor_good_treatments <- sor_width_treatment |>
                    NET_SPREAD_STANDARD_DEVIATION = sd(NET_WIDTH),
                    .groups = "keep"
                    ) |>
-  dplyr::filter(n_spread_pings > 50)
+  dplyr::filter(n_spread_pings > 50) |>
+  dplyr::ungroup()
+
+
+usable_pings <- sor_width_treatment |>
+  dplyr::mutate(treatment = as.numeric(as.character(treatment))) |>
+  dplyr::left_join(dplyr::select(sor_good_treatments, HAUL_ID, treatment) |>
+                     dplyr::mutate(USE = TRUE)) |>
+  dplyr::mutate(USE = dplyr::if_else(is.na(USE), FALSE, USE)) |>
+  dplyr::inner_join(dplyr::select(hauls, HAUL_ID, HAUL))
+
+usable_pings <- events |>
+  dplyr::filter(EVENT_TYPE_ID == 3) |>
+  dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
+  dplyr::inner_join(usable_pings) |>
+  dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
+
+ping_events <- events |>
+  dplyr::filter(EVENT_TYPE_ID == 3) |>
+  dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
+  dplyr::inner_join(events) |>
+  dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
 
 haul_comparison <- sor_good_treatments |>
   dplyr::inner_join(
@@ -364,6 +385,37 @@ haul_comparison <- sor_good_treatments |>
                    ) |>
   tidyr::pivot_longer(cols = c("Net spread", "Net spread standard deviation", "Bottom depth", "Scope")) |>
   dplyr::arrange(type)
+
+
+plot_usable_pings <- ggplot() +
+  geom_point(data = dplyr::filter(usable_pings, HAUL < 15),
+             mapping = aes(x = TIME_ELAPSED, y = NET_WIDTH, color = factor(treatment), alpha = USE)) +
+  geom_segment(data = dplyr::filter(ping_events, HAUL < 15),
+               mapping = aes(x = TIME_ELAPSED,
+                             xend = TIME_ELAPSED,
+                             y = 9, yend = 25),
+               color = "red") +
+  scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1), guide = "none") +
+  scale_color_discrete(name = "Treatment") +
+  scale_y_continuous(name = "Wing spread (m)") +
+  scale_x_continuous(name = "Time elapsed (min)") +
+  facet_wrap(~HAUL, scales = "free") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+
+png(filename = here::here("analysis", "door_experiment", "plots", "usable_83112_pings_2023.png"), 
+    width = 240, 
+    height = 180, 
+    units = "mm", 
+    res = 300)
+print(plot_usable_pings +
+        theme(legend.text = element_text(size = 14),
+              legend.title = element_text(size = 14),
+              axis.title = element_text(size = 18),
+              axis.text = element_text(size = 16),
+              strip.text = element_text(size = 14)))
+dev.off()
 
 # Plot average width and standard deviation
 plot_width_sd <- ggplot() +
