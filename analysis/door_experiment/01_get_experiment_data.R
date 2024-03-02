@@ -1,5 +1,6 @@
 library(trawlmetrics)
 library(mgcv)
+library(ggthemes)
 
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
@@ -370,7 +371,7 @@ plot_usable_spread_pings <- ggplot() +
                              y = 9, yend = 25),
                color = "red") +
   scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1), guide = "none") +
-  scale_color_discrete(name = "Treatment") +
+  scale_color_colorblind(name = "Treatment", na.translate = TRUE, na.value = "grey50") +
   scale_y_continuous(name = "Wing spread (m)") +
   scale_x_continuous(name = "Time elapsed (min)") +
   facet_wrap(~HAUL, scales = "free") +
@@ -442,8 +443,8 @@ plot_usable_height_pings <- ggplot() +
                              y = 0, yend = 6),
                color = "red") +
   scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1), guide = "none") +
-  scale_color_discrete(name = "Treatment") +
-  scale_y_continuous(name = "Wing spread (m)") +
+  scale_color_colorblind(name = "Treatment", na.translate = TRUE, na.value = "grey50") +
+  scale_y_continuous(name = "Net height (m)") +
   scale_x_continuous(name = "Time elapsed (min)") +
   facet_wrap(~HAUL, scales = "free") +
   theme_bw() +
@@ -462,3 +463,40 @@ print(plot_usable_height_pings +
               axis.text = element_text(size = 16),
               strip.text = element_text(size = 14)))
 dev.off()
+
+
+plot_treatments_2023 <- ggplot() +
+  geom_jitter(data = standard_hauls,
+              mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_TO_DEPTH, color = "Standard 83-112"),
+              alpha = 0.04) +
+  geom_path(data = dplyr::filter(usable_height_treatments, HAUL < 15),
+            mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_TO_DEPTH, group = HAUL, color = "4.5-m doors")) +
+  geom_point(data = dplyr::filter(usable_height_treatments, HAUL < 15),
+             mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_TO_DEPTH, color = "4.5-m doors", fill = factor(treatment)),
+             shape = 21, size = rel(3.3)) +
+  geom_text_repel(data = dplyr::filter(usable_height_treatments, HAUL < 15) |>
+                    dplyr::group_by(BOTTOM_DEPTH, HAUL) |>
+                    dplyr::summarise(SCOPE_TO_DEPTH = max(SCOPE_TO_DEPTH)),
+                  mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_TO_DEPTH, label = HAUL, color = "4.5-m doors"),
+                  size = rel(5.5)) +
+  scale_y_continuous(name = "Scope/depth") +
+  scale_x_log10(name = "Bottom Depth (m)", breaks = c(25, 50, 100, 150, 200)) +
+  scale_color_manual(name = "Haul type", values = c("4.5-m doors" = "red", "Standard 83-112" = "grey50")) +
+  scale_fill_colorblind(name = "Treatment") +
+  theme_bw() +
+  theme(legend.position = c(0.82, 0.80))
+
+
+png(filename = here::here("analysis", "door_experiment", "plots", "treatments_by_haul2023.png"), 
+    width = 180, 
+    height = 180, 
+    units = "mm", 
+    res = 300)
+print(plot_treatments_2023 +
+        theme(legend.text = element_text(size = 14),
+              legend.title = element_text(size = 16),
+              axis.title = element_text(size = 18),
+              axis.text = element_text(size = 16),
+              strip.text = element_text(size = 14)))
+dev.off()
+
