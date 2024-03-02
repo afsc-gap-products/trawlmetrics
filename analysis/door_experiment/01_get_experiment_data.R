@@ -4,7 +4,26 @@ library(mgcv)
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
 min_spread_pings <- 50
+min_height_pings <- 50
 gear <- 44
+
+# Function to assign treatment values to spread/height measurements ----
+set_treatment <- function(wd, trt) {
+  
+  unique_trt <- unique(trt$treatment)
+  
+  wd$treatment <- NA
+  
+  for(ii in 1:length(unique_trt)) {
+    
+    wd$treatment[wd$DATE_TIME >= trt$start[trt$treatment == unique_trt[ii]] & wd$DATE_TIME <= trt$end[trt$treatment == unique_trt[ii]]] <- unique_trt[ii]
+    
+  }
+  
+  return(wd)
+  
+}
+
 
 # Get experimental data ----
 
@@ -38,6 +57,8 @@ height <- RODBC::sqlQuery(channel = channel,
                           and s.survey_definition_id = 98 
                           and c.cruise = 202301 
                           and nmh.data_type_id = 3 
+                          and nm.value > 0 
+                          and nm.value < 6
                           and h.haul_type = 7") |>
   dplyr::mutate(DATE_TIME = lubridate::with_tz(
     lubridate::force_tz(DATE_TIME, tzone = "UTC"), 
@@ -68,6 +89,18 @@ hauls <- RODBC::sqlQuery(channel = channel,
                     |> unique()
   )
 
+# Data from standard hauls
+standard_hauls <- RODBC::sqlQuery(channel = channel,
+                                  query = paste0("select h.*, c.vessel_id vessel, c.cruise from race_data.hauls h, race_data.cruises c, race_data.surveys s 
+                                                 where h.performance >= 0 
+                                                 and h.haul_type = 3 
+                                                 and h.net_spread_method = 7 
+                                                 and h.cruise_id = c.cruise_id  
+                                                 and s.survey_id = c.survey_id 
+                                                 and s.survey_definition_id = 98")) |>
+  dplyr::mutate(SCOPE_TO_DEPTH = WIRE_OUT/BOTTOM_DEPTH,
+                STATIONID = factor(STATION))
+
 # Load treatment breaks, append HAUL_ID ----
 treatment_breaks <- read.csv(here::here("analysis", "door_experiment", "data", "2023_Door_Testing_Treatment_Times.csv")) |>
   dplyr::filter(!is.na(treatment)) |>
@@ -88,10 +121,11 @@ treatment_breaks <- dplyr::select(events, VESSEL, CRUISE, HAUL, HAUL_ID) |>
 
 
 
-# Run sequential outlier rejection 
+# Run sequential outlier rejection on spread data
 unique_hauls <- unique(events$HAUL_ID)
 
 sor_width <- data.frame()
+sor_height <- data.frame()
 
 for(ii in 1:length(unique_hauls)) {
   
@@ -102,6 +136,11 @@ for(ii in 1:length(unique_hauls)) {
     dplyr::inner_join(hauls)
   
   sel_width <- dplyr::filter(width, 
+                             HAUL_ID == unique_hauls[ii],
+                             DATE_TIME >= sel_events$DATE_TIME[sel_events$EVENT_TYPE_ID == 3],
+                             DATE_TIME <= sel_events$DATE_TIME[sel_events$EVENT_TYPE_ID <= 7])
+  
+  sel_height <- dplyr::filter(height, 
                              HAUL_ID == unique_hauls[ii],
                              DATE_TIME >= sel_events$DATE_TIME[sel_events$EVENT_TYPE_ID == 3],
                              DATE_TIME <= sel_events$DATE_TIME[sel_events$EVENT_TYPE_ID <= 7])
@@ -133,51 +172,47 @@ for(ii in 1:length(unique_hauls)) {
     
   }
   
-}
-
-sor_width$index <- 1:nrow(sor_width)
-
-
-# Function to assign treatment values to spread measurements ----
-set_treatment <- function(wd, trt) {
-  
-  unique_trt <- unique(trt$treatment)
-  
-  wd$treatment <- NA
-  
-  for(ii in 1:length(unique_trt)) {
-    
-    wd$treatment[wd$DATE_TIME >= trt$start[trt$treatment == unique_trt[ii]] & wd$DATE_TIME <= trt$end[trt$treatment == unique_trt[ii]]] <- unique_trt[ii]
-    
-    
-    
-  }
-  
-  return(wd)
+  sor_height <- dplyr::bind_rows(sor_height, sel_height)
   
 }
 
+
+# Assign treatments to measurement values
 sor_width_treatment <- data.frame()
+sor_height_treatment <- data.frame()
 
 for(jj in 1:length(unique_hauls)) {
   
   sel_sor_width <- dplyr::filter(sor_width, HAUL_ID == unique_hauls[jj])
   
+  sel_sor_height <- dplyr::filter(sor_height, HAUL_ID == unique_hauls[jj])
+  
   sel_treatment <- dplyr::filter(treatment_breaks, HAUL_ID == unique_hauls[jj])
   
-  if(nrow(sel_sor_width) < 1) {
-    next
+    if(nrow(sel_sor_width) > 1) {
+      
+      sel_sor_width <- set_treatment(wd = sel_sor_width, trt = sel_treatment)
+      
+      sel_sor_width$treatment <- sel_sor_width$treatment
+      
+      sor_width_treatment <- dplyr::bind_rows(sor_width_treatment, sel_sor_width)
+      
+    }
+  
+  if(nrow(sel_sor_height) > 1) {
+    
+    sel_sor_height <- set_treatment(wd = sel_sor_height, trt = sel_treatment)
+    
+    sel_sor_height$treatment <- sel_sor_height$treatment
+    
+    sor_height_treatment <- dplyr::bind_rows(sor_height_treatment, sel_sor_height)
+    
   }
-  sel_sor_width <- set_treatment(wd = sel_sor_width, trt = sel_treatment)
-  
-  sel_sor_width$treatment <- factor(sel_sor_width$treatment)
-  
-  sor_width_treatment <- dplyr::bind_rows(sor_width_treatment, sel_sor_width)
 
 }
 
 
-sor_good_treatments <- sor_width_treatment |>
+usable_width_treatments <- sor_width_treatment |>
   dplyr::filter(!is.na(treatment)) |>
   dplyr::mutate(treatment = as.numeric(as.character(treatment))) |>
   dplyr::inner_join(treatment_breaks |>
@@ -186,45 +221,51 @@ sor_good_treatments <- sor_width_treatment |>
                       unique(),
                     by = c("HAUL_ID", "treatment")) |>
   dplyr::group_by(HAUL_ID, target_speed_kn, WIRE_OUT, treatment) |>
-  dplyr::summarise(n_spread_pings = n(),
+  dplyr::summarise(SPREAD_PINGS = n(),
                    NET_SPREAD = mean(NET_WIDTH),
                    NET_SPREAD_STANDARD_DEVIATION = sd(NET_WIDTH),
                    .groups = "keep"
   ) |>
-  dplyr::filter(n_spread_pings > min_spread_pings) |>
+  dplyr::filter(SPREAD_PINGS > min_spread_pings) |>
   dplyr::inner_join(dplyr::select(hauls, HAUL_ID, VESSEL, CRUISE, HAUL, DISTANCE_FISHED, START_LATITUDE, END_LATITUDE, START_LONGITUDE, END_LONGITUDE, BOTTOM_DEPTH, GEAR_DEPTH, STATIONID, GEAR, ACCESSORIES)) |>
   dplyr::mutate(SCOPE_TO_DEPTH = WIRE_OUT/BOTTOM_DEPTH)
 
-standard_hauls <- RODBC::sqlQuery(channel = channel,
-                                  query = paste0("select h.*, c.vessel_id vessel, c.cruise from race_data.hauls h, race_data.cruises c, race_data.surveys s 
-                                                 where h.performance >= 0 
-                                                 and h.haul_type = 3 
-                                                 and h.net_spread_method = 7 
-                                                 and h.cruise_id = c.cruise_id  
-                                                 and s.survey_id = c.survey_id 
-                                                 and s.survey_definition_id = 98")) |>
-  dplyr::mutate(SCOPE_TO_DEPTH = WIRE_OUT/BOTTOM_DEPTH,
-                STATIONID = factor(STATION))
+usable_height_treatments <- sor_height_treatment |>
+  dplyr::filter(!is.na(treatment)) |>
+  dplyr::mutate(treatment = as.numeric(as.character(treatment))) |>
+  dplyr::inner_join(treatment_breaks |>
+                      dplyr::filter(usable) |>
+                      dplyr::select(HAUL_ID, treatment, target_speed_kn, WIRE_OUT) |>
+                      unique(),
+                    by = c("HAUL_ID", "treatment")) |>
+  dplyr::group_by(HAUL_ID, target_speed_kn, WIRE_OUT, treatment) |>
+  dplyr::summarise(HEIGHT_PINGS = n(),
+                   NET_HEIGHT = mean(NET_HEIGHT),
+                   NET_HEIGHT_STANDARD_DEVIATION = sd(NET_HEIGHT),
+                   .groups = "keep"
+  ) |>
+  dplyr::filter(HEIGHT_PINGS > min_height_pings) |>
+  dplyr::inner_join(dplyr::select(hauls, HAUL_ID, VESSEL, CRUISE, HAUL, DISTANCE_FISHED, START_LATITUDE, END_LATITUDE, START_LONGITUDE, END_LONGITUDE, BOTTOM_DEPTH, GEAR_DEPTH, STATIONID, GEAR, ACCESSORIES)) |>
+  dplyr::mutate(SCOPE_TO_DEPTH = WIRE_OUT/BOTTOM_DEPTH)
 
-# 83-112 hauls
+# Spread model for 83-112 hauls
 
-mod_83112 <- gam(formula = NET_SPREAD ~ s(BOTTOM_DEPTH, SCOPE_TO_DEPTH, bs = "tp", k = 100) + s(STATIONID, bs = "re"), data = standard_hauls)
+mod_spread_83112 <- gam(formula = NET_SPREAD ~ s(BOTTOM_DEPTH, SCOPE_TO_DEPTH, bs = "tp", k = 100) + s(STATIONID, bs = "re"), data = standard_hauls)
 
-fit_83112 <- dplyr::filter(sor_good_treatments, GEAR == 44) |>
+fit_spread_83112 <- dplyr::filter(usable_width_treatments, GEAR == 44) |>
   dplyr::mutate(type = "4.5-m doors")
 
-standard_hauls$fit <- predict(mod_83112)
+standard_hauls$fit_spread <- predict(mod_spread_83112)
 standard_hauls$type <- "Standard 83-112"
 
-fit_83112$fit <- predict(mod_83112, 
-                         newdata = fit_83112)
-
+fit_spread_83112$fit_spread <- predict(mod_spread_83112, 
+                         newdata = fit_spread_83112)
 plot_spread_gam <- ggplot() +
   geom_point(data = standard_hauls,
-             mapping = aes(x = fit, y = NET_SPREAD, color = type),
+             mapping = aes(x = fit_spread, y = NET_SPREAD, color = type),
              alpha = 0.5) +
-  geom_point(data = fit_83112,
-             mapping = aes(x = fit, y = NET_SPREAD, color = type),
+  geom_point(data = fit_spread_83112,
+             mapping = aes(x = fit_spread, y = NET_SPREAD, color = type),
              size = rel(2.5)) +
   geom_abline(mapping = aes(intercept = 0, slope = 1),
               linetype = 2, linewidth = 1.5) +
@@ -243,3 +284,181 @@ print(plot_spread_gam +
               axis.text = element_text(size = 18)))
 dev.off()
 
+# Height model for 83-112 hauls
+mod_height_83112 <- gam(formula = NET_HEIGHT ~ s(BOTTOM_DEPTH, SCOPE_TO_DEPTH, bs = "tp", k = 100) + s(STATIONID, bs = "re"), data = standard_hauls)
+
+fit_height_83112 <- dplyr::filter(usable_height_treatments, GEAR == 44) |>
+  dplyr::mutate(type = "4.5-m doors")
+
+standard_hauls$fit_height <- predict(mod_height_83112)
+standard_hauls$type <- "Standard 83-112"
+
+fit_height_83112$fit_height <- predict(mod_height_83112, 
+                         newdata = fit_height_83112)
+plot_height_gam <- ggplot() +
+  geom_point(data = standard_hauls,
+             mapping = aes(x = fit_height, y = NET_HEIGHT, color = type),
+             alpha = 0.5) +
+  geom_point(data = fit_height_83112,
+             mapping = aes(x = fit_height, y = NET_HEIGHT, color = type),
+             size = rel(2.5)) +
+  geom_abline(mapping = aes(intercept = 0, slope = 1),
+              linetype = 2, linewidth = 1.5) +
+  scale_color_manual(name = "Haul type", values = c("4.5-m doors" = "red", "Standard 83-112" = "grey50")) +
+  scale_x_continuous(name = "Predicted height (m)") +
+  scale_y_continuous(name = "Observed height (m)") +
+  theme_bw() +
+  theme(legend.position = c(0.8, 0.12))
+
+
+png(filename = here::here("analysis", "door_experiment", "plots", "gam_obs_vs_predicted_height.png"), height = 180, width = 180, units = "mm", res = 300)
+print(plot_height_gam +
+        theme(legend.text = element_text(size = 16),
+              legend.title = element_text(size = 16),
+              axis.title = element_text(size = 20),
+              axis.text = element_text(size = 18),
+              legend.position = c(0.2, 0.88)))
+dev.off()
+
+
+# Plot usable spread pings ----
+usable_spread_pings <- sor_width_treatment |>
+  dplyr::mutate(treatment = as.numeric(as.character(treatment))) |>
+  dplyr::left_join(dplyr::select(usable_width_treatments, HAUL_ID, treatment) |>
+                     dplyr::mutate(USE = TRUE)) |>
+  dplyr::mutate(USE = dplyr::if_else(is.na(USE), FALSE, USE)) |>
+  dplyr::inner_join(dplyr::select(hauls, HAUL_ID, HAUL))
+
+usable_spread_pings <- events |>
+  dplyr::filter(EVENT_TYPE_ID == 3) |>
+  dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
+  dplyr::inner_join(usable_spread_pings) |>
+  dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
+
+ping_events <- events |>
+  dplyr::filter(EVENT_TYPE_ID == 3) |>
+  dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
+  dplyr::inner_join(events) |>
+  dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
+
+haul_spread_comparison <- usable_width_treatments |>
+  dplyr::inner_join(
+    dplyr::select(hauls, VESSEL, CRUISE, HAUL, HAUL_ID, BOTTOM_DEPTH, STATIONID)
+  ) |> dplyr::rename(`Net spread` = NET_SPREAD,
+                     `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION,
+                     `Bottom depth` = BOTTOM_DEPTH,
+                     `Scope` = WIRE_OUT,
+                     STATION = STATIONID) |>
+  dplyr::mutate(type = "New doors") |>
+  dplyr::bind_rows(standard_hauls |> 
+                     dplyr::rename(`Net spread` = NET_SPREAD,
+                                   `Net spread standard deviation` = NET_SPREAD_STANDARD_DEVIATION,
+                                   `Bottom depth` = BOTTOM_DEPTH,
+                                   `Scope` = WIRE_OUT) |>
+                     dplyr::mutate(type = "Standard tows")
+  ) |>
+  tidyr::pivot_longer(cols = c("Net spread", "Net spread standard deviation", "Bottom depth", "Scope")) |>
+  dplyr::arrange(type)
+
+
+plot_usable_spread_pings <- ggplot() +
+  geom_point(data = dplyr::filter(usable_spread_pings, HAUL < 15),
+             mapping = aes(x = TIME_ELAPSED, y = NET_WIDTH, color = factor(treatment), alpha = USE)) +
+  geom_segment(data = dplyr::filter(ping_events, HAUL < 15),
+               mapping = aes(x = TIME_ELAPSED,
+                             xend = TIME_ELAPSED,
+                             y = 9, yend = 25),
+               color = "red") +
+  scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1), guide = "none") +
+  scale_color_discrete(name = "Treatment") +
+  scale_y_continuous(name = "Wing spread (m)") +
+  scale_x_continuous(name = "Time elapsed (min)") +
+  facet_wrap(~HAUL, scales = "free") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+
+png(filename = here::here("analysis", "door_experiment", "plots", "usable_83112_spread_pings_2023.png"), 
+    width = 240, 
+    height = 180, 
+    units = "mm", 
+    res = 300)
+print(plot_usable_spread_pings +
+        theme(legend.text = element_text(size = 14),
+              legend.title = element_text(size = 14),
+              axis.title = element_text(size = 18),
+              axis.text = element_text(size = 16),
+              strip.text = element_text(size = 14)))
+dev.off()
+
+
+# Plot usable height pings ----
+
+usable_height_pings <- sor_height_treatment |>
+  dplyr::mutate(treatment = as.numeric(as.character(treatment))) |>
+  dplyr::left_join(dplyr::select(usable_height_treatments, HAUL_ID, treatment) |>
+                     dplyr::mutate(USE = TRUE)) |>
+  dplyr::mutate(USE = dplyr::if_else(is.na(USE), FALSE, USE)) |>
+  dplyr::inner_join(dplyr::select(hauls, HAUL_ID, HAUL))
+
+usable_height_pings <- events |>
+  dplyr::filter(EVENT_TYPE_ID == 3) |>
+  dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
+  dplyr::inner_join(usable_height_pings) |>
+  dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
+
+ping_events <- events |>
+  dplyr::filter(EVENT_TYPE_ID == 3) |>
+  dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
+  dplyr::inner_join(events) |>
+  dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
+
+haul_height_comparison <- usable_height_treatments |>
+  dplyr::inner_join(
+    dplyr::select(hauls, VESSEL, CRUISE, HAUL, HAUL_ID, BOTTOM_DEPTH, STATIONID)
+  ) |> dplyr::rename(`Net height` = NET_HEIGHT,
+                     `Net height standard deviation` = NET_HEIGHT_STANDARD_DEVIATION,
+                     `Bottom depth` = BOTTOM_DEPTH,
+                     `Scope` = WIRE_OUT,
+                     STATION = STATIONID) |>
+  dplyr::mutate(type = "New doors") |>
+  dplyr::bind_rows(standard_hauls |> 
+                     dplyr::rename(`Net height` = NET_HEIGHT,
+                                   `Net height standard deviation` = NET_HEIGHT_STANDARD_DEVIATION,
+                                   `Bottom depth` = BOTTOM_DEPTH,
+                                   `Scope` = WIRE_OUT) |>
+                     dplyr::mutate(type = "Standard tows")
+  ) |>
+  tidyr::pivot_longer(cols = c("Net height", "Net height standard deviation", "Bottom depth", "Scope")) |>
+  dplyr::arrange(type)
+
+
+plot_usable_height_pings <- ggplot() +
+  geom_point(data = dplyr::filter(usable_height_pings, HAUL < 15),
+             mapping = aes(x = TIME_ELAPSED, y = NET_HEIGHT, color = factor(treatment), alpha = USE)) +
+  geom_segment(data = dplyr::filter(ping_events, HAUL < 15),
+               mapping = aes(x = TIME_ELAPSED,
+                             xend = TIME_ELAPSED,
+                             y = 0, yend = 6),
+               color = "red") +
+  scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1), guide = "none") +
+  scale_color_discrete(name = "Treatment") +
+  scale_y_continuous(name = "Wing spread (m)") +
+  scale_x_continuous(name = "Time elapsed (min)") +
+  facet_wrap(~HAUL, scales = "free") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+
+png(filename = here::here("analysis", "door_experiment", "plots", "usable_83112_height_pings_2023.png"), 
+    width = 240, 
+    height = 180, 
+    units = "mm", 
+    res = 300)
+print(plot_usable_pings +
+        theme(legend.text = element_text(size = 14),
+              legend.title = element_text(size = 14),
+              axis.title = element_text(size = 18),
+              axis.text = element_text(size = 16),
+              strip.text = element_text(size = 14)))
+dev.off()

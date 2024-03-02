@@ -348,17 +348,17 @@ sor_good_treatments <- sor_width_treatment |>
   dplyr::ungroup()
 
 
-usable_pings <- sor_width_treatment |>
+usable_spread_pings <- sor_width_treatment |>
   dplyr::mutate(treatment = as.numeric(as.character(treatment))) |>
   dplyr::left_join(dplyr::select(sor_good_treatments, HAUL_ID, treatment) |>
                      dplyr::mutate(USE = TRUE)) |>
   dplyr::mutate(USE = dplyr::if_else(is.na(USE), FALSE, USE)) |>
   dplyr::inner_join(dplyr::select(hauls, HAUL_ID, HAUL))
 
-usable_pings <- events |>
+usable_spread_pings <- events |>
   dplyr::filter(EVENT_TYPE_ID == 3) |>
   dplyr::select(HAUL_ID, START_TIME = DATE_TIME) |>
-  dplyr::inner_join(usable_pings) |>
+  dplyr::inner_join(usable_spread_pings) |>
   dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
 
 ping_events <- events |>
@@ -387,8 +387,8 @@ haul_comparison <- sor_good_treatments |>
   dplyr::arrange(type)
 
 
-plot_usable_pings <- ggplot() +
-  geom_point(data = dplyr::filter(usable_pings, HAUL < 15),
+plot_usable_spread_pings <- ggplot() +
+  geom_point(data = dplyr::filter(usable_spread_pings, HAUL < 15),
              mapping = aes(x = TIME_ELAPSED, y = NET_WIDTH, color = factor(treatment), alpha = USE)) +
   geom_segment(data = dplyr::filter(ping_events, HAUL < 15),
                mapping = aes(x = TIME_ELAPSED,
