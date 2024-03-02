@@ -455,7 +455,7 @@ png(filename = here::here("analysis", "door_experiment", "plots", "usable_83112_
     height = 180, 
     units = "mm", 
     res = 300)
-print(plot_usable_pings +
+print(plot_usable_height_pings +
         theme(legend.text = element_text(size = 14),
               legend.title = element_text(size = 14),
               axis.title = element_text(size = 18),
