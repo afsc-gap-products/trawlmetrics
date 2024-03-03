@@ -286,7 +286,6 @@ plot_spread_gam <- ggplot() +
         legend.box.background = element_blank(),
         legend.background = element_blank())
 
-
 png(filename = here::here("analysis", "door_experiment", "plots", "gam_obs_vs_predicted_spread.png"), height = 180, width = 180, units = "mm", res = 300)
 print(plot_spread_gam +
         theme(legend.text = element_text(size = 12),

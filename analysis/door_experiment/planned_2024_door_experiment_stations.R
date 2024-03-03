@@ -1,5 +1,5 @@
 # Net width and height observations for planned 2024 hauls
-# February 28, 2024
+# March 3, 2024
 # Sean Rohan <sean.rohan@noaa.gov>
 
 # remotes::install_github(repo = "afsc-gap-products/postsurvey_hauldata_processing")
