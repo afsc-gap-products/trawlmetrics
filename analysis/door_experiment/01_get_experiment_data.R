@@ -1,6 +1,7 @@
 library(trawlmetrics)
 library(mgcv)
 library(ggthemes)
+library(ggrepel)
 
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
@@ -264,23 +265,32 @@ fit_spread_83112$fit_spread <- predict(mod_spread_83112,
 plot_spread_gam <- ggplot() +
   geom_point(data = standard_hauls,
              mapping = aes(x = fit_spread, y = NET_SPREAD, color = type),
-             alpha = 0.5) +
+             alpha = 0.2) +
+  geom_path(data = fit_spread_83112,
+            mapping = aes(x = fit_spread, y = NET_SPREAD, group = HAUL),
+            color = "red") +
   geom_point(data = fit_spread_83112,
-             mapping = aes(x = fit_spread, y = NET_SPREAD, color = type),
-             size = rel(2.5)) +
+             mapping = aes(x = fit_spread, y = NET_SPREAD, color = type, fill = factor(treatment), group = HAUL),
+             size = rel(3.3), shape = 21) +
   geom_abline(mapping = aes(intercept = 0, slope = 1),
               linetype = 2, linewidth = 1.5) +
+  geom_text_repel(data = dplyr::filter(fit_spread_83112) |>
+                    dplyr::filter(treatment == 1),
+                  mapping = aes(x = fit_spread, y = NET_SPREAD, label = HAUL, color = "4.5-m doors")) +
   scale_color_manual(name = "Haul type", values = c("4.5-m doors" = "red", "Standard 83-112" = "grey50")) +
+  scale_fill_colorblind(name = "Treatment", na.translate = TRUE, na.value = "grey50") +
   scale_x_continuous(name = "Predicted wing spread (m)") +
   scale_y_continuous(name = "Observed wing spread (m)") +
   theme_bw() +
-  theme(legend.position = c(0.8, 0.12))
+  theme(legend.position = c(0.82, 0.18),
+        legend.box.background = element_blank(),
+        legend.background = element_blank())
 
 
 png(filename = here::here("analysis", "door_experiment", "plots", "gam_obs_vs_predicted_spread.png"), height = 180, width = 180, units = "mm", res = 300)
 print(plot_spread_gam +
-        theme(legend.text = element_text(size = 16),
-              legend.title = element_text(size = 16),
+        theme(legend.text = element_text(size = 12),
+              legend.title = element_text(size = 14),
               axis.title = element_text(size = 20),
               axis.text = element_text(size = 18)))
 dev.off()
@@ -296,29 +306,40 @@ standard_hauls$type <- "Standard 83-112"
 
 fit_height_83112$fit_height <- predict(mod_height_83112, 
                          newdata = fit_height_83112)
+
 plot_height_gam <- ggplot() +
   geom_point(data = standard_hauls,
              mapping = aes(x = fit_height, y = NET_HEIGHT, color = type),
-             alpha = 0.5) +
+             alpha = 0.2) +
+  geom_path(data = fit_height_83112,
+            mapping = aes(x = fit_height, y = NET_HEIGHT, group = HAUL),
+            color = "red") +
   geom_point(data = fit_height_83112,
-             mapping = aes(x = fit_height, y = NET_HEIGHT, color = type),
-             size = rel(2.5)) +
+             mapping = aes(x = fit_height, y = NET_HEIGHT, color = type, fill = factor(treatment), group = HAUL),
+             size = rel(2.5),
+             shape = 21) +
   geom_abline(mapping = aes(intercept = 0, slope = 1),
               linetype = 2, linewidth = 1.5) +
+  geom_text_repel(data = dplyr::filter(fit_height_83112) |>
+                    dplyr::filter(treatment == 1),
+                  mapping = aes(x = fit_height, y = NET_HEIGHT, label = HAUL, color = "4.5-m doors")) +
   scale_color_manual(name = "Haul type", values = c("4.5-m doors" = "red", "Standard 83-112" = "grey50")) +
+  scale_fill_colorblind(name = "Treatment", na.translate = TRUE, na.value = "grey50") +
   scale_x_continuous(name = "Predicted height (m)") +
   scale_y_continuous(name = "Observed height (m)") +
   theme_bw() +
-  theme(legend.position = c(0.8, 0.12))
+  theme(legend.position = c(0.8, 0.12),
+        legend.box.background = element_blank(),
+        legend.background = element_blank())
 
 
 png(filename = here::here("analysis", "door_experiment", "plots", "gam_obs_vs_predicted_height.png"), height = 180, width = 180, units = "mm", res = 300)
 print(plot_height_gam +
-        theme(legend.text = element_text(size = 16),
-              legend.title = element_text(size = 16),
+        theme(legend.text = element_text(size = 12),
+              legend.title = element_text(size = 14),
               axis.title = element_text(size = 20),
               axis.text = element_text(size = 18),
-              legend.position = c(0.2, 0.88)))
+              legend.position = c(0.15, 0.82)))
 dev.off()
 
 
