@@ -271,7 +271,7 @@ plot_spread_gam <- ggplot() +
             color = "red") +
   geom_point(data = fit_spread_83112,
              mapping = aes(x = fit_spread, y = NET_SPREAD, color = type, fill = factor(treatment), group = HAUL),
-             size = rel(3.3), shape = 21) +
+             size = rel(4), shape = 21) +
   geom_abline(mapping = aes(intercept = 0, slope = 1),
               linetype = 2, linewidth = 1.5) +
   geom_text_repel(data = dplyr::filter(fit_spread_83112) |>
@@ -316,7 +316,7 @@ plot_height_gam <- ggplot() +
             color = "red") +
   geom_point(data = fit_height_83112,
              mapping = aes(x = fit_height, y = NET_HEIGHT, color = type, fill = factor(treatment), group = HAUL),
-             size = rel(2.5),
+             size = rel(4),
              shape = 21) +
   geom_abline(mapping = aes(intercept = 0, slope = 1),
               linetype = 2, linewidth = 1.5) +
