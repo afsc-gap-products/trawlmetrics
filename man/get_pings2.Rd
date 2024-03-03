@@ -4,10 +4,14 @@
 \alias{get_pings2}
 \title{Filter pings based on date/time}
 \usage{
-get_pings2(data)
+get_pings2(data, start_event_code, stop_event_code)
 }
 \arguments{
 \item{data}{data.frame containing events, measurements, and date_times for events.}
+
+\item{start_event_code}{Start event code (e.g. 3 for on-bottom in the EBS/NBS, 4 for Equilibrium Time in the GOA and AI)}
+
+\item{end_event_code}{End event code (e.g. 7 for off-bottom in the EBS, NBS, GOA, and AI )}
 }
 \description{
 Filter pings based on date/time
