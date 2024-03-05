@@ -111,7 +111,7 @@ dev.off()
 
 
 plot_treatments_2023 <- ggplot() +
-  geom_jitter(data = standard_hauls,
+  geom_point(data = standard_hauls,
               mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_TO_DEPTH, color = "Standard 83-112"),
               alpha = 0.04) +
   geom_path(data = dplyr::filter(usable_height_treatments, HAUL < 15),

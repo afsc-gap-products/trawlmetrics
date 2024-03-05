@@ -301,7 +301,7 @@ get_door_experiment_data <- function(channel = NULL, min_spread_pings = 50, min_
     dplyr::inner_join(usable_height_pings) |>
     dplyr::mutate(TIME_ELAPSED = as.numeric(difftime(DATE_TIME, START_TIME, units = "mins")))
   
-  save(hauls, events, width, height, usable_height_pings, usable_spread_pings, usable_height_treatments, 
+  save(hauls, events, width, height, usable_height_pings, usable_spread_pings, ping_events, usable_height_treatments, 
        usable_width_treatments, standard_hauls, slope_hauls, file = here::here("analysis", "door_experiment", "data", "spread_height_data.rda"))
   
 }

@@ -146,9 +146,45 @@ print(plot_spread_gam_pne +
 dev.off()
 
 
+# ex_spread_dat <- dplyr::select(standard_hauls, BOTTOM_DEPTH, SCOPE_TO_DEPTH) |>
+#   dplyr::mutate(SCOPE_TO_DEPTH = round(SCOPE_TO_DEPTH, 1),
+#                 STATIONID = "X") |>
+#   unique()
+# 
+# ex_spread_dat$fit <- predict(mod_spread_83112, newdata = ex_spread_dat)
+# 
+# fill_values <- expand.grid(BOTTOM_DEPTH = seq(20, 200, 1),
+#                            SCOPE_TO_DEPTH = seq(26, 69, 1)/10)
+# 
+# test <- dplyr::full_join(fill_values, ex_spread_dat)
+# 
+# ggplot() +
+#   geom_point(data = test,
+#              mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_TO_DEPTH, color = cut(fit, seq(13, 20, 1)))) +
+#   scale_color_viridis_d(name = "Predicted spread (m)", na.value = NA, na.translate = FALSE) +
+#   scale_x_continuous(name = "Bottom depth (m)", expand = c(0,0)) +
+#   scale_y_continuous(name = "Scope-to-depth ratio", expand = c(0,0)) +
+#   theme_bw()
+# 
+# test_sdr <- function(depth, sdr, target_spread, mod) {
+# 
+#   val <- abs(target_spread - predict(mod, newdata = data.frame(BOTTOM_DEPTH = depth,
+#                                                  SCOPE_TO_DEPTH = sdr,
+#                                                  STATIONID = "X")))
+#   return(val)
+# 
+# }
+# 
+# bbmle::mle2(minuslogl = test_sdr,
+#             start = list(sdr = 2.5),
+#             data = list(target_spread = 20,
+#                         mod = mod_spread_83112,
+#                         depth = 150))
+
 
 # Height model for PNE hauls
-mod_height_pne <- gam(formula = NET_HEIGHT ~ s(BOTTOM_DEPTH, SCOPE_TO_DEPTH, bs = "tp", k = 100), data = slope_hauls)
+mod_height_pne <- gam(formula = NET_HEIGHT ~ s(BOTTOM_DEPTH, bs = "tp") + s(STATIONID, bs = "re"), data = slope_hauls)
+
 
 fit_height_pne <- dplyr::filter(usable_height_treatments, GEAR == 172) |>
   dplyr::mutate(type = "4.5-m doors")
