@@ -8,6 +8,11 @@ get_bcs_data <- function() {
   # Load spread and height data + haul events + treatments
   load(here::here("analysis", "door_experiment", "data", "spread_height_data.rda"))
   
+  # Load locations of BCS on trawls, by haul
+  bcs_loc <- read.csv(file = here::here("analysis", "door_experiment", "data", "2023_bcs_position_haul.csv")) |>
+    tidyr::pivot_longer(cols = paste0("X", 1:5), names_to = "bcs_unit", values_to = "location") |>
+    dplyr::mutate(bcs_unit = gsub(pattern = "X", replacement = "", x = bcs_unit))
+  
   # Function to read in bottom contact sensor calibration data and fit a linear model between X acceleration and height
   fit_bcs_calibration <- function(bcs_path, cal_path, bcs_unit) {
     
@@ -169,15 +174,18 @@ get_bcs_data <- function() {
     
   }
   
+  bcs_treatment <- dplyr::select(bcs_loc, HAUL, bcs_unit, location) |>
+    dplyr::inner_join(bcs_treatment)
+  
   
   bcs_summary <- bcs_treatment |>
     dplyr::filter(!is.na(treatment)) |>
-    dplyr::group_by(HAUL_ID, bcs_unit, HAUL, treatment) |>
+    dplyr::group_by(HAUL_ID, bcs_unit, HAUL, treatment, location) |>
     dplyr::summarise(SD_HEIGHT = sd(Height),
                      SD_X = sd(X_Accel),
                      SD_Y = sd(Y_Accel),
                      SD_Z = sd(Z_Accel),
-                     MEAN_HEIGHT = me(Height),
+                     MEAN_HEIGHT = mean(Height),
                      MEAN_X = mean(X_Accel),
                      MEAN_Y = mean(Y_Accel),
                      MEAN_Z = mean(Z_Accel),
