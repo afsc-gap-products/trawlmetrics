@@ -158,9 +158,13 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
                     haul == unique_hauls_df$haul[jj])
     
     if(!(nrow(height_pings) >= 1)) {
+      
       height_pings <- NULL
+      
     } else {
+      
       height_df <- dplyr::bind_rows(height_df, height_pings)
+      
     }
     
     message("setup_sor_directory: Writing ping data to ", paste0(ping_files_dir, "/", paste(unique_hauls_df[jj,], collapse = "_"), "_pings.rds"))
