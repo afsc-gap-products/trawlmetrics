@@ -8,12 +8,11 @@
 #' @param cruise_idnum Cruise ID number as a numeric vector (e.g. 757)
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight.
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022)
-#' @param convert_marport_to_netmind Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()? 
 #' @param skip_save_rds For testing and demo purposes. Should queried data be written to a directory.
 #' @export
 
 
-sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, channel = NULL, width_range = NULL, convert_marport_to_netmind = TRUE, skip_save_rds = FALSE) {
+sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, channel = NULL, width_range = NULL, skip_save_rds = FALSE) {
   
   region <- toupper(region)
   
@@ -151,11 +150,6 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
     
     if(!(nrow(spread_pings) >= 1)) {
       spread_pings <- NULL
-    } else {
-      if(convert_marport_to_netmind) {
-        # Convert Marport spread to Netmind spread
-        spread_pings$measurement_value <- marport_to_netmind(spread_pings$measurement_value)
-      }
     }
     
     height_pings <- height_dat %>% 

@@ -3,10 +3,11 @@
 #' @param height_paths Path(S) to height data files.
 #' @param spread_paths Path(s) to spread data files.
 #' @param rds_dir Path to haul rds files.
+#' @param convert_marport_to_netmind Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()? 
 #' @return Reads in measurement data from _sor.rds files from rds_dir and writes corrected results to _final.rds files in rds_dir.
 #' @export
 
-sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
+sor_fill_missing <- function(height_paths, spread_paths, rds_dir, convert_marport_to_netmind = TRUE) {
   
   # Check that input files exist
   stopifnot("sor_fill_missing: One or more height_path files does not exist." = all(file.exists(height_paths)))
@@ -174,6 +175,14 @@ sor_fill_missing <- function(height_paths, spread_paths, rds_dir) {
                                  net_spread_pings = sel_dat[['sor_results']]$n_pings,
                                  net_spread_method = 7,
                                  net_spread_standard_deviation = sel_dat[['sor_results']]$sd)
+      
+    }
+    
+    if(convert_marport_to_netmind) {
+      
+      # Convert Marport spread to Netmind spread
+      
+      final_spread$edit_net_spread <- marport_to_netmind(final_spread$edit_net_spread)
       
     }
     

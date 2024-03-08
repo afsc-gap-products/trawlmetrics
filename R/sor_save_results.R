@@ -57,7 +57,7 @@ sor_save_results <- function(final_dir, create_user = "", survey, cruise_idnum, 
   
   
   # Clear existing data from the table
-  delete_existing <- readline(paste0("Any existing data must be deleted from RACE_DATA.EDIT_HAUL_IMPORT_SOR_UPDATES before adding new results. Should data for cruises ", paste(cruise_idnum, collapse = ", "), " be deleted (y or n)?"))
+  delete_existing <- readline(paste0("Any existing data must be deleted from RACE_DATA.EDIT_HAUL_IMPORT_SOR_UPDATES before adding new results. Should data for cruise(s) ", paste(cruise_idnum, collapse = ", "), " be deleted (y or n)?"))
   
   delete_existing <- tolower(delete_existing)
   
