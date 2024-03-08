@@ -1,11 +1,12 @@
 Package: trawlmetrics
 Type: Package
 Title: Trawl effort correction and gear performance measures
-Version: 2024.02.26
-Authors@R: c(person("Caitlin", "Allen-Akselrud", email = "caitlin.allen_akselrud@noaa.gov", role = c("aut", "cre")),
-    person("Liz", "Dawson", email = "liz.dawson@noaa.gov", role = c("aut")),
-    person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("ctb")),
-    person("Stan", "Kotwicki", email = "stan.kotwicki@noaa.gov", role = c("ctb")))
+Version: 2024.03.08
+Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("aut")),
+    person("Caitlin", "Allen-Akselrud", email = "caitlin.allen_akselrud@noaa.gov", role = c("aut", "cre")),
+    person("Liz", "Dawson", email = "liz.dawson@noaa.gov", role = "ctb"),
+    person("Duane", "Stevenson", email = "duane.tevenson@noaa.gov", role = "ctb"),
+    person("Stan", "Kotwicki", email = "stan.kotwicki@noaa.gov", role = "ctb"))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
 Depends: R (>= 3.5),
     RODBC,

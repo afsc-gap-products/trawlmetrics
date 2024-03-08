@@ -4,7 +4,12 @@
 \alias{sor_fill_missing}
 \title{Fill missing height and spread}
 \usage{
-sor_fill_missing(height_paths, spread_paths, rds_dir)
+sor_fill_missing(
+  height_paths,
+  spread_paths,
+  rds_dir,
+  convert_marport_to_netmind = TRUE
+)
 }
 \arguments{
 \item{height_paths}{Path(S) to height data files.}
@@ -12,6 +17,8 @@ sor_fill_missing(height_paths, spread_paths, rds_dir)
 \item{spread_paths}{Path(s) to spread data files.}
 
 \item{rds_dir}{Path to haul rds files.}
+
+\item{convert_marport_to_netmind}{Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()?}
 }
 \value{
 Reads in measurement data from _sor.rds files from rds_dir and writes corrected results to _final.rds files in rds_dir.

@@ -20,7 +20,6 @@ sor_setup_directory(cruise = cruise1, # cruise number
                     region = region1,
                     survey = survey1,
                     width_range = width_range1,
-                    convert_marport_to_netmind = TRUE,
                     skip_save_rds = TRUE # For demo/testing purposes. Change to TRUE for actual data processing.
                     )
 
@@ -42,7 +41,8 @@ sor_plot_results(cruise = cruise1,
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
 sor_fill_missing(height_paths = here::here("output", region1, cruise1, vessel1, paste0("HEIGHT_", region1, "_", cruise1, "_", vessel1, ".rds")),
                  spread_paths = here::here("output", region1, cruise1, vessel1, paste0("SPREAD_AFTER_SOR_", region1, "_", cruise1, "_", vessel1, ".rds")),
-                 rds_dir = here::here("output", region1, cruise1, vessel1, paste0("PING_FILES_", region1, "_", floor(cruise1/100))))
+                 rds_dir = here::here("output", region1, cruise1, vessel1, paste0("PING_FILES_", region1, "_", floor(cruise1/100))),
+                 convert_marport_netmind = FALSE)
 
 
 # Add updated data to Oracle and write output to .csv
