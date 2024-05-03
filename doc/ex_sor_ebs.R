@@ -9,9 +9,6 @@ survey1 = "EBS_2018"
 width_range1 = c(10, 22)
 create_user = "ROHANS"
 
-# Copy system files for testing. Remove for actual data processing.
-dir.create(here::here("output", region1, cruise1, vessel1), recursive = TRUE)
-
 # Retrieve haul and net mensuration data from race_data then write spread and height data from individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
 # - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
 # - Hauls: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_pings.rds
