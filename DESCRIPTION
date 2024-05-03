@@ -6,7 +6,8 @@ Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("au
     person("Caitlin", "Allen-Akselrud", email = "caitlin.allen_akselrud@noaa.gov", role = c("aut", "cre")),
     person("Liz", "Dawson", email = "liz.dawson@noaa.gov", role = "ctb"),
     person("Duane", "Stevenson", email = "duane.tevenson@noaa.gov", role = "ctb"),
-    person("Stan", "Kotwicki", email = "stan.kotwicki@noaa.gov", role = "ctb"))
+    person("Stan", "Kotwicki", email = "stan.kotwicki@noaa.gov", role = "ctb"),
+    person("Shannon", "Nardi", email = "shannon.nardi@noaa.gov", role = "aut"))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
 Depends: R (>= 3.5),
     RODBC,
@@ -14,14 +15,22 @@ Depends: R (>= 3.5),
     here,
     janitor,
     cowplot,
-    tidyverse
+    tidyverse,
+    ggplot2,
+    lubridate,
+    lme4,
+    dplyr
 Description: Correct errors in net mensuration data, such as removing outliers in spread and height via sequential outlier rejection.
 License: GPL (>=2)
 Encoding: UTF-8
 LazyData: false
 RoxygenNote: 7.2.3
 Imports: colorspace,
-    viridis
+    viridis,
+    RODBC,
+    flextable
 Suggests: knitr, 
-    rmarkdown
+    rmarkdown,
+    RODBC,
+    getpass
 VignetteBuilder: knitr
