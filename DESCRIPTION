@@ -4,6 +4,7 @@ Title: Trawl effort correction and gear performance measures
 Version: 2024.03.08
 Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("aut")),
     person("Caitlin", "Allen-Akselrud", email = "caitlin.allen_akselrud@noaa.gov", role = c("aut", "cre")),
+    person("Shannon", "Nardi", email = "shannon.nardi@noaa.gov", role = "aut"),
     person("Liz", "Dawson", email = "liz.dawson@noaa.gov", role = "ctb"),
     person("Duane", "Stevenson", email = "duane.tevenson@noaa.gov", role = "ctb"),
     person("Stan", "Kotwicki", email = "stan.kotwicki@noaa.gov", role = "ctb"))
@@ -14,14 +15,19 @@ Depends: R (>= 3.5),
     here,
     janitor,
     cowplot,
-    tidyverse
+    tidyverse,
+    ggplot2,
+    lubridate,
+    lme4,
+    dplyr
 Description: Correct errors in net mensuration data, such as removing outliers in spread and height via sequential outlier rejection.
 License: GPL (>=2)
 Encoding: UTF-8
 LazyData: false
 RoxygenNote: 7.2.3
 Imports: colorspace,
-    viridis
+    viridis,
+    flextable
 Suggests: knitr, 
     rmarkdown
 VignetteBuilder: knitr
