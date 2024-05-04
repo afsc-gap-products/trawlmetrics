@@ -27,7 +27,9 @@ RoxygenNote: 7.3.1
 Imports: colorspace,
     viridis,
     flextable,
-    cowplot
+    cowplot,
+    mgcv,
+    tibble
 Suggests: knitr, 
     rmarkdown
 VignetteBuilder: knitr
