@@ -16,6 +16,7 @@
 #' @return The function returns a list with (1) input data frame with an additional column indicating the order in which observations were rejected, (2) a data frame containing the number of observations used for model-fitting and the associated RMSE. If argument `plot=T`, also prints a plot of observations versus RMSE given the remaining observations.
 #'
 #' @references Kotwicki, S., M. H. Martin, and E. A. Laman. 2011. Improving area swept estimates from bottom trawl surveys. Fisheries Research 110(1):198–206.
+#' @import mgcv dplyr
 #' @export
 
 sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, threshold.stop = NULL, tail = "both", ...) {
@@ -106,10 +107,10 @@ sequentialOR <- function(data, method = 'lm', formula, n.reject = 1, n.stop, thr
   
   mean_spread <- data %>% 
     dplyr::filter(is.na(SOR_RANK)) %>% 
-    summarize(n_pings = n(),
-              mean = mean(measurement_value))
+    dplyr::summarize(n_pings = n(),
+                     mean = mean(measurement_value))
   results_row <- bind_cols(mean_spread, sd = sd(resids))
-
+  
   return(list(results = results_row,
               obs_rank = data,
               rmse = data.frame(N = NN, RMSE = RMSE),

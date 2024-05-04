@@ -7,6 +7,7 @@
 #' @param cruise_idnum One or more cruise ID numbers as a numeric vector (e.g. 757). Must be the same length as final_dir.
 #' @param survey Survey name prefix to use in output filename (e.g. NBS_2022)
 #' @param channel An RODBC channel. Will prompt user to get connected if NULL.
+#' @import RODBC here
 #' @export
 
 sor_save_results <- function(final_dir, create_user = "", survey, cruise_idnum, channel = NULL) {

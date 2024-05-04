@@ -8,7 +8,9 @@
 #' @param cruise_idnum Cruise ID number as a numeric vector (e.g. 757)
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight.
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022)
+#' @param width_range Gate filter for net width values as a 2L numeric vector. If not provided, Defaults to survey standards if not provided c(8,22) for GOA and AI, c(10, 22) for EBS/NBS
 #' @param skip_save_rds For testing and demo purposes. Should queried data be written to a directory.
+#' @import RODBC getPass janitor tibble dplyr
 #' @export
 
 
@@ -93,33 +95,33 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
     edit_sgt <- readRDS(file = paste0(here::here(output_dir, paste0("edit_sgt_", cruise, "_", vessel,  ".rds"))))
     edit_height <- readRDS(file = paste0(here::here(output_dir, paste0("edit_height_", cruise, "_", vessel,  ".rds"))))
   
-  event_dat <- edit_sgt %>% 
-    dplyr::as_tibble() %>% 
-    janitor::clean_names() %>% 
-    dplyr::rename(event = time_flag) %>% 
+  event_dat <- edit_sgt |> 
+    dplyr::as_tibble() |> 
+    janitor::clean_names() |> 
+    dplyr::rename(event = time_flag) |> 
     dplyr::select(cruise, vessel, haul, date_time, event)
   
-  haul_dat <- edit_sgp %>% 
-    dplyr::as_tibble() %>% 
-    janitor::clean_names() %>% 
-    dplyr::rename(measurement_value = value) %>% 
+  haul_dat <- edit_sgp |> 
+    dplyr::as_tibble() |> 
+    janitor::clean_names() |> 
+    dplyr::rename(measurement_value = value) |> 
     dplyr::select(cruise, vessel, haul, date_time, cabinet_sensor_flag, measurement_value, datum_code) 
   
-  height_dat <- edit_height %>% 
-    dplyr::as_tibble() %>% 
-    janitor::clean_names() %>% 
-    dplyr::filter(cruise_id == cruise_idnum) %>%
+  height_dat <- edit_height |> 
+    dplyr::as_tibble() |> 
+    janitor::clean_names() |> 
+    dplyr::filter(cruise_id == cruise_idnum) |>
     dplyr::select(cruise_id, haul, haul_id, edit_net_height, edit_net_height_units, 
                   net_height_method, net_height_pings, net_height_standard_deviation,
-                  edit_wire_out, edit_wire_out_units, wire_out_method) %>% 
+                  edit_wire_out, edit_wire_out_units, wire_out_method) |> 
     dplyr::mutate(cruise = cruise,
                   vessel = vessel,
                   edit_wire_out_FM = round(if_else(edit_wire_out_units == "FT", edit_wire_out/6, as.numeric(edit_wire_out)),0),
-                  edit_wire_out_units_FM = if_else(edit_wire_out_units == "FT", "FM", "FM")) %>% 
+                  edit_wire_out_units_FM = if_else(edit_wire_out_units == "FT", "FM", "FM")) |> 
     dplyr::mutate(invscope = 1/edit_wire_out)
   
-  edit_hauls_table_raw <- edit_height %>% 
-    dplyr::as_tibble() %>% 
+  edit_hauls_table_raw <- edit_height |> 
+    dplyr::as_tibble() |> 
     janitor::clean_names()
   
   unique_hauls_df <- dplyr::distinct(event_dat, vessel, cruise, haul)
@@ -128,31 +130,31 @@ sor_setup_directory <- function(cruise, cruise_idnum, vessel, region, survey, ch
   
   for(jj in 1:nrow(unique_hauls_df)) {
     
-    haul_events_dat <- event_dat %>% 
+    haul_events_dat <- event_dat |> 
       dplyr::filter(vessel == unique_hauls_df$vessel[jj],
                     cruise == unique_hauls_df$cruise[jj],
                     haul == unique_hauls_df$haul[jj])
     
-    sor_data <- haul_dat %>% 
+    sor_data <- haul_dat |> 
       dplyr::filter(vessel == unique_hauls_df$vessel[jj],
                     cruise == unique_hauls_df$cruise[jj],
-                    haul == unique_hauls_df$haul[jj]) %>%
+                    haul == unique_hauls_df$haul[jj]) |>
       dplyr::filter(measurement_value >= min(width_range),
-                    measurement_value <= max(width_range)) %>% 
-      dplyr::full_join(haul_events_dat, by = c("cruise", "vessel", "haul", "date_time")) %>% 
-      dplyr::arrange(date_time) %>% 
+                    measurement_value <= max(width_range)) |> 
+      dplyr::full_join(haul_events_dat, by = c("cruise", "vessel", "haul", "date_time")) |> 
+      dplyr::arrange(date_time) |> 
       tibble::add_column(start = NA, end = NA)
     
     spread_pings <- get_pings2(data = sor_data,
                                start_event_code = start_event_code,
-                               end_event_code = end_event_code) %>%
+                               end_event_code = end_event_code) |>
       dplyr::select(-start, -end)
     
     if(!(nrow(spread_pings) >= 1)) {
       spread_pings <- NULL
     }
     
-    height_pings <- height_dat %>% 
+    height_pings <- height_dat |> 
       dplyr::filter(vessel == unique_hauls_df$vessel[jj],
                     cruise == unique_hauls_df$cruise[jj],
                     haul == unique_hauls_df$haul[jj])
