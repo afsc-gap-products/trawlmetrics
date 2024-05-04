@@ -3,7 +3,9 @@
 #' A function that accepts a data source name, username, and password to establish returns an Oracle DataBase Connection (ODBC) as an RODBC class in R.
 #'
 #' @param schema Data source name (DSN) as a character vector.
+#' @param channel An open RODBC channel; used within functions.
 #' @return An RODBC class ODBC connection.
+#' @import getPass RODBC
 #' @export
 
 get_connected <- function(channel = NULL, schema = NA){
@@ -30,16 +32,16 @@ get_connected <- function(channel = NULL, schema = NA){
 #' @export
 
 get_pings2 <- function(data, start_event_code, end_event_code) {
-  data_sub <- data %>% 
-    dplyr::select(-datum_code, -cabinet_sensor_flag, -measurement_value) %>% 
+  data_sub <- data |> 
+    dplyr::select(-datum_code, -cabinet_sensor_flag, -measurement_value) |> 
     dplyr::distinct() 
-  start_t <- data_sub %>% dplyr::filter(event == start_event_code) %>% 
+  start_t <- data_sub |> dplyr::filter(event == start_event_code) |> 
     dplyr::select(date_time)
-  end_t <- data_sub %>% dplyr::filter(event == end_event_code) %>% 
+  end_t <- data_sub |> dplyr::filter(event == end_event_code) |> 
     dplyr::select(date_time)
-  data_new <- data %>%
-    dplyr::mutate(start = start_t$date_time, end = end_t$date_time) %>%
-    dplyr::filter(date_time >= start & date_time <= end) %>%
+  data_new <- data |>
+    dplyr::mutate(start = start_t$date_time, end = end_t$date_time) |>
+    dplyr::filter(date_time >= start & date_time <= end) |>
     dplyr::filter(!is.na(measurement_value)) 
   
   return(data_new)
