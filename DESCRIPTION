@@ -9,27 +9,12 @@ Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("au
     person("Duane", "Stevenson", email = "duane.tevenson@noaa.gov", role = "ctb"),
     person("Stan", "Kotwicki", email = "stan.kotwicki@noaa.gov", role = "ctb"))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
-Depends: R (>= 3.5),
-    RODBC,
-    getPass,
-    here,
-    janitor,
-    cowplot,
-    ggplot2,
-    lubridate,
-    lme4,
-    dplyr
-Description: Correct errors in net mensuration data, such as removing outliers in spread and height via sequential outlier rejection.
+Depends: R (>= 3.5), ggplot2
+Description: Perform trawl effort correction and retrieve gear performance measures.
 License: GPL (>=2)
 Encoding: UTF-8
 LazyData: false
 RoxygenNote: 7.3.1
-Imports: colorspace,
-    viridis,
-    flextable,
-    cowplot,
-    mgcv,
-    tibble
-Suggests: knitr, 
-    rmarkdown
+Imports: cowplot, mgcv, stats, tibble, dplyr, janitor, RODBC, getPass, here, lubridate, lme4
+Suggests: knitr, rmarkdown, colorspace, viridis, flextable,
 VignetteBuilder: knitr

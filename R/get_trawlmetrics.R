@@ -8,7 +8,11 @@
 #' @import RODBC getPass
 #' @export
 
-get_trawlmetrics <- function(survey, year, select_haul_types = c(3, 13, 20), save_rds = FALSE, channel = NULL) {
+get_trawlmetrics <- function(survey, 
+                             year, 
+                             select_haul_types = c(3, 13, 20), 
+                             save_rds = FALSE, 
+                             channel = NULL) {
   
   survey <- toupper(survey)
   
@@ -18,26 +22,28 @@ get_trawlmetrics <- function(survey, year, select_haul_types = c(3, 13, 20), sav
   gear_desc_df <- data.frame(GEAR = c(44, 172),
                              SHORT_NAME = c("83-112", "Poly Nor 'eastern"))
   
-  channel <- trawlmetrics:::get_connected(schema = "AFSC")
+  channel <- get_connected(schema = "AFSC")
   
   trawl_data <- RODBC::sqlQuery(channel = channel,
                                 query =
-                                  paste("select a.hauljoin, a.vessel, a.cruise, a.haul, a.net_measured, a.net_height, a.net_width, a.wire_length, a.bottom_depth, a.performance, a.gear, a.accessories,
-a.stationid, a.start_time, d.net_number, d.footrope_number, d.autotrawl_method, d.starboard_door_number, d.port_door_number, d.haul_type, e.description gear_description, f.description performance_description
-from
-racebase.haul a, 
-race_data.cruises b, 
-race_data.surveys c, 
-race_data.hauls d, 
-race_data.gear_codes e, 
-racebase.performance f
-where c.survey_definition_id in (", paste(survey_id, collapse = ","), ")",
-                                        "and b.survey_id = c.survey_id
-and a.cruisejoin = b.racebase_cruisejoin
-and d.cruise_id = b.cruise_id
-and a.haul = d.haul
-and e.gear_code = a.gear
-and a.performance = f.performance")) |>
+                                  paste("select a.hauljoin, a.vessel, a.cruise, a.haul, 
+                                  a.net_measured, a.net_height, a.net_width, a.wire_length, 
+                                  a.bottom_depth, a.performance, a.gear, a.accessories, a.stationid, 
+                                  a.start_time, d.net_number, d.footrope_number, d.autotrawl_method, 
+                                  d.starboard_door_number, d.port_door_number, d.haul_type, 
+                                  e.description gear_description, 
+                                  f.description performance_description 
+                                  from 
+                                  racebase.haul a, race_data.cruises b, race_data.surveys c, 
+                                  race_data.hauls d, race_data.gear_codes e, racebase.performance f 
+                                        where c.survey_definition_id in (", 
+                                        paste(survey_id, collapse = ","), ")", 
+                                        "and b.survey_id = c.survey_id 
+                                        and a.cruisejoin = b.racebase_cruisejoin 
+                                        and d.cruise_id = b.cruise_id 
+                                        and a.haul = d.haul 
+                                        and e.gear_code = a.gear 
+                                        and a.performance = f.performance")) |>
     dplyr::inner_join(gear_desc_df) |>
     dplyr::mutate(YEAR = floor(CRUISE/100),
                   SCOPE_RATIO = WIRE_LENGTH/BOTTOM_DEPTH) |>
@@ -144,7 +150,8 @@ and a.performance = f.performance")) |>
   } else {
     if(save_rds) {
       dir.create(here::here("output"), showWarnings = FALSE)
-      saveRDS(object = output, file = here::here("output", paste0("trawlmetrics_", survey, year, ".rds")))
+      saveRDS(object = output, 
+              file = here::here("output", paste0("trawlmetrics_", survey, year, ".rds")))
     }
   }
   

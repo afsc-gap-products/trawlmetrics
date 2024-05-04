@@ -5,7 +5,8 @@
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight. Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022). Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @return Reads in measurement data from _ping.rds files from rds_dir and writes corrected results to _sor.rds files in rds_dir.
-#' @import ggplot2 cowplot
+#' @import ggplot2
+#' @importFrom cowplot plot_grid
 #' @export
 
 sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL) {
