@@ -10,7 +10,6 @@
 #' @param n.stop Numerical vector of length one which indicating the number of observations remaining or proportion of initial observations which should be remaining before outlier rejection stops. For example, with 400 initial observations, n.stop set to 40 or 0.1 (= 400*0.1) would stop the algorithm when 40 observations remain.
 #' @param threshold.stop Optional. Threshold value for stopping sequentialOR as a 1L numeric vector. If provided, ends sequentialOR calculations when the maximum absolute residual is less than the threshold.stop.
 #' @param tail Character vector of length one indicating whether to reject from the lower tail, upper tail, or both tails. Default = "both".
-#' @param plot Logical vector indicating whether the function should print a plot of observations versus RMSE.
 #' @param ... Additional arguments passed to function calls (family, offset, etc.)
 #'
 #' @return The function returns a list with (1) input data frame with an additional column indicating the order in which observations were rejected, (2) a data frame containing the number of observations used for model-fitting and the associated RMSE. If argument `plot=T`, also prints a plot of observations versus RMSE given the remaining observations.
