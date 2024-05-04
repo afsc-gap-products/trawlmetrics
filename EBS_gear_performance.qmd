@@ -1,0 +1,169 @@
+---
+format: docx
+editor: visual
+---
+
+```{r setup}
+#| include: false
+
+library(trawlmetrics)
+library(flextable)
+
+trawlmetrics_data <- get_trawlmetrics(survey = c("EBS", "NBS"), 
+                            year = 2023, 
+                            select_haul_types = c(3, 13, 20), 
+                            save_rds = FALSE) 
+
+```
+
+```{r}
+#| include: false
+
+png(file = here::here("plots", "trawl_height_width.png"), width = 7, height = 9, res = 600, units = "in")
+print(
+cowplot::plot_grid(
+ggplot() +
+  geom_segment(data = trawlmetrics_data[['plot_data']],
+               mapping = aes(y = NET_NUMBER, 
+                             yend = NET_NUMBER, 
+                             x = MIN_NET_HEIGHT, 
+                             xend = MAX_NET_HEIGHT,
+                             color = MEAN_NET_HEIGHT > H25 & MEAN_NET_HEIGHT < H75)) +
+  geom_segment(data = trawlmetrics_data[['plot_data']],
+               mapping = aes(y = NET_NUMBER, 
+                             yend = NET_NUMBER, 
+                             x = Q25_NET_HEIGHT, 
+                             xend = Q75_NET_HEIGHT,
+                             color = MEAN_NET_HEIGHT > H25 & MEAN_NET_HEIGHT < H75),
+               size = 3) +
+  geom_point(data = trawlmetrics_data[['plot_data']],
+               mapping = aes(y = NET_NUMBER, 
+                             x = MEAN_NET_HEIGHT,
+                             color = MEAN_NET_HEIGHT > H25 & MEAN_NET_HEIGHT < H75),
+               size = 4,
+             shape = 21,
+             fill = "white") +
+  geom_label(data = trawlmetrics_data[['plot_data']],
+            aes(y = NET_NUMBER,
+                x = 0.8,
+                color = MEAN_NET_HEIGHT > H25 & MEAN_NET_HEIGHT < H75,
+                label = N_HAULS)) +
+  scale_y_discrete(name = "Net Number") +
+  scale_x_continuous(name = "Net Height (m)", expand = c(0.05, 0.1)) +
+  scale_color_manual(name = "Mean within 25-75% range?", 
+                     values = c("red", "darkgreen"), 
+                     labels = c("No", "Yes")) +
+  trawlmetrics::theme_pngs() +
+  theme(legend.position = "none"),
+ggplot() +
+  geom_segment(data = trawlmetrics_data[['plot_data']],
+               mapping = aes(y = NET_NUMBER, 
+                             yend = NET_NUMBER, 
+                             x = MIN_NET_WIDTH, 
+                             xend = MAX_NET_WIDTH,
+                             color = MEAN_NET_WIDTH > W25 & MEAN_NET_WIDTH < W75)) +
+  geom_segment(data = trawlmetrics_data[['plot_data']],
+               mapping = aes(y = NET_NUMBER, 
+                             yend = NET_NUMBER, 
+                             x = Q25_NET_WIDTH, 
+                             xend = Q75_NET_WIDTH,
+                             color = MEAN_NET_WIDTH > W25 & MEAN_NET_WIDTH < W75),
+               size = 3) +
+  geom_point(data = trawlmetrics_data[['plot_data']],
+             mapping = aes(y = NET_NUMBER, 
+                           x = MEAN_NET_WIDTH,
+                           color = MEAN_NET_WIDTH > W25 & MEAN_NET_WIDTH < W75),
+             size = 4,
+             shape = 21,
+             fill = "white") +
+  geom_label(data = trawlmetrics_data[['plot_data']],
+             aes(y = NET_NUMBER,
+                 x = 10,
+                 color = MEAN_NET_WIDTH > W25 & MEAN_NET_WIDTH < W75,
+                 label = N_HAULS)) +
+  scale_y_discrete(name = "Net Number") +
+  scale_x_continuous(name = "Net Width (m)", expand = c(0.05, 0.1)) +
+  scale_color_manual(name = "Mean within 25-75% range?", 
+                     values = c("red", "darkgreen"), 
+                     labels = c("No", "Yes")) +
+  trawlmetrics::theme_pngs() +
+  theme(legend.position = "none"),
+nrow = 2)
+)
+dev.off()
+```
+
+[![Figure 1. Distribution of net height and spread for all nets used during the survey (numbered nets) and for all nets with measurement data since 2005. Circles show the average, box shows 25-75% range, thin line shows full range. Labels along the vertical axis show the number of hauls for each net. Colors show whether the average for a net fell within the 25-75% range for the full 2005-present data set.](./plots/trawl_height_width.png)](%60r%20paste0(%22Trawl%20height%20and%20width%20from%20the%20%22,%20year,%20%22%20%22,%20paste(survey,%20sep%20=%20%22%20and%20%22),%20%22survey(s).%22)%20%60)
+
+```{r setup_tables}
+#| include: false
+cat("{{< pagebreak >}}")
+
+unique_trawls <- trawlmetrics_data[['trawlmetrics_survey']] |>
+  dplyr::select(YEAR, VESSEL, NET_NUMBER) |>
+  dplyr::arrange(NET_NUMBER)
+
+tab_net_metrics <- list()
+tab_haul_history <- list()
+
+for(ii in 1:nrow(unique_trawls)) {
+  
+  sel_net <- dplyr::filter(trawlmetrics_data[['trawl_data']], 
+                           YEAR == unique_trawls$YEAR[ii],
+                           VESSEL == unique_trawls$VESSEL[ii],
+                           NET_NUMBER == unique_trawls$NET_NUMBER[ii])
+  
+  
+  sel_net_summary <- dplyr::filter(sel_net, NET_MEASURED == "Y")[1,] |>
+    dplyr::inner_join(trawlmetrics_data[['trawlmetrics_survey']])
+  
+  tab_net_metrics[[ii]] <- data.frame(Field = c("Gear", "Net number", "Year", "Survey", "Vessel", "Good hauls", "Bad hauls", "Avg. Height", "Avg. Spread", "Out of range"),
+                                Value = c(sel_net_summary$SHORT_NAME,
+                                          sel_net_summary$NET_NUMBER,
+                                          sel_net_summary$YEAR,
+                                          paste(trawlmetrics_data[['survey']], collapse =", "),
+                                          sel_net_summary$VESSEL,
+                                          sel_net_summary$N_GOOD,
+                                          sel_net_summary$N_BAD,
+                                          paste0(round(sel_net_summary$MEAN_NET_HEIGHT, 1), " m"),
+                                          paste0(round(sel_net_summary$MEAN_NET_WIDTH, 1), " m"),
+                                          NA)) |>
+    flextable::flextable(cwidth = c(2, 2)) |>
+    flextable::set_caption(caption = paste0("Net deployment summary for net number  ", unique_trawls$NET_NUMBER[ii], " during  ", trawlmetrics_data[['year']], " survey."))
+  
+  tab_haul_history[[ii]] <- sel_net |>
+    dplyr::select(START_TIME, VESSEL, CRUISE, HAUL, PERFORMANCE_DESCRIPTION) |>
+    dplyr::arrange(CRUISE, HAUL) |>
+    dplyr::mutate(START_TIME = as.Date(START_TIME),
+                  CRUISE = as.character(CRUISE)) |>
+    dplyr::rename(Date = START_TIME,
+                  Vessel = VESSEL,
+                  Cruise = CRUISE,
+                  Haul = HAUL,
+                  Performance = PERFORMANCE_DESCRIPTION) |>
+    flextable::flextable(cwidth = c(1.1, 0.7, 0.7, 0.7, 3.3)) |>
+    flextable::align(align = "left", j = c(1, 5), part = "all") |>
+    flextable::align(align = "center", j = c(2,3,4), part = "all") |>
+    flextable::set_caption(caption = paste0("Trawl performance by haul for net number ", unique_trawls$NET_NUMBER[ii], " during  ", trawlmetrics_data[['year']], " survey."))
+  
+}
+```
+
+```{r}
+#| results: asis
+#| echo: false
+#| ft.align: left
+
+for(ii in 1:nrow(unique_trawls)) {
+  cat(paste0("  \n## Net number: ", unique_trawls$NET_NUMBER[ii]))
+  cat("  \n")
+  cat("#####\n")
+  cat("  \n")
+  flextable::flextable_to_rmd(tab_net_metrics[[ii]])
+  cat("  \n")
+  cat("#####\n")
+  cat("  \n")
+  flextable::flextable_to_rmd(tab_haul_history[[ii]])
+  cat("{{< pagebreak >}}")
+}
+```
