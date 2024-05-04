@@ -5,7 +5,7 @@
 #' @param select_haul_types Numeric vector of valid haul types. Default: c(3, 13, 20)
 #' @param save_rds Should output be written to an RDS file? Options are TRUE, FALSE, or a valid filepath to the location where an .rds file should be saved. 
 #' @param channel RODBC connection.
-#' @import RODBC getPass dplyr
+#' @import RODBC getPass
 #' @export
 
 get_trawlmetrics <- function(survey, year, select_haul_types = c(3, 13, 20), save_rds = FALSE, channel = NULL) {

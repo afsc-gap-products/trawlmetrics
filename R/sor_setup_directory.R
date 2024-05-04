@@ -10,7 +10,7 @@
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022)
 #' @param width_range Gate filter for net width values as a 2L numeric vector. If not provided, Defaults to survey standards if not provided c(8,22) for GOA and AI, c(10, 22) for EBS/NBS
 #' @param skip_save_rds For testing and demo purposes. Should queried data be written to a directory.
-#' @import RODBC getPass janitor tibble dplyr
+#' @import RODBC getPass janitor tibble
 #' @export
 
 

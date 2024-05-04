@@ -29,7 +29,6 @@ get_connected <- function(channel = NULL, schema = NA){
 #' @param data data.frame containing events, measurements, and date_times for events.
 #' @param start_event_code Start event code (e.g. 3 for on-bottom in the EBS/NBS, 4 for Equilibrium Time in the GOA and AI)
 #' @param end_event_code Stop event code (e.g. 7 for off-bottom in the EBS, NBS, GOA, and AI )
-#' @import dplyr
 #' @export
 
 get_pings2 <- function(data, start_event_code, end_event_code) {

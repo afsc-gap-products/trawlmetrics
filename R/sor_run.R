@@ -8,7 +8,6 @@
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022). Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param min_pings_for_sor Minimum number of ping required to conduct sequential outlier rejection (default = 50).
 #' @return Reads in measurement data from _ping.rds files from rds_dir and writes corrected results to _sor.rds files in rds_dir.
-#' @import dplyr
 #' @export
 
 sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL, min_pings_for_sor = 50) {
