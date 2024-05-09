@@ -9,6 +9,8 @@ survey1 = "EBS_2018"
 width_range1 = c(10, 22)
 create_user = "ROHANS"
 fill_method = "ebs"
+haul_types = 3
+gear_codes = 44
 
 # Retrieve haul and net mensuration data from race_data then write spread and height data from individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
 # - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
@@ -17,7 +19,9 @@ sor_setup_directory(cruise = cruise1, # cruise number
                     cruise_idnum = cruise_idnum1,
                     vessel = vessel1,
                     region = region1,
-                    survey = survey1)
+                    survey = survey1,
+                    haul_types = haul_types,
+                    gear_codes = gear_codes)
 
 # Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
 # Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
