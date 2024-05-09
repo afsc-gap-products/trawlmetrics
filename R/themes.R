@@ -1,4 +1,5 @@
 #' Default png theme
+#' @import ggplot2
 #' @export
 
 theme_pngs <- function() {

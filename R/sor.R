@@ -9,12 +9,12 @@
 #' @param n.stop Numerical vector of length one which indicating the number of observations remaining or proportion of initial observations which should be remaining before outlier rejection stops. For example, with 400 initial observations, n.stop set to 40 or 0.1 (= 400*0.1) would stop the algorithm when 40 observations remain.
 #' @param threshold.stop Optional. Threshold value for stopping sequentialOR as a 1L numeric vector. If provided, ends sequentialOR calculations when the maximum absolute residual is less than the threshold.stop.
 #' @param tail Character vector of length one indicating whether to reject from the lower tail, upper tail, or both tails. Default = "both".
-#' @param plot Logical vector indicating whether the function should print a plot of observations versus RMSE.
 #' @param ... Additional arguments passed to function calls (family, offset, etc.)
 #'
 #' @return The function returns a list with (1) input data frame with an additional column indicating the order in which observations were rejected, (2) a data frame containing the number of observations used for model-fitting and the associated RMSE. If argument `plot=T`, also prints a plot of observations versus RMSE given the remaining observations.
 #' @author Sean Rohan, updates by Caitlin Allen Akselrud
 #' @references Kotwicki, S., M. H. Martin, and E. A. Laman. 2011. Improving area swept estimates from bottom trawl surveys. Fisheries Research 110(1):198–206.
+#' @import mgcv
 #' @export
 
 sor <- function(data, method = 'lm', formula, n.reject = 1, n.stop, threshold.stop = NULL, tail = "both", ...) {
@@ -91,30 +91,30 @@ sor <- function(data, method = 'lm', formula, n.reject = 1, n.stop, threshold.st
         RMSE <- RMSE[1:i]
         NN <- NN[1:i]
         print(paste0("sequentialOR: Stopping threshold reached. Stopped after iteration " , i))
-        mean_spread <- data %>% 
-          dplyr::filter(is.na(SOR_RANK)) %>% 
-          summarize(n_pings = n(),
-                    mean = mean(measurement_value))
+        mean_spread <- data |> 
+          dplyr::filter(is.na(SOR_RANK)) |> 
+          dplyr::summarize(n_pings = n(),
+                           mean = mean(measurement_value))
         results_row <- bind_cols(mean_spread, sd = sd(resids))
         
         return(list(results = results_row,
                     obs_rank = data,
                     rmse = data.frame(N = NN, RMSE = RMSE )))
-
+        
       }
     }
-
+    
     #Update rejection index counter
     rejection <- rejection + n.reject
     detach(data.sub)
   }
   
-  mean_spread <- data %>% 
-    dplyr::filter(is.na(SOR_RANK)) %>% 
-    summarize(n_pings = n(),
-              mean = mean(measurement_value))
+  mean_spread <- data |> 
+    dplyr::filter(is.na(SOR_RANK)) |> 
+    dplyr::summarize(n_pings = n(),
+                     mean = mean(measurement_value))
   results_row <- bind_cols(mean_spread, sd = sd(resids))
-
+  
   return(list(results = results_row,
               obs_rank = data,
               rmse = data.frame(N = NN, RMSE = RMSE),

@@ -1,2 +1,13 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+LICENSE.md
+analysis
+archive
+code
+doc
+functions
+output
+.github
+AI_gear_performance.qmd
+GOA_gear_performance.qmd
+EBS_gear_performance.qmd

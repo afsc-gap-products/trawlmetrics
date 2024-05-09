@@ -31,8 +31,6 @@ sor(
 \item{tail}{Character vector of length one indicating whether to reject from the lower tail, upper tail, or both tails. Default = "both".}
 
 \item{...}{Additional arguments passed to function calls (family, offset, etc.)}
-
-\item{plot}{Logical vector indicating whether the function should print a plot of observations versus RMSE.}
 }
 \value{
 The function returns a list with (1) input data frame with an additional column indicating the order in which observations were rejected, (2) a data frame containing the number of observations used for model-fitting and the associated RMSE. If argument `plot=T`, also prints a plot of observations versus RMSE given the remaining observations.

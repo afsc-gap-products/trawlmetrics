@@ -28,6 +28,8 @@ sor_setup_directory(
 
 \item{channel}{An RODBC channel. Will prompt user to get connected if NULL.}
 
+\item{width_range}{Gate filter for net width values as a 2L numeric vector. If not provided, Defaults to survey standards if not provided c(8,22) for GOA and AI, c(10, 22) for EBS/NBS}
+
 \item{skip_save_rds}{For testing and demo purposes. Should queried data be written to a directory.}
 }
 \description{

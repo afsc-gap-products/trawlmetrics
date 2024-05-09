@@ -3,18 +3,19 @@
 #' A function extracting BCS data from RACEBASE.
 #' 
 #' @param channel Optional. An RODBC class ODBC connection
+#' @import RODBC getPass
 #' @export
 
 get_bottom_contacts <- function(channel = NULL) {
   
   dir.create(here::here("data"))
   
-  channel <- trawlmetrics:::get_connected(schema = "AFSC")
+  channel <- get_connected(schema = "AFSC")
   
   bc <- RODBC::sqlQuery(channel = channel,
-                        query = "SELECT b.DATE_TIME, h.BOTTOM_CONTACT_HEADER_ID, b.X_AXIS, b.Y_AXIS, b.Z_AXIS
-from
-RACE_DATA.BOTTOM_CONTACTS b, RACE_DATA.BOTTOM_CONTACT_HEADERS h, RACE_DATA.HAULS u, RACE_DATA.CRUISES c, 
+                        query = "SELECT b.DATE_TIME, h.BOTTOM_CONTACT_HEADER_ID, b.X_AXIS, b.Y_AXIS, b.Z_AXIS 
+                        FROM 
+                        RACE_DATA.BOTTOM_CONTACTS b, RACE_DATA.BOTTOM_CONTACT_HEADERS h, RACE_DATA.HAULS u, RACE_DATA.CRUISES c, 
 RACE_DATA.SURVEYS s
 where
 h.BOTTOM_CONTACT_HEADER_ID = b.BOTTOM_CONTACT_HEADER_ID

@@ -5,6 +5,7 @@
 #' @param rds_dir Path to haul rds files.
 #' @param convert_marport_to_netmind Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()? 
 #' @return Reads in measurement data from _sor.rds files from rds_dir and writes corrected results to _final.rds files in rds_dir.
+#' @import ggplot2
 #' @export
 
 sor_fill_missing <- function(height_paths, spread_paths, rds_dir, convert_marport_to_netmind = TRUE) {
