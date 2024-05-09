@@ -27,7 +27,7 @@ sor_setup_directory(
 
 \item{vessel}{vessel ID number as a numeric vector (e.g. 162 for Alaska Knight.}
 
-\item{survey}{Survey name prefix to use in filename (e.g. NBS_2022)}
+\item{survey}{Survey name prefix to use in file name (e.g. NBS_2022)}
 
 \item{haul_types}{A numeric vector of HAUL_TYPE to use.}
 

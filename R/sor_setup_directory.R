@@ -7,7 +7,7 @@
 #' @param cruise Cruise number as a numeric vector (e.g. 202202)
 #' @param cruise_idnum Cruise ID number as a numeric vector (e.g. 757)
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight.
-#' @param survey Survey name prefix to use in filename (e.g. NBS_2022)
+#' @param survey Survey name prefix to use in file name (e.g. NBS_2022)
 #' @param haul_types A numeric vector of HAUL_TYPE to use.
 #' @param gear_codes A numeric vector of GEAR codes to use.
 #' @param width_range Gate filter for net width values as a 2L numeric vector. If not provided, Defaults to survey standards if not provided c(8,22) for GOA and AI, c(10, 22) for EBS/NBS
