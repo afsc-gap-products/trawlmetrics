@@ -7,16 +7,22 @@
 sor_fill_missing(
   height_paths,
   spread_paths,
+  haul_path = NULL,
   rds_dir,
+  fill_method,
   convert_marport_to_netmind = TRUE
 )
 }
 \arguments{
-\item{height_paths}{Path(S) to height data files.}
+\item{height_paths}{Path(s) to height data files.}
 
 \item{spread_paths}{Path(s) to spread data files.}
 
+\item{haul_path}{Path to haul data file (required when \code{fill_method = "goa"}).}
+
 \item{rds_dir}{Path to haul rds files.}
+
+\item{fill_method}{Method for filling missing height and spread data. Either "goa", which uses GAMs or "ebs", which uses GLMs. See details.}
 
 \item{convert_marport_to_netmind}{Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()?}
 }
@@ -25,4 +31,11 @@ Reads in measurement data from _sor.rds files from rds_dir and writes corrected 
 }
 \description{
 Fill missing height and spread
+}
+\details{
+There are two options for estimating missing spread and height, which differ between regions. 
+\describe{
+    \item{Aleutian Islands and Gulf of Alaska}{\code{fill_method = "goa"}: Aleutian Islands and Gulf of Alaska surveys use generalized additive models that use net height, net spread, vessel speed, bottom depth, scope ratio, and total catch weight as covariates.}
+    \item{Eastern Bering Sea and Northern Bering Sea}{\code{fill_method = "ebs"}: Eastern Bering Sea shelf and northern Bering Sea surveys uses mean height for a given scope to fill height and a generalized linear model with inverse scope and net height as covariates to fill missing spread.}
+    }
 }

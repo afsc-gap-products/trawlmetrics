@@ -38,15 +38,12 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
     
     if(is.null(sel_dat$sor_ping_ranks)) { next }
       # pings
-      not_rejected <- sel_dat$sor_ping_ranks %>% 
+      not_rejected <- sel_dat$sor_ping_ranks |> 
         dplyr::filter(is.na(SOR_RANK))
-      rejected <- sel_dat$sor_ping_ranks %>% 
+      rejected <- sel_dat$sor_ping_ranks |> 
         dplyr::filter(!is.na(SOR_RANK))
       
-      # CIA: add n pings, mean, sd info to before and after plots
-      
-      # initial data
-      p_init <- sel_dat$sor_ping_ranks %>%
+      p_init <- sel_dat$sor_ping_ranks |>
         ggplot()+
         geom_point(aes(x = date_time, 
                        y = measurement_value), 
@@ -57,8 +54,8 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
         theme_bw() +
         labs(x = "time", y = "spread", title = "Before SOR",
              subtitle = paste("Vessel", sel_dat$haul$vessel, "Haul", sel_dat$haul$haul))
-      # after sor
-      p_post <- not_rejected %>%
+
+      p_post <- not_rejected |>
         ggplot()+
         geom_point(aes(x = date_time, 
                        y = measurement_value), 
@@ -94,21 +91,21 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
         theme_bw() +
         theme(plot.caption = element_text(hjust = 0)) +
         labs(x = "time", y = "spread", title = "All pings ",
-             subtitle = paste(#"Vessel", unique(data_sub$vessel), "Haul", unique(data_sub$haul), 
-               "n_pings =", sel_dat$sor_results$n_pings, " mean = ", round(sel_dat$sor_results$mean, 2), 
+             subtitle = paste(
+               "n_pings =", sel_dat$sor_results$n_pings, 
+               " mean = ", round(sel_dat$sor_results$mean, 2), 
                " sd =", round(sel_dat$sor_results$sd, 2)),
              caption = "red = rejected by SOR, blue = mean")
       
-      # rmse
-      p_rmse <- sel_dat$sor_rmse %>%
+      p_rmse <- sel_dat$sor_rmse |>
         ggplot()+
         geom_point(aes(x = N, 
                        y = RMSE), shape = 17, size = 2.5) +
         theme_bw() +
         labs(x = "iteration number", y = "rmse", title = "RMSE",
-             subtitle = paste()) #"Vessel", unique(rmse_sub$vessel), "Haul", unique(rmse_sub$haul)))
+             subtitle = paste())
       
-      p_full <- cowplot::plot_grid(p_init, p_post, p_both, p_rmse) # blank plot:, ggplot() + theme_bw() + theme(panel.border = element_blank()))
+      p_full <- cowplot::plot_grid(p_init, p_post, p_both, p_rmse)
       
       ggsave(p_full, 
              filename = paste0("SOR_", sel_dat$haul$cruise, "_", sel_dat$haul$vessel, "_", sel_dat$haul$haul, ".png"),

@@ -19,8 +19,7 @@ sor_setup_directory(cruise = cruise1, # cruise number
                     vessel = vessel1,
                     region = region1,
                     survey = survey1,
-                    width_range = width_range1,
-                    skip_save_rds = TRUE # For demo/testing purposes. Change to TRUE for actual data processing.
+                    width_range = width_range1
                     )
 
 # Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
