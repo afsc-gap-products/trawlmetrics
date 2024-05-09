@@ -2,6 +2,7 @@ library(trawlmetrics)
 
 # 2018 EBS Alaska Knight ---------------------------------------------------------------------------
 cruise1 = 201801
+year1 = floor(cruise1/100)
 cruise_idnum1 = 722
 vessel1 = 94
 region1 = "EBS"
@@ -47,14 +48,14 @@ sor_fill_missing(height_paths = here::here("output", region1, cruise1, vessel1,
                  haul_path = here::here("output", region1, cruise1, vessel1, 
                                         paste0("edit_haul_", cruise1, "_", vessel1, ".rds")),
                  rds_dir = here::here("output", region1, cruise1, vessel1, 
-                                      paste0("PING_FILES_", region1, "_", floor(cruise1/100))),
+                                      paste0("PING_FILES_", region1, "_", year1)),
                  fill_method = fill_method,
                  convert_marport_to_netmind = TRUE)
 
 
 # Add updated data to Oracle and write output to .csv
 sor_save_results(final_dir = here::here("output", region1, cruise1, vessel1, 
-                                        paste0("PING_FILES_", region1, "_", floor(cruise1/100))), 
+                                        paste0("PING_FILES_", region1, "_", year1)), 
                  create_user = create_user, 
                  survey = survey1, 
                  cruise_idnum = cruise_idnum1)

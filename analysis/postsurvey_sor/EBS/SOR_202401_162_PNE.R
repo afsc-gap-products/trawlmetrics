@@ -1,7 +1,7 @@
 library(trawlmetrics)
 
 # 2024 EBS Alaska Knight PNE -----------------------------------------------------------------------
-cruise1 = 2024
+cruise1 = 202401
 cruise_idnum1 = 767
 vessel1 = 162
 region1 = "EBS"
@@ -38,7 +38,7 @@ sor_plot_results(cruise = cruise1,
                  region = region1,
                  survey = survey1)
 
-# Fill in missing height data using the mean height for a given scope then estimate missing spread using a GLM. Write results to .rds files.
+# Fill in missing height and spread data
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
 sor_fill_missing(height_paths = here::here("output", region1, cruise1, vessel1, 
                                            paste0("HEIGHT_", region1, "_", cruise1, "_", vessel1, ".rds")),
