@@ -8,6 +8,7 @@ region1 = "EBS"
 survey1 = "EBS_2018"
 width_range1 = c(10, 22)
 create_user = "ROHANS"
+fill_method = "ebs"
 
 # Retrieve haul and net mensuration data from race_data then write spread and height data from individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
 # - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
@@ -39,10 +40,11 @@ sor_fill_missing(height_paths = here::here("output", region1, cruise1, vessel1,
                                            paste0("HEIGHT_", region1, "_", cruise1, "_", vessel1, ".rds")),
                  spread_paths = here::here("output", region1, cruise1, vessel1, 
                                            paste0("SPREAD_AFTER_SOR_", region1, "_", cruise1, "_", vessel1, ".rds")),
-                 haul_path = here::here("output", region1, cruise1, vessel1, paste0("edit_haul_", cruise1, "_", vessel1, ".rds")),
+                 haul_path = here::here("output", region1, cruise1, vessel1, 
+                                        paste0("edit_haul_", cruise1, "_", vessel1, ".rds")),
                  rds_dir = here::here("output", region1, cruise1, vessel1, 
                                       paste0("PING_FILES_", region1, "_", floor(cruise1/100))),
-                 fill_method = "ebs",
+                 fill_method = fill_method,
                  convert_marport_to_netmind = TRUE)
 
 

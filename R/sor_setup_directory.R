@@ -8,6 +8,8 @@
 #' @param cruise_idnum Cruise ID number as a numeric vector (e.g. 757)
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight.
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022)
+#' @param haul_types A numeric vector of HAUL_TYPE to use.
+#' @param gear_codes A numeric vector of GEAR codes to use.
 #' @param width_range Gate filter for net width values as a 2L numeric vector. If not provided, Defaults to survey standards if not provided c(8,22) for GOA and AI, c(10, 22) for EBS/NBS
 #' @import RODBC getPass
 #' @export
@@ -18,6 +20,8 @@ sor_setup_directory <- function(channel = NULL,
                                 cruise_idnum, 
                                 vessel, 
                                 survey, 
+                                haul_types = NULL,
+                                gear_codes = NULL,
                                 width_range = NULL) {
   
   region <- toupper(region)
@@ -52,6 +56,17 @@ sor_setup_directory <- function(channel = NULL,
                           'GOA' = c(8, 22),
                           'AI' = c(8, 22),
                           'BS' = c(10, 22))
+  }
+  
+  if(is.null(gear_codes)) {
+    gear_codes <- switch(survey_region,
+                         'GOA' = 172,
+                         'AI' = 172,
+                         'BS' = 44)
+  }
+  
+  if(is.null(haul_types)) {
+    haul_types <- 3
   }
 
   # Event codes used for effort calculations
@@ -97,7 +112,7 @@ sor_setup_directory <- function(channel = NULL,
                                      paste0("select c.vessel_id vessel, c.cruise, h.haul, 
                                        h.haul_id, m.edit_speed_ob_fb speed, 
                                        h.edit_bottom_depth bottom_depth, h.performance, 
-                                       h.edit_wire_out, h.net_number 
+                                       h.edit_wire_out, h.net_number, h.haul_type 
                                       from 
                                       race_data.cruises c, 
                                       race_data.edit_hauls h, 
@@ -106,7 +121,9 @@ sor_setup_directory <- function(channel = NULL,
                                            c.cruise_id = ",
                                             cruise_idnum,
                                             " and h.haul_id = m.haul_id
-                                     and c.cruise_id = h.cruise_id")
+                                     and c.cruise_id = h.cruise_id 
+                                     and h.haul_type in (", paste(haul_types, collapse = ", "), ")",
+                                     "and h.gear in (", paste(gear_codes, collapse = ", "), ")")
   ) |>
     dplyr::mutate(invscope = 1/EDIT_WIRE_OUT,
                   scope_ratio = EDIT_WIRE_OUT/BOTTOM_DEPTH,
@@ -129,6 +146,18 @@ sor_setup_directory <- function(channel = NULL,
                                         group by h.haul_id, c.vessel_id, c.cruise, h.haul, c.cruise_id 
                                         order by c.vessel_id, h.haul")
   )
+  
+  unique_cvh <- dplyr::select(speed_gear_df, CRUISE, VESSEL, HAUL) |>
+    unique()
+  
+  total_catch_df <- total_catch_df |>
+    dplyr::inner_join(unique_cvh)
+  
+  edit_height <- edit_height |>
+    dplyr::inner_join(unique_cvh)
+  
+  edit_sgt <- edit_sgt |>
+    dplyr::inner_join(unique_cvh)
   
   speed_net_df <- dplyr::full_join(speed_gear_df, 
                                    total_catch_df, 

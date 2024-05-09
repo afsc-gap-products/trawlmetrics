@@ -48,96 +48,6 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
     
   cat("sor_fill_missing: Fitting models for estimating missing height and spread.\n")
   
-  .fill_missing_models <- function(models, 
-                                   fill_method, 
-                                   type, 
-                                   est_height,
-                                   est_spread,
-                                   edit_wire_out_FM,
-                                   edit_net_height,
-                                   mean,
-                                   net_number, 
-                                   speed,
-                                   total_weight,
-                                   scope_ratio,
-                                   bottom_depth,
-                                   invscope) {
-    
-    if(type == "spread") {
-      
-      if(fill_method == "ebs") {
-        mod_name <- "spread"
-      }
-      
-      if(fill_method == "goa" & !est_height & !is.na(net_number)) {
-        mod_name <- "spread"
-      }
-      
-      if(fill_method == "goa" & est_height & !is.na(net_number)) {
-        mod_name <- "width_no_height"
-      }
-      
-      if(fill_method == "goa" & !est_height & is.na(net_number)) {
-        mod_name <- "width_no_net"
-      }
-      
-      if(fill_method == "goa" & est_height & is.na(net_number)) {
-        mod_name <- "width_no_height_net"
-      }
-      
-    }
-    
-    if(type == "height") {
-      
-      if(fill_method == "ebs") {
-        mod_name <- "height"
-      }
-      
-      if(fill_method == "goa" & !est_spread & !is.na(net_number)) {
-        mod_name <- "height"
-      }
-      
-      if(fill_method == "goa" & est_spread & !is.na(net_number)) {
-        mod_name <- "height_no_height"
-      }
-      
-      if(fill_method == "goa" & !est_spread & is.na(net_number)) {
-        mod_name <- "height_no_net"
-      }
-      
-      if(fill_method == "goa" & est_spread & is.na(net_number)) {
-        mod_name <- "height_no_width_net"
-      }
-      
-    }
-    
-    if(any(c("gam", "glm", "lm") %in% class(models[[mod_name]])[1])) {
-      
-      newdata <- data.frame(net_number = net_number,
-                            edit_net_height = edit_net_height,
-                            mean = mean,
-                            speed = speed,
-                            total_weight = total_weight,
-                            scope_ratio = scope_ratio,
-                            bottom_depth = bottom_depth,
-                            invscope = invscope)
-      
-      fit <- predict(models[[mod_name]], newdata = newdata)
-      
-      
-      
-    }
-    
-    if("data.frame" %in% class(models[[mod_name]])) {
-      
-      fit <- models[[mod_name]]$mean_height[models[[mod_name]]$edit_wire_out_FM == edit_wire_out_FM]
-      
-    }
-    
-    return(fit)
-    
-  }
-  
   if(fill_method == "ebs") {
     
     models <- list(width = glm(mean ~ invscope + 
@@ -226,6 +136,95 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
     
   }
   
+  .fill_missing_models <- function(models, 
+                                   fill_method, 
+                                   type, 
+                                   est_height,
+                                   est_spread,
+                                   edit_wire_out_FM,
+                                   edit_net_height,
+                                   mean,
+                                   net_number, 
+                                   speed,
+                                   total_weight,
+                                   scope_ratio,
+                                   bottom_depth,
+                                   invscope) {
+    
+    if(type == "spread") {
+      
+      if(fill_method == "ebs") {
+        mod_name <- "spread"
+      }
+      
+      if(fill_method == "goa" & !est_height & !is.na(net_number)) {
+        mod_name <- "spread"
+      }
+      
+      if(fill_method == "goa" & est_height & !is.na(net_number)) {
+        mod_name <- "width_no_height"
+      }
+      
+      if(fill_method == "goa" & !est_height & is.na(net_number)) {
+        mod_name <- "width_no_net"
+      }
+      
+      if(fill_method == "goa" & est_height & is.na(net_number)) {
+        mod_name <- "width_no_height_net"
+      }
+      
+    }
+    
+    if(type == "height") {
+      
+      if(fill_method == "ebs") {
+        mod_name <- "height"
+      }
+      
+      if(fill_method == "goa" & !est_spread & !is.na(net_number)) {
+        mod_name <- "height"
+      }
+      
+      if(fill_method == "goa" & est_spread & !is.na(net_number)) {
+        mod_name <- "height_no_width"
+      }
+      
+      if(fill_method == "goa" & !est_spread & is.na(net_number)) {
+        mod_name <- "height_no_net"
+      }
+      
+      if(fill_method == "goa" & est_spread & is.na(net_number)) {
+        mod_name <- "height_no_width_net"
+      }
+      
+    }
+    
+    if(any(c("gam", "glm", "lm") %in% class(models[[mod_name]])[1])) {
+      
+      newdata <- list(net_number = net_number,
+                            edit_net_height = edit_net_height,
+                            mean = mean,
+                            speed = speed,
+                            total_weight = total_weight,
+                            scope_ratio = scope_ratio,
+                            bottom_depth = bottom_depth,
+                            invscope = invscope) |>
+        as.data.frame()
+      
+      fit <- predict(models[[mod_name]], newdata = newdata)
+      
+    }
+    
+    if("data.frame" %in% class(models[[mod_name]])) {
+      
+      fit <- models[[mod_name]]$mean_height[models[[mod_name]]$edit_wire_out_FM == edit_wire_out_FM]
+      
+    }
+    
+    return(fit)
+    
+  }
+  
   rds_paths <- list.files(rds_dir, full.names = TRUE, pattern = "sor.rds")
   
   cat("sor_fill_missing: Found ", length(rds_paths), " files to read in.\n")
@@ -254,13 +253,14 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
     # Case where there is no spread data
     if(is.null(sel_dat$spread)) {
       
-      cat("sor_fill_missing: No spread data avilable. Spread will be estimated.\n")
+      cat("sor_fill_missing: No spread data available. Spread will be estimated.\n")
       est_spread <- TRUE
       
     }
     
     if(est_height) {
-      final_height <- data.frame(edit_net_height = scope_height_df$mean_height[scope_height_df$edit_wire_out_FM == sel_dat$height$edit_wire_out_FM],
+      
+      final_height <- data.frame(
                                  edit_net_height = 
                                    .fill_missing_models(models = models, 
                                                         fill_method = fill_method, 
@@ -269,7 +269,9 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                                                         edit_net_height = NA,
                                                         est_spread = est_spread,
                                                         est_height = est_height,
-                                                        mean = sel_dat$sor_results$mean,
+                                                        mean = switch(est_spread, 
+                                                                      NA, 
+                                                                      sel_dat$sor_results$mean),
                                                         net_number = sel_dat$haul$net_number, 
                                                         speed = sel_dat$haul$speed,
                                                         total_weight = sel_dat$haul$total_weight,
@@ -394,7 +396,6 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
     if(convert_marport_to_netmind) {
       
       # Convert Marport spread to Netmind spread
-      
       final_spread$edit_net_spread <- marport_to_netmind(final_spread$edit_net_spread)
       
     }
@@ -407,8 +408,7 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
     
     sel_dat$final <- dplyr::bind_cols(final_cruise,
                                       final_spread,
-                                      final_height
-    )
+                                      final_height)
     
     saveRDS(object = sel_dat,
             file = gsub(x = rds_paths[mm], pattern = "sor.rds", replacement = "final.rds"))
