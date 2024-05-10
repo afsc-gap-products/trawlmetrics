@@ -83,7 +83,7 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
                    col = "red", 
                    alpha = 0.5) +
         geom_hline(data = sel_dat$sor_results, 
-                   aes(yintercept=mean), 
+                   aes(yintercept=mean_spread), 
                    col = "blue", 
                    cex = 1) +
         scale_y_continuous(limits = y_lim, 
@@ -93,7 +93,7 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
         labs(x = "time", y = "spread", title = "All pings ",
              subtitle = paste(
                "n_pings =", sel_dat$sor_results$n_pings, 
-               " mean = ", round(sel_dat$sor_results$mean, 2), 
+               " mean = ", round(sel_dat$sor_results$mean_spread, 2), 
                " sd =", round(sel_dat$sor_results$sd, 2)),
              caption = "red = rejected by SOR, blue = mean")
       
@@ -108,7 +108,10 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
       p_full <- cowplot::plot_grid(p_init, p_post, p_both, p_rmse)
       
       ggsave(p_full, 
-             filename = paste0("SOR_", sel_dat$haul$cruise, "_", sel_dat$haul$vessel, "_", sel_dat$haul$haul, ".png"),
+             filename = paste0("SOR_", 
+                               sel_dat$haul$cruise, "_", 
+                               sel_dat$haul$vessel, "_", 
+                               sel_dat$haul$haul, ".png"),
              path = output_dir, 
              width = 10, 
              height = 6)

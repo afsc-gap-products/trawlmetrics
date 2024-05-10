@@ -14,7 +14,8 @@ sor_save_results <- function(final_dir, create_user = "", survey, cruise_idnum, 
   
   stopifnot("sor_save_results: cruise_idnum and final_dir must be the same length." = length(cruise_idnum) == length(final_dir))
   
-  channel <- get_connected(schema = "AFSC")
+  channel <- get_connected(channel = channel, 
+                           schema = "AFSC")
   
   fpath <- character(length = 0L)
   
@@ -48,7 +49,7 @@ sor_save_results <- function(final_dir, create_user = "", survey, cruise_idnum, 
   final_values$CREATE_USER <- toupper(create_user)
 
   # Write output to .csv
-  csv_path <- here::here("output", paste0("race_data_edit_hauls_table_", survey, ".csv"))
+  csv_path <- here::here("output", paste0("race_data_edit_hauls_table_", survey[1], ".csv"))
   
   message(paste0("sor_save_results: Writing results to ", csv_path))
   

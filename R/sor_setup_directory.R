@@ -20,14 +20,14 @@ sor_setup_directory <- function(channel = NULL,
                                 cruise_idnum, 
                                 vessel, 
                                 survey, 
-                                haul_types = NULL,
+                                haul_types = 3,
                                 gear_codes = NULL,
                                 width_range = NULL) {
   
   region <- toupper(region)
   
   stopifnot("setup_sor_directory: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
-  channel <- get_connected(schema = "AFSC")
+  channel <- get_connected(channel = channel, schema = "AFSC")
   
   # Setup file paths and directories  
   output_dir <- here::here("output", region, cruise, vessel)
@@ -64,10 +64,6 @@ sor_setup_directory <- function(channel = NULL,
                          'AI' = 172,
                          'BS' = 44)
   }
-  
-  if(is.null(haul_types)) {
-    haul_types <- 3
-  }
 
   # Event codes used for effort calculations
   start_event_code <- switch(survey_region,
@@ -79,16 +75,18 @@ sor_setup_directory <- function(channel = NULL,
   
   cat("setup_sor_directory: Retreiving data from racebase and race_data\n")
   # Get spread measurements from race_data
-  edit_sgp <- RODBC::sqlQuery(
+  edit_spread <- RODBC::sqlQuery(
     channel = channel, 
-    query = paste0(" select * from race_data.v_extract_edit_sgp where cruise in (", 
+    query = paste0(" select * from race_data.v_extract_edit_sgp 
+                   where cabinet_sensor_flag = 12
+                   and cruise in (", 
                    cruise,
                    ") and region = '", 
                    survey_region, 
                    "';")
   )
   
-  stopifnot("setup_sor_directory: No spread data in RACE_DATA.V_EXTRACT_EDIT_SGP for this vessel/cruise " = nrow(edit_sgp) > 0)
+  stopifnot("setup_sor_directory: No spread data in RACE_DATA.V_EXTRACT_EDIT_SGP for this vessel/cruise " = nrow(edit_spread) > 0)
   
   # Get haul events from race_data; TIME_FLAG = EVENT
   edit_sgt <- RODBC::sqlQuery(
@@ -101,12 +99,12 @@ sor_setup_directory <- function(channel = NULL,
   
   stopifnot("setup_sor_directory: No event data in RACE_DATA.V_EXTRACT_EDIT_SGT for this vessel/cruise " = nrow(edit_sgt) > 0)
   
-  # Get Calypso's mean height calculations
+  # Get mean height estimate
   edit_height <- RODBC::sqlQuery(channel, 
-                                    query = paste0("select * from race_data.edit_hauls where cruise_id = ", 
-                                                   cruise_idnum))
+                                    query = paste0("select * from race_data.edit_hauls where cruise_id in ", 
+                                                   paste(cruise_idnum, collapse = ","), ")"))
   
-  # Speed, net number, and total catch
+  # Get vessel speed, net number, and total catch
   speed_gear_df <- RODBC::sqlQuery(channel, 
                                    query = 
                                      paste0("select c.vessel_id vessel, c.cruise, h.haul, 
@@ -118,9 +116,9 @@ sor_setup_directory <- function(channel = NULL,
                                       race_data.edit_hauls h, 
                                       race_data.edit_haul_measurements m  
                                       where 
-                                           c.cruise_id = ",
-                                            cruise_idnum,
-                                            " and h.haul_id = m.haul_id
+                                           c.cruise_id in (",
+                                            paste(cruise_idnum, collapse = ","),
+                                            ") and h.haul_id = m.haul_id
                                      and c.cruise_id = h.cruise_id 
                                      and h.haul_type in (", paste(haul_types, collapse = ", "), ")",
                                      "and h.gear in (", paste(gear_codes, collapse = ", "), ")")
@@ -128,6 +126,8 @@ sor_setup_directory <- function(channel = NULL,
     dplyr::mutate(invscope = 1/EDIT_WIRE_OUT,
                   scope_ratio = EDIT_WIRE_OUT/BOTTOM_DEPTH,
                   BOTTOM_DEPTH = dplyr::if_else(BOTTOM_DEPTH == 0, NA, BOTTOM_DEPTH))
+  
+  stopifnot("setup_sor_directory: No height data in RACE_DATA.EDIT_HAULS for this vessel/cruise " = nrow(edit_height) > 0)
   
   total_catch_df <- RODBC::sqlQuery(channel, 
                                     query = 
@@ -139,8 +139,8 @@ sor_setup_directory <- function(channel = NULL,
                                         race_data.edit_catch_species csp,
                                         race_data.edit_catch_samples csa 
                                         where 
-                                        c.cruise_id = ", cruise_idnum, 
-                                             " and csa.haul_id = h.haul_id 
+                                        c.cruise_id in (", paste(cruise_idnum, collapse = ","), 
+                                             ") and csa.haul_id = h.haul_id 
                                         and csa.catch_sample_id = csp.catch_sample_id
                                         and c.cruise_id = h.cruise_id 
                                         group by h.haul_id, c.vessel_id, c.cruise, h.haul, c.cruise_id 
@@ -164,26 +164,24 @@ sor_setup_directory <- function(channel = NULL,
                                    by = c("VESSEL", "CRUISE", "HAUL", "HAUL_ID")) |>
     janitor::clean_names()
   
-  stopifnot("setup_sor_directory: No height data in RACE_DATA.EDIT_HAULS for this vessel/cruise " = nrow(edit_height) > 0)
-  
   cat("setup_sor_directory: Writing racebase data to rds files in ", output_dir, "\n")
   
   # Save files to .rds
-  saveRDS(edit_sgp, 
-          file = here::here(output_dir, paste0("edit_sgp_", cruise, "_", vessel,  ".rds")))
+  saveRDS(edit_spread, 
+          file = here::here(output_dir, paste0("edit_spread_", cruise, "_", paste(vessel, collapse = "_"),  ".rds")))
   saveRDS(edit_sgt, 
-          file = here::here(output_dir, paste0("edit_sgt_", cruise, "_", vessel,  ".rds")))
+          file = here::here(output_dir, paste0("edit_sgt_", cruise, "_", paste(vessel, collapse = "_"),  ".rds")))
   saveRDS(edit_height, 
-          file = here::here(output_dir, paste0("edit_height_", cruise, "_", vessel,  ".rds")))
+          file = here::here(output_dir, paste0("edit_height_", cruise, "_", paste(vessel, collapse = "_"),  ".rds")))
   saveRDS(speed_net_df, 
-          file = here::here(output_dir, paste0("edit_haul_", cruise, "_", vessel,  ".rds")))
+          file = here::here(output_dir, paste0("edit_haul_", cruise, "_", paste(vessel, collapse = "_"),  ".rds")))
   
   event_dat <- edit_sgt |> 
     janitor::clean_names() |> 
     dplyr::rename(event = time_flag) |> 
     dplyr::select(cruise, vessel, haul, date_time, event)
   
-  haul_dat <- edit_sgp |> 
+  haul_dat <- edit_spread |> 
     janitor::clean_names() |> 
     dplyr::rename(measurement_value = value) |> 
     dplyr::select(cruise, vessel, haul, date_time, cabinet_sensor_flag, measurement_value, datum_code)
@@ -205,7 +203,8 @@ sor_setup_directory <- function(channel = NULL,
   edit_hauls_table_raw <- edit_height |> 
     janitor::clean_names()
   
-  unique_hauls_df <- dplyr::distinct(event_dat, vessel, cruise, haul)
+  unique_hauls_df <- dplyr::distinct(event_dat, vessel, cruise, haul) |>
+    dplyr::arrange(cruise, vessel, haul)
   
   height_df <- data.frame()
   
@@ -255,18 +254,22 @@ sor_setup_directory <- function(channel = NULL,
       
     }
     
-    cat("setup_sor_directory: Writing ping data to ", 
-            paste0(ping_files_dir, 
-                   "/", 
-                   paste(unique_hauls_df[jj,], collapse = "_"), 
-                   "_pings.rds\n"))
-    saveRDS(object = list(spread = spread_pings,
-                          height = height_pings,
-                          events = haul_events_dat,
-                          haul = cbind(sel_haul_dat, region, survey, cruise_idnum),
-                          processing_date = Sys.time()),
-            file = paste0(ping_files_dir, "/", paste(unique_hauls_df[jj,], collapse = "_"), "_pings.rds")
-    )
+    ping_path <- paste0(ping_files_dir, "/", 
+                        unique_hauls_df$vessel[jj], "_",
+                        unique_hauls_df$cruise[jj], "_",
+                        sprintf("%04d", unique_hauls_df$haul[jj]), 
+                        "_pings.rds")
+    cat("setup_sor_directory: Writing ping data to ", ping_path, "\n")
+    
+
+    
+    saveRDS(object = 
+              list(spread = spread_pings,
+                   height = height_pings,
+                   events = haul_events_dat,
+                   haul = cbind(sel_haul_dat, region, survey, cruise_idnum),
+                   processing_date = Sys.time()),
+            file = ping_path)
   }
   
   saveRDS(object = height_df, 

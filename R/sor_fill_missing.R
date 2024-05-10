@@ -6,6 +6,7 @@
 #' @param rds_dir Path to haul rds files.
 #' @param fill_method Method for filling missing height and spread data. Either "goa", which uses GAMs or "ebs", which uses GLMs. See details.
 #' @param convert_marport_to_netmind Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()? 
+#' @param min_height_pings Minimum number of height pings required for height data to not be filled.
 #' @details
 #' There are two options for estimating missing spread and height, which differ between regions. 
 #' \describe{
@@ -16,7 +17,13 @@
 #' @import ggplot2
 #' @export
 
-sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_dir, fill_method, convert_marport_to_netmind = TRUE) {
+sor_fill_missing <- function(height_paths, 
+                             spread_paths, 
+                             haul_path = NULL, 
+                             rds_dir, 
+                             fill_method, 
+                             convert_marport_to_netmind = TRUE,
+                             min_height_pings = 150) {
   
   # Check that input files exist
   stopifnot("sor_fill_missing: One or more height_path files does not exist." = all(file.exists(height_paths)))
@@ -36,21 +43,25 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
   
   # Create a data.frame of height and spread for model-fitting
   hs_df <- dplyr::inner_join(height_df, 
-                             spread_df) |>
+                             spread_df,
+                             by = c("haul", "haul_id", "edit_wire_out", 
+                                    "cruise", "vessel", "invscope")) |>
     dplyr::filter(!is.na(edit_net_height), 
-                  !is.na(mean), 
-                  net_height_pings >= 150)
+                  !is.na(mean_spread), 
+                  net_height_pings >= min_height_pings,
+                  performance >= 0)
   
   # Summarize height based on scope
   scope_height_df <- height_df |>
     dplyr::group_by(edit_wire_out_FM, vessel) |>
-    dplyr::summarise(mean_height = mean(edit_net_height, na.rm = TRUE))
+    dplyr::summarise(mean_height = mean(edit_net_height, na.rm = TRUE),
+                     .groups = "keep")
     
   cat("sor_fill_missing: Fitting models for estimating missing height and spread.\n")
   
   if(fill_method == "ebs") {
     
-    models <- list(spread = glm(mean ~ invscope + 
+    models <- list(spread = glm(mean_spread ~ invscope + 
                                  edit_net_height + 
                                  invscope*edit_net_height, 
                                data = hs_df, 
@@ -62,21 +73,25 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
     
     haul_df <- readRDS(file = haul_path)
     
-    hs_df <- dplyr::inner_join(hs_df, 
+    hs_df <- suppressMessages(
+      dplyr::inner_join(hs_df, 
                                haul_df,
                                by = names(hs_df)[which(names(hs_df) %in% names(haul_df))])
+    )
     
-    height_df <- dplyr::full_join(height_df, 
+    height_df <- suppressMessages(
+      dplyr::full_join(height_df, 
                                         hs_df) |>
       dplyr::full_join(spread_df)
+    )
     
     spread_df <- dplyr::full_join(hs_df, 
                                   spread_df,
                                   by = c("haul", "cruise", "vessel", "region", "survey", 
-                                         "cruise_idnum", "n_pings", "mean", "sd"))
+                                         "cruise_idnum", "n_pings", "mean_spread", "sd_spread"))
     
     models <- list(
-      spread = mgcv::gam(mean ~ factor(net_number) + 
+      spread = mgcv::gam(mean_spread ~ factor(net_number) + 
                           s(bottom_depth) + 
                           s(speed) + 
                           s(scope_ratio) + 
@@ -84,7 +99,7 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                           s(edit_net_height), 
                         data = hs_df, 
                         family = "gaussian"),
-      spread_no_height = mgcv::gam(mean ~ factor(net_number) + 
+      spread_no_height = mgcv::gam(mean_spread ~ factor(net_number) + 
                                     s(bottom_depth) + 
                                     s(speed) + 
                                     s(scope_ratio) + 
@@ -92,13 +107,13 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                                     s(edit_net_height), 
                                   data = hs_df, 
                                   family = "gaussian"),
-      spread_no_net = mgcv::gam(mean ~ s(bottom_depth) + 
+      spread_no_net = mgcv::gam(mean_spread ~ s(bottom_depth) + 
                                  s(speed) + 
                                  s(scope_ratio) + 
                                  s(total_weight), 
                                data = hs_df, 
                                family = "gaussian"),
-      spread_no_height_net = mgcv::gam(mean ~ s(bottom_depth) + 
+      spread_no_height_net = mgcv::gam(mean_spread ~ s(bottom_depth) + 
                                         s(speed) + 
                                         s(scope_ratio) + 
                                         s(total_weight), 
@@ -109,7 +124,7 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                            s(speed) + 
                            s(scope_ratio) + 
                            s(total_weight) +
-                           s(mean), 
+                           s(mean_spread), 
                          data = hs_df, 
                          family = "gaussian"),
       height_no_spread = mgcv::gam(edit_net_height ~ factor(net_number) + 
@@ -123,7 +138,7 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                                   s(speed) + 
                                   s(scope_ratio) + 
                                   s(total_weight) +
-                                  s(mean), 
+                                  s(mean_spread), 
                                 data = hs_df, 
                                 family = "gaussian"),
       height_no_spread_net = mgcv::gam(edit_net_height ~ s(bottom_depth) + 
@@ -143,7 +158,7 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                                    est_spread,
                                    edit_wire_out_FM,
                                    edit_net_height,
-                                   mean,
+                                   mean_spread,
                                    net_number, 
                                    speed,
                                    total_weight,
@@ -207,7 +222,7 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
       
       newdata <- data.frame(net_number = net_number,
                             edit_net_height = edit_net_height,
-                            mean = mean,
+                            mean_spread = mean_spread,
                             speed = speed,
                             total_weight = total_weight,
                             scope_ratio = scope_ratio,
@@ -245,8 +260,9 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
       next 
       }
     
-    # Estimate height if height is NA or there are less than 150 height measurements; estimate spread if missing
-    if(is.na(sel_dat[['height']]$net_height_pings) | sel_dat[['height']]$net_height_pings < 150) {
+    # Estimate height if height is NA or there are less than threshold value; estimate spread if missing
+    if(is.na(sel_dat[['height']]$net_height_pings) | 
+       sel_dat[['height']]$net_height_pings < min_height_pings) {
       est_height <- TRUE
     }
     
@@ -254,48 +270,17 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
     est_spread <- FALSE
     
     # Case where there is no spread data
-    if(is.null(sel_dat$spread)) {
+    if(is.null(sel_dat$spread) | is.null(sel_dat$sor_results)) {
       
       cat("sor_fill_missing: No spread data available. Spread will be estimated.\n")
       est_spread <- TRUE
       
     }
     
-    if(est_height) {
-      
-      final_height <- data.frame(
-                                 edit_net_height = 
-                                   .fill_missing_models(models = models, 
-                                                        fill_method = fill_method, 
-                                                        type = "height", 
-                                                        edit_wire_out_FM = sel_dat$haul$edit_wire_out,
-                                                        edit_net_height = NA,
-                                                        est_spread = est_spread,
-                                                        est_height = est_height,
-                                                        mean = switch(est_spread, 
-                                                                      NA, 
-                                                                      sel_dat$sor_results$mean),
-                                                        net_number = sel_dat$haul$net_number, 
-                                                        speed = sel_dat$haul$speed,
-                                                        total_weight = sel_dat$haul$total_weight,
-                                                        scope_ratio = sel_dat$haul$scope_ratio,
-                                                        bottom_depth = sel_dat$haul$bottom_depth,
-                                                        invscope = sel_dat$haul$invscope),
-                                 net_height_method = 4,
-                                 net_height_pings = sel_dat[['height']]$net_height_pings,
-                                 net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
-    } else {
-      final_height <- data.frame(edit_net_height = sel_dat[['height']]$edit_net_height,
-                                 net_height_method = 6,
-                                 net_height_pings = sel_dat[['height']]$net_height_pings,
-                                 net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
-    }
-    
-    
     # Case where there was spread data but not enough to conduct sequential outlier rejection
     accept_spread <- NA
     
-    if(!is.null(sel_dat$spread) & is.null(sel_dat[['sor_results']]$mean)) {
+    if(!is.null(sel_dat$spread) & is.null(sel_dat[['sor_results']]$mean_spread)) {
       
       # Review spread
       mean_spread <- round(mean(sel_dat[['spread']]$measurement_value), 1)
@@ -315,7 +300,10 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                    shape = 1,
                    size = 2.5) +
         geom_segment(data = on_off_events,
-                  mapping = aes(x = date_time, xend = date_time, y = 8, yend = 22, color = factor(event))) +
+                  mapping = aes(x = date_time, 
+                                xend = date_time, 
+                                y = 8, yend = 22, 
+                                color = factor(event))) +
         geom_hline(yintercept = mean_spread, 
                    linetype = 2, 
                    color = "red") +
@@ -329,7 +317,8 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                            expand = c(0, 0)) +
         scale_x_datetime(name = "Time") +
         theme_bw() +
-        labs(title = "Without SOR - Accept (y/n)?", subtitle = paste("Vessel", sel_dat$haul$vessel, "Haul", sel_dat$haul$haul))
+        labs(title = "Without SOR - Accept (y/n)?", 
+             subtitle = paste("Vessel", sel_dat$haul$vessel, "Haul", sel_dat$haul$haul))
       
       print(spread_plot)
       
@@ -345,9 +334,11 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
         if(accept_spread == "y") {
           
           cat("sor_fill_missing: Accepting mean spread.\n")
-          sel_dat$sor_results <- list(mean = mean_spread,
-                                      sd = sd_spread,
+          sel_dat$sor_results <- list(mean_spread = mean_spread,
+                                      sd_spread = sd_spread,
                                       n_pings = n_pings)
+          
+          est_spread <- FALSE
           
         } else {
           
@@ -360,7 +351,42 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
 
     } 
     
+    # Fill height
+    if(est_height) {
+      
+      final_height <- data.frame(
+        edit_net_height = 
+          .fill_missing_models(models = models, 
+                               fill_method = fill_method, 
+                               type = "height", 
+                               edit_wire_out_FM = sel_dat$haul$edit_wire_out,
+                               edit_net_height = NA,
+                               est_spread = est_spread,
+                               est_height = est_height,
+                               mean_spread = switch(as.character(est_spread), 
+                                             "TRUE" = NA, 
+                                             "FALSE" = sel_dat$sor_results$mean_spread),
+                               net_number = sel_dat$haul$net_number, 
+                               speed = sel_dat$haul$speed,
+                               total_weight = sel_dat$haul$total_weight,
+                               scope_ratio = sel_dat$haul$scope_ratio,
+                               bottom_depth = sel_dat$haul$bottom_depth,
+                               invscope = sel_dat$haul$invscope),
+        net_height_method = 4,
+        net_height_pings = sel_dat[['height']]$net_height_pings,
+        net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
+      
+    } else {
+      
+      final_height <- data.frame(edit_net_height = sel_dat[['height']]$edit_net_height,
+                                 net_height_method = 6,
+                                 net_height_pings = sel_dat[['height']]$net_height_pings,
+                                 net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
+      
+    }
     
+    
+    # Fill spread
     if(est_spread) {
       
       final_spread <- data.frame(edit_net_spread = 
@@ -371,7 +397,7 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                                                         edit_net_height = final_height$edit_net_height,
                                                         est_spread = est_spread,
                                                         est_height = est_height,
-                                                        mean = NA,
+                                                        mean_spread = NA,
                                                         net_number = sel_dat$haul$net_number, 
                                                         speed = sel_dat$haul$speed,
                                                         total_weight = sel_dat$haul$total_weight,
@@ -383,10 +409,12 @@ sor_fill_missing <- function(height_paths, spread_paths, haul_path = NULL, rds_d
                                  net_spread_standard_deviation = 0)
       
     } else {
-      final_spread <- data.frame(edit_net_spread = sel_dat[['sor_results']]$mean,
+      
+      final_spread <- data.frame(edit_net_spread = sel_dat[['sor_results']]$mean_spread,
                                  net_spread_pings = sel_dat[['sor_results']]$n_pings,
                                  net_spread_method = 7,
-                                 net_spread_standard_deviation = sel_dat[['sor_results']]$sd)
+                                 net_spread_standard_deviation = sel_dat[['sor_results']]$sd_spread)
+      
       
     }
     

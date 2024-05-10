@@ -10,7 +10,8 @@ sor_fill_missing(
   haul_path = NULL,
   rds_dir,
   fill_method,
-  convert_marport_to_netmind = TRUE
+  convert_marport_to_netmind = TRUE,
+  min_height_pings = 150
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ sor_fill_missing(
 \item{fill_method}{Method for filling missing height and spread data. Either "goa", which uses GAMs or "ebs", which uses GLMs. See details.}
 
 \item{convert_marport_to_netmind}{Should Marport spread measurements be converted to Netmind spread using trawlmetric::marport_to_netmind()?}
+
+\item{min_height_pings}{Minimum number of height pings required for height data to not be filled.}
 }
 \value{
 Reads in measurement data from _sor.rds files from rds_dir and writes corrected results to _final.rds files in rds_dir.

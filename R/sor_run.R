@@ -58,6 +58,9 @@ sor_run <- function(vessel = NULL,
               threshold.stop = TRUE, 
               tail = "both")
           
+          names(sor_pings$results)[which(names(sor_pings$results) == "mean")] <- "mean_spread"
+          names(sor_pings$results)[which(names(sor_pings$results) == "sd")] <- "sd_spread"
+          
           sel_dat[['sor_ping_ranks']] <- sor_pings$obs_rank
           sel_dat[['sor_results']] <- sor_pings$results
           sel_dat[['sor_rmse']] <- sor_pings$rmse

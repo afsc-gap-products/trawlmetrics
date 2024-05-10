@@ -11,7 +11,7 @@ sor_setup_directory(
   cruise_idnum,
   vessel,
   survey,
-  haul_types = NULL,
+  haul_types = 3,
   gear_codes = NULL,
   width_range = NULL
 )
