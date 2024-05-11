@@ -28,7 +28,7 @@ graph TD
     HS[GAM: Height<br>No Spd and NN]-->HT[Accept Height]
 ```
 
-# GOA/AI Height GAMs
+### GOA/AI Height GAMs
 | Model | Formula |
 |------------|------------|
 | Height | net_height ~ factor(vessel) + factor(net_number) + s(net_spread) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
@@ -98,7 +98,7 @@ graph TD
     SW[Inspect Plot]-->SU[Accept Spread]
 ```
 
-# GOA/AI Spread GAMs
+### GOA/AI Spread GAMs
 | Model | Formula |
 |------------|------------|
 | Spread | net_spread ~ factor(vessel) + factor(net_number) + s(net_height) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
