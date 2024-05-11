@@ -1,9 +1,9 @@
 ``` mermaid
 graph TD
-HA[\"Height Data<br>(Both Vessels)\"]-->HB[\"Gate Filter<br>0#lt;Height#lt;6\"]
-    HB[\"Gate Filter<br>3#lt;Height#lt;10\"]-->HC[\"#gt;50 pings?\"]
-    HC[\"#gt;50 pings?\"]-->|Yes| HU[Predictors]
-    HC[\"#gt;50 pings?\"]-->|No| HG[Good Performance?]
+HA["Height Data<br>(Both Vessels)"]-->HB["Gate Filter<br>0#lt;Height#lt;6"]
+    HB["Gate Filter<br>3#lt;Height#lt;10"]-->HC[\"#gt;50 pings?\"]
+    HC["#gt;50 pings?"]-->|Yes| HU[Predictors]
+    HC["#gt;50 pings?"]-->|No| HG[Good Performance?]
     HG[Good Performance?]-->|Yes| HJ[Spread and Net Number Available?]
     HG[Good Performance?]-->|No| HT[Accept Height]
     HD[Vessel<br>Net Number<br>Speed<br>Scope Ratio<br>Bottom Depth<br>Catch Weight<br>Good Obs. Spread]-->HU[Predictors]
