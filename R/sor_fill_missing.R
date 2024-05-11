@@ -75,14 +75,14 @@ sor_fill_missing <- function(height_paths,
     
     hs_df <- suppressMessages(
       dplyr::inner_join(hs_df, 
-                               haul_df,
-                               by = names(hs_df)[which(names(hs_df) %in% names(haul_df))])
+                        haul_df,
+                        by = names(hs_df)[which(names(hs_df) %in% names(haul_df))])
     )
     
     height_df <- suppressMessages(
       dplyr::full_join(height_df, 
-                                        hs_df) |>
-      dplyr::full_join(spread_df)
+                       hs_df) |>
+        dplyr::full_join(spread_df)
     )
     
     spread_df <- dplyr::full_join(hs_df, 
@@ -90,63 +90,140 @@ sor_fill_missing <- function(height_paths,
                                   by = c("haul", "cruise", "vessel", "region", "survey", 
                                          "cruise_idnum", "n_pings", "mean_spread", "sd_spread"))
     
+    n_vessels <- length(unique(hs_df$vessel))
+    
     models <- list(
-      spread = mgcv::gam(mean_spread ~ factor(net_number) + 
-                          s(bottom_depth) + 
-                          s(speed) + 
-                          s(scope_ratio) + 
-                          s(total_weight) +
-                          s(edit_net_height), 
-                        data = hs_df, 
-                        family = "gaussian"),
-      spread_no_height = mgcv::gam(mean_spread ~ factor(net_number) + 
-                                    s(bottom_depth) + 
-                                    s(speed) + 
-                                    s(scope_ratio) + 
-                                    s(total_weight) +
-                                    s(edit_net_height), 
-                                  data = hs_df, 
-                                  family = "gaussian"),
-      spread_no_net = mgcv::gam(mean_spread ~ s(bottom_depth) + 
-                                 s(speed) + 
-                                 s(scope_ratio) + 
-                                 s(total_weight), 
-                               data = hs_df, 
-                               family = "gaussian"),
-      spread_no_height_net = mgcv::gam(mean_spread ~ s(bottom_depth) + 
-                                        s(speed) + 
-                                        s(scope_ratio) + 
-                                        s(total_weight), 
-                                      data = hs_df, 
-                                      family = "gaussian"),
-      height = mgcv::gam(edit_net_height ~ factor(net_number) + 
-                           s(bottom_depth) + 
-                           s(speed) + 
-                           s(scope_ratio) + 
-                           s(total_weight) +
-                           s(mean_spread), 
-                         data = hs_df, 
-                         family = "gaussian"),
-      height_no_spread = mgcv::gam(edit_net_height ~ factor(net_number) + 
-                                    s(bottom_depth) + 
-                                    s(speed) + 
-                                    s(scope_ratio) + 
-                                    s(total_weight), 
-                                  data = hs_df, 
-                                  family = "gaussian"),
-      height_no_net = mgcv::gam(edit_net_height ~ s(bottom_depth) + 
-                                  s(speed) + 
-                                  s(scope_ratio) + 
-                                  s(total_weight) +
-                                  s(mean_spread), 
-                                data = hs_df, 
-                                family = "gaussian"),
-      height_no_spread_net = mgcv::gam(edit_net_height ~ s(bottom_depth) + 
-                                        s(speed) + 
-                                        s(scope_ratio) + 
-                                        s(total_weight), 
-                                      data = hs_df, 
-                                      family = "gaussian") 
+      spread = mgcv::gam(
+        switch(n_vessels, 
+               '1' = mean_spread ~ factor(net_number) + 
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(edit_net_height),
+               '2' = mean_spread ~ factor(net_number) + 
+                 factor(vessel) +
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(edit_net_height)
+        ), 
+        data = hs_df, 
+        family = "gaussian"),
+      spread_no_height = mgcv::gam(
+        switch(n_vessels, 
+               '1' = mean_spread ~ factor(net_number) + 
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight),
+               '2' = mean_spread ~ factor(net_number) + 
+                 factor(vessel) +
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight)
+        ), 
+        data = hs_df, 
+        family = "gaussian"),
+      spread_no_net = mgcv::gam(
+        switch(n_vessels, 
+               '1' = mean_spread ~ s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(edit_net_height),
+               '2' = mean_spread ~ factor(vessel) +
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(edit_net_height)
+        ), 
+        data = hs_df, 
+        family = "gaussian"),
+      spread_no_height_net = mgcv::gam(
+        switch(n_vessels, 
+               '1' = mean_spread ~
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight),
+               '2' = mean_spread ~ 
+                 factor(vessel) +
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight)
+        ), 
+        data = hs_df, 
+        family = "gaussian"),
+      height = mgcv::gam(
+        switch(n_vessels, 
+               '1' = mean_spread ~ factor(net_number) + 
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(mean_spread),
+               '2' = mean_spread ~ factor(net_number) + 
+                 factor(vessel) +
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(mean_spread)
+        ), 
+        data = hs_df, 
+        family = "gaussian"),
+      height_no_spread = mgcv::gam(
+        switch(n_vessels, 
+               '1' = mean_spread ~ factor(net_number) + 
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight),
+               '2' = mean_spread ~ factor(net_number) + 
+                 factor(vessel) +
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight)
+        ), 
+        data = hs_df, 
+        family = "gaussian"),
+      height_no_net = mgcv::gam(
+        switch(n_vessels, 
+               '1' = mean_spread ~ s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(mean_spread),
+               '2' = mean_spread ~ factor(vessel) +
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(mean_spread)
+        ),
+        data = hs_df, 
+        family = "gaussian"),
+      height_no_spread_net = mgcv::gam(
+        switch(n_vessels, 
+               '1' = mean_spread ~ s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight) +
+                 s(mean_spread),
+               '2' = mean_spread ~ factor(vessel) +
+                 s(bottom_depth) + 
+                 s(speed) + 
+                 s(scope_ratio) + 
+                 s(total_weight)
+        ), 
+        data = hs_df, 
+        family = "gaussian") 
     )
     
   }
@@ -158,18 +235,25 @@ sor_fill_missing <- function(height_paths,
                                    est_spread,
                                    edit_wire_out_FM,
                                    edit_net_height,
+                                   edit_net_spread,
                                    mean_spread,
                                    net_number, 
                                    speed,
                                    total_weight,
                                    scope_ratio,
                                    bottom_depth,
-                                   invscope) {
+                                   invscope,
+                                   performance,
+                                   vessel) {
     
     if(type == "spread") {
       
       if(fill_method == "ebs") {
         mod_name <- "spread"
+      }
+      
+      if(fill_method == "goa" & performance < 0 & !is.na(edit_net_spread)) {
+        return(edit_net_spread)
       }
       
       if(fill_method == "goa" & !est_height & !is.na(net_number)) {
@@ -196,6 +280,10 @@ sor_fill_missing <- function(height_paths,
       
       if(fill_method == "ebs") {
         mod_name <- "height"
+      }
+      
+      if(fill_method == "goa" & performance < 0 & !is.na(edit_net_height)) {
+        return(edit_net_height)
       }
       
       if(fill_method == "goa" & !est_spread & !is.na(net_number)) {
@@ -227,7 +315,8 @@ sor_fill_missing <- function(height_paths,
                             total_weight = total_weight,
                             scope_ratio = scope_ratio,
                             bottom_depth = bottom_depth,
-                            invscope = invscope)
+                            invscope = invscope,
+                            vessel = vessel)
       
       fit <- predict(models[[mod_name]], newdata = newdata)
       
@@ -254,6 +343,7 @@ sor_fill_missing <- function(height_paths,
     sel_dat <- readRDS(file = rds_paths[mm])
 
     est_height <- FALSE
+    est_spread <- FALSE
     
     if(is.null(sel_dat[['height']])) { 
       warning("sor_fill_missing: Skipping ", rds_paths[mm], " because no height data were found.")
@@ -265,9 +355,6 @@ sor_fill_missing <- function(height_paths,
        sel_dat[['height']]$net_height_pings < min_height_pings) {
       est_height <- TRUE
     }
-    
-    # Estimate spread if missing
-    est_spread <- FALSE
     
     # Case where there is no spread data
     if(is.null(sel_dat$spread) | is.null(sel_dat$sor_results)) {
@@ -360,7 +447,8 @@ sor_fill_missing <- function(height_paths,
                                fill_method = fill_method, 
                                type = "height", 
                                edit_wire_out_FM = sel_dat$haul$edit_wire_out,
-                               edit_net_height = NA,
+                               edit_net_height = sel_dat[['height']]$edit_net_height,
+                               edit_net_spread = sel_dat$haul$edit_net_spread,
                                est_spread = est_spread,
                                est_height = est_height,
                                mean_spread = switch(as.character(est_spread), 
@@ -371,7 +459,9 @@ sor_fill_missing <- function(height_paths,
                                total_weight = sel_dat$haul$total_weight,
                                scope_ratio = sel_dat$haul$scope_ratio,
                                bottom_depth = sel_dat$haul$bottom_depth,
-                               invscope = sel_dat$haul$invscope),
+                               invscope = sel_dat$haul$invscope,
+                               performance = sel_dat$haul$performance,
+                               vessel = sel_dat$haul$vessel),
         net_height_method = 4,
         net_height_pings = sel_dat[['height']]$net_height_pings,
         net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
@@ -395,6 +485,7 @@ sor_fill_missing <- function(height_paths,
                                                         type = "spread", 
                                                         edit_wire_out_FM = sel_dat$haul$edit_wire_out,
                                                         edit_net_height = final_height$edit_net_height,
+                                                        edit_net_spread = sel_dat$haul$edit_net_spread,
                                                         est_spread = est_spread,
                                                         est_height = est_height,
                                                         mean_spread = NA,
@@ -403,7 +494,9 @@ sor_fill_missing <- function(height_paths,
                                                         total_weight = sel_dat$haul$total_weight,
                                                         scope_ratio = sel_dat$haul$scope_ratio,
                                                         bottom_depth = sel_dat$haul$bottom_depth,
-                                                        invscope = sel_dat$haul$invscope),
+                                                        invscope = sel_dat$haul$invscope,
+                                                        performance = sel_dat$haul$performance,
+                                                        vessel = sel_dat$haul$vessel),
                                  net_spread_pings = 0,
                                  net_spread_method = 4,
                                  net_spread_standard_deviation = 0)
