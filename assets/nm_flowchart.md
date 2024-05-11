@@ -10,7 +10,7 @@ graph TD
     HC["&gt;50 pings?"]-->|Yes| HU[Predictors]
     HC["&gt;50 pings?"]-->|No| HG[Good Performance?]
     HG[Good Performance?]-->|Yes| HJ[Spread and Net Number Available?]
-    HG[Good Performance?]-->|No| HT[Accept Height]
+    HG[Good Performance?]-->|No| HT[Accepted Height]
     HD[Vessel<br>Net Number<br>Speed<br>Scope Ratio<br>Bottom Depth<br>Catch Weight<br>Good Obs. Spread]-->HU[Predictors]
     subgraph Generalized Additive Models
       HU[Predictors]-.->HO[GAM: Height]
@@ -22,10 +22,10 @@ graph TD
       HJ[Spread and Net Number Available?]-->|Spd: No<br>NN: Yes| HR[GAM: Height<br>No Spd]
       HJ[Spread and Net Number Available?]-->|Spd: No<br>NN: No| HS[GAM: Height<br>No Spd or NN]
     end
-    HO[GAM: Height]-->HT[Accept Height]
-    HQ[GAM: Height<br>No NN]-->HT[Accept Height]
-    HR[GAM: Height<br>No Spd]-->HT[Accept Height]
-    HS[GAM: Height<br>No Spd and NN]-->HT[Accept Height]
+    HO[GAM: Height]-->HT[Accepted Height]
+    HQ[GAM: Height<br>No NN]-->HT[Accepted Height]
+    HR[GAM: Height<br>No Spd]-->HT[Accepted Height]
+    HS[GAM: Height<br>No Spd and NN]-->HT[Accepted Height]
 ```
 
 ### GOA/AI Height GAMs
@@ -45,9 +45,9 @@ graph TD
     SC["&gt;0 pings?"]-->|Yes| SS[Good Performance?]
     SC["&gt;0 pings?"]-->|No| SG[Good Performance?]
     SS[Good Performance?]-->|Yes| SU[Predictors]
-    SC["&gt;0 pings?"]-->|Yes| SF[Accept Spread]
+    SC["&gt;0 pings?"]-->|Yes| SF[Accepted Spread]
     SG[Good Performance?]-->|Yes| SJ[Height and Net Number Available?]
-    SG[Good Performance?]-->|No| SF[Accept Spread]
+    SG[Good Performance?]-->|No| SF[Accepted Spread]
     SD[Vessel<br>Net Number<br>Speed<br>Scope Ratio<br>Bottom Depth<br>Catch Weight<br>Good Obs. Height]-->SU[Predictors]
     subgraph Generalized Additive Models
       SU[Predictors]-.->SO[GAM: Spread]
@@ -59,10 +59,10 @@ graph TD
       SJ[Height and Net Number Available?]-->|Ht: No<br>NN: Yes| SQ[GAM: Spread<br>No Ht]
       SJ[Height and Net Number Available?]-->|Ht: No<br>NN: No| SR[GAM: Spread<br>No Ht or NN]
     end
-    SO[GAM: Spread]-->SF[Accept Spread]
-    SP[GAM: Spread<br>No NN]-->SF[Accept Spread]
-    SQ[GAM: Spread<br>No Ht]-->SF[Accept Spread]
-    SR[GAM: Spread<br>No Ht and NN]-->SF[Accept Spread]
+    SO[GAM: Spread]-->SF[Accepted Spread]
+    SP[GAM: Spread<br>No NN]-->SF[Accepted Spread]
+    SQ[GAM: Spread<br>No Ht]-->SF[Accepted Spread]
+    SR[GAM: Spread<br>No Ht and NN]-->SF[Accepted Spread]
 ```
 
 
@@ -78,7 +78,7 @@ graph TD
     SF["&gt;0 pings?"]-->|No| SL[Height and Net Number Available?]
     SF["&gt;0 pings?"]-->|Yes| SI[Inspect plot:<br>Spread OK?]
     SI[Inspect plot:<br>Spread OK?]-->|No| SL[Height and Net Number Available?]
-    SI[Inspect plot:<br>Spread OK?]-->|Yes| SU[Accept Spread]
+    SI[Inspect plot:<br>Spread OK?]-->|Yes| SU[Accepted Spread]
     SV[Sequential Outlier<br>Rejection]-->SX[Predictors]
     SD[Vessel<br>Net Number<br>Speed<br>Scope Ratio<br>Bottom Depth<br>Catch Weight<br>Good Obs. Height]-->SX[Predictors]
     subgraph Generalized Additive Models
@@ -91,11 +91,11 @@ graph TD
       SX[Predictors]-.->SS[GAM: Spread<br>No Ht]
       SX[Predictors]-.->ST[GAM: Spread<br>No Ht or NN]
     end
-    SQ[GAM: Spread]-->SU[Accept Spread]
-    SR[GAM: Spread<br>No NN]-->SU[Accept Spread]
-    SS[GAM: Spread<br>No Ht]-->SU[Accept Spread]
-    ST[GAM: Spread<br>No Ht and NN]-->SU[Accept Spread]
-    SW[Inspect Plot]-->SU[Accept Spread]
+    SQ[GAM: Spread]-->SU[Accepted Spread]
+    SR[GAM: Spread<br>No NN]-->SU[Accepted Spread]
+    SS[GAM: Spread<br>No Ht]-->SU[Accepted Spread]
+    ST[GAM: Spread<br>No Ht and NN]-->SU[Accepted Spread]
+    SW[Inspect Plot]-->SU[Accepted Spread]
 ```
 
 ### GOA/AI Spread GAMs
@@ -113,8 +113,8 @@ graph TD
     HA["Height Data<br>(One Vessel)"]-->HB["Gate Filter<br>0&lt;Height&lt;6"]
     HB["Gate Filter<br>3&lt;Height&lt;10"]-->HC["&gt;150 pings?"]
     HC["&gt;150 pings?"]-->|No| HG[Mean height for scope]
-    HC["&gt;150 pings?"]-->|Yes| HH[Accept Height]
-    HG[Mean height for scope]-->HH[Accept Height]
+    HC["&gt;150 pings?"]-->|Yes| HH[Accepted Height]
+    HG[Mean height for scope]-->HH[Accepted Height]
 ```
 
 
@@ -132,9 +132,9 @@ graph TD
     SF["&gt;0 pings?"]-->|Yes| SI[Inspect plot:<br>Spread OK?]
     SP[Predictors]-.->SL[Spread GLM]
     SI[Inspect plot:<br>Spread OK?]-->|No| SL[Spread GLM]
-    SI[Inspect plot:<br>Spread OK?]-->|Yes| SM[Accept Spread]
-    SL[Spread GLM]-->SM[Accept Spread]
-    SO[Inspect Plot]-->SM[Accept Spread]
+    SI[Inspect plot:<br>Spread OK?]-->|Yes| SM[Accepted Spread]
+    SL[Spread GLM]-->SM[Accepted Spread]
+    SO[Inspect Plot]-->SM[Accepted Spread]
 ```
 
 *-Includes accepted heights that were filled based on the average from other hauls.
@@ -153,9 +153,9 @@ graph TD
     SF["&gt;0 pings?"]-->|Yes| SI[Inspect plot:<br>Spread OK?]
     SP[Predictors]-.->SL[Spread GLM]
     SI[Inspect plot:<br>Spread OK?]-->|No| SL[Spread GLM]
-    SI[Inspect plot:<br>Spread OK?]-->|Yes| SM[Accept Spread]
-    SL[Spread GLM]-->SM[Accept Spread]
-    SO[Inspect Plot]-->SM[Accept Spread]
+    SI[Inspect plot:<br>Spread OK?]-->|Yes| SM[Accepted Spread]
+    SL[Spread GLM]-->SM[Accepted Spread]
+    SO[Inspect Plot]-->SM[Accepted Spread]
 ```
 
 ^-Only uses accepted heights that were not estimated.
