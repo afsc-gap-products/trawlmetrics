@@ -1,7 +1,7 @@
 # Spread and Height Processing Flow Charts
 
 
-### GOA/AI 
+### GOA/AI Height
 
 ``` mermaid
 graph TD
@@ -16,17 +16,25 @@ graph TD
       HU[Predictors]-.->HO[GAM: Height]
       HU[Predictors]-.->HQ[GAM: Height<br>No NN]
       HU[Predictors]-.->HR[GAM: Height<br>No Spd]
-      HU[Predictors]-.->HS[GAM: Height<br>No Spd and NN]
+      HU[Predictors]-.->HS[GAM: Height<br>No Spd or NN]
       HJ[Spread and Net Number Available?]-->|Spd: Yes<br>NN: Yes| HO[GAM: Height]
       HJ[Spread and Net Number Available?]-->|Spd: Yes<br>NN: No| HQ[GAM: Height<br>No NN]
       HJ[Spread and Net Number Available?]-->|Spd: No<br>NN: Yes| HR[GAM: Height<br>No Spd]
-      HJ[Spread and Net Number Available?]-->|Spd: No<br>NN: No| HS[GAM: Height<br>No Spd and NN]
+      HJ[Spread and Net Number Available?]-->|Spd: No<br>NN: No| HS[GAM: Height<br>No Spd or NN]
     end
     HO[GAM: Height]-->HT[Accept Height]
     HQ[GAM: Height<br>No NN]-->HT[Accept Height]
     HR[GAM: Height<br>No Spd]-->HT[Accept Height]
     HS[GAM: Height<br>No Spd and NN]-->HT[Accept Height]
 ```
+
+# GOA/AI Height GAMs
+| Model | Formula |
+|------------|------------|
+| Height | net_height ~ factor(vessel) + factor(net_number) + s(net_spread) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
+| Height No Spread | net_height ~ factor(vessel) + factor(net_number) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
+| Height No Net Number | net_height ~ factor(vessel) + s(net_spread) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
+| Height No Spread or Net Number | net_height ~ factor(vessel) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
 
 ### GOA/AI Spread (Current)
 
@@ -45,11 +53,11 @@ graph TD
       SU[Predictors]-.->SO[GAM: Spread]
       SU[Predictors]-.->SP[GAM: Spread<br>No NN]
       SU[Predictors]-.->SQ[GAM: Spread<br>No Ht]
-      SU[Predictors]-.->SR[GAM: Spread<br>No Ht and NN]
+      SU[Predictors]-.->SR[GAM: Spread<br>No Ht or NN]
       SJ[Height and Net Number Available?]-->|Ht: Yes<br>NN: Yes| SO[GAM: Spread]
       SJ[Height and Net Number Available?]-->|Ht: Yes<br>NN: No| SP[GAM: Spread<br>No NN]
       SJ[Height and Net Number Available?]-->|Ht: No<br>NN: Yes| SQ[GAM: Spread<br>No Ht]
-      SJ[Height and Net Number Available?]-->|Ht: No<br>NN: No| SR[GAM: Spread<br>No Ht and NN]
+      SJ[Height and Net Number Available?]-->|Ht: No<br>NN: No| SR[GAM: Spread<br>No Ht or NN]
     end
     SO[GAM: Spread]-->SF[Accept Spread]
     SP[GAM: Spread<br>No NN]-->SF[Accept Spread]
@@ -62,7 +70,7 @@ graph TD
 
 ``` mermaid
 graph TD
-    SA["Spread Data<br>(One Vessel)"]-->SB["Gate Filter<br>10&lt;Spread&lt;22"]
+    SA["Spread Data<br>(Both Vessels)"]-->SB["Gate Filter<br>10&lt;Spread&lt;22"]
     SB["Gate Filter<br>10&lt;Spread&lt;22"]-->SC["&gt;50 pings?"]
     SC["&gt;50 pings?"]-->|Yes| SV[Sequential Outlier<br>Rejection]
     SC["&gt;50 pings?"]-->|No| SF["&gt;0 pings"]
@@ -77,11 +85,11 @@ graph TD
       SL[Height and Net Number Available?]-->|Ht: Yes<br>NN: Yes| SQ[GAM: Spread]
       SL[Height and Net Number Available?]-->|Ht: Yes<br>NN: No| SR[GAM: Spread<br>No NN]
       SL[Height and Net Number Available?]-->|Ht: No<br>NN: Yes| SS[GAM: Spread<br>No Ht]
-      SL[Height and Net Number Available?]-->|Ht: No<br>NN: No| ST[GAM: Spread<br>No Ht and NN]
+      SL[Height and Net Number Available?]-->|Ht: No<br>NN: No| ST[GAM: Spread<br>No Ht or NN]
       SX[Predictors]-.->SQ[GAM: Spread]
       SX[Predictors]-.->SR[GAM: Spread<br>No NN]
       SX[Predictors]-.->SS[GAM: Spread<br>No Ht]
-      SX[Predictors]-.->ST[GAM: Spread<br>No Ht and NN]
+      SX[Predictors]-.->ST[GAM: Spread<br>No Ht or NN]
     end
     SQ[GAM: Spread]-->SU[Accept Spread]
     SR[GAM: Spread<br>No NN]-->SU[Accept Spread]
@@ -89,6 +97,15 @@ graph TD
     ST[GAM: Spread<br>No Ht and NN]-->SU[Accept Spread]
     SW[Inspect Plot]-->SU[Accept Spread]
 ```
+
+# GOA/AI Spread GAMs
+| Model | Formula |
+|------------|------------|
+| Spread | net_spread ~ factor(vessel) + factor(net_number) + s(net_height) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
+| Spread No Spread | net_spread ~ factor(vessel) + factor(net_number) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
+| Spread No Net Number | net_spread ~ factor(vessel) + s(net_height) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
+| Spread No Spread or Net Number | net_spread ~ factor(vessel) + s(depth) + s(speed) + s(scope_ratio) + s(total_catch_weight) |
+
 
 ### EBS Height
 ``` mermaid
