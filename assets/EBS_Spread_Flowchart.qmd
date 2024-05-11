@@ -73,7 +73,7 @@ graph TD
 ```{r, echo = FALSE}
 mermaid("
 graph TD
-    SA[\"Spread Data<br>(One Vessel)\"]-->SB[\"Gate Filter<br>10#lt;Spread#lt;22\"]
+    SA[\"Spread Data<br>(Both Vessels)\"]-->SB[\"Gate Filter<br>10#lt;Spread#lt;22\"]
     SB[\"Gate Filter<br>10#lt;Spread#lt;22\"]-->SC[\"#gt;50 pings?\"]
     SC[\"#gt;50 pings?\"]-->|Yes| SV[Sequential Outlier<br>Rejection]
     SC[\"#gt;50 pings?\"]-->|No| SF[\"#gt;0 pings\"]

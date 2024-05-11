@@ -170,10 +170,7 @@ edit_data <- read.csv(file = here::here("output",
 write.csv(edit_data, file = here::here("output", paste0("compare_", survey, ".csv")))
 
 edit_data |> 
-  dplyr::arrange(-abs(DIFF_WIDTH))
-
-edit_data |> 
   dplyr::arrange(-abs(DIFF_WIDTH_PCT))
 
 edit_data |> 
-  dplyr::arrange(-abs(DIFF_HEIGHT))
+  dplyr::arrange(-abs(DIFF_HEIGHT_PCT))
