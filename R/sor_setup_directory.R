@@ -33,7 +33,7 @@ sor_setup_directory <- function(channel = NULL,
   output_dir <- here::here("output", region, cruise, vessel)
   ping_files_dir <- paste0(output_dir, "/ping_files_", survey)
   
-  dir.create(paste0(output_dir, "/SOR_files_", survey) , 
+  dir.create(paste0(output_dir, "/SOR_files_", survey), 
              showWarnings = FALSE,
              recursive = TRUE)
   
@@ -73,7 +73,7 @@ sor_setup_directory <- function(channel = NULL,
   
   end_event_code <- 7
   
-  cat("setup_sor_directory: Retreiving data from racebase and race_data\n")
+  cat("setup_sor_directory: Retreiving spread from RACE_DATA.V_EXTRACT_EDIT_SGP\n")
   # Get spread measurements from race_data
   edit_spread <- RODBC::sqlQuery(
     channel = channel, 
@@ -88,6 +88,7 @@ sor_setup_directory <- function(channel = NULL,
   
   stopifnot("setup_sor_directory: No spread data in RACE_DATA.V_EXTRACT_EDIT_SGP for this vessel/cruise " = nrow(edit_spread) > 0)
   
+  cat("setup_sor_directory: Retreiving events from RACE_DATA.V_EXTRACT_EDIT_SGT\n")
   # Get haul events from race_data; TIME_FLAG = EVENT
   edit_sgt <- RODBC::sqlQuery(
     channel = channel, 
@@ -99,18 +100,23 @@ sor_setup_directory <- function(channel = NULL,
   
   stopifnot("setup_sor_directory: No event data in RACE_DATA.V_EXTRACT_EDIT_SGT for this vessel/cruise " = nrow(edit_sgt) > 0)
   
+  cat("setup_sor_directory: Retreiving net height from RACE_DATA.EDIT_HAULS\n")
   # Get mean height estimate
   edit_height <- RODBC::sqlQuery(channel, 
-                                    query = paste0("select * from race_data.edit_hauls where cruise_id in ", 
+                                    query = paste0("select * from race_data.edit_hauls where cruise_id in (", 
                                                    paste(cruise_idnum, collapse = ","), ")"))
   
+  stopifnot("setup_sor_directory: No height data in RACE_DATA.EDIT_HAULS for this vessel/cruise " = nrow(edit_height) > 0)
+  
+  cat("setup_sor_directory: Retreiving speed and net number from RACE_DATA.EDIT_HAULS\n")
   # Get vessel speed, net number, and total catch
   speed_gear_df <- RODBC::sqlQuery(channel, 
                                    query = 
                                      paste0("select c.vessel_id vessel, c.cruise, h.haul, 
                                        h.haul_id, m.edit_speed_ob_fb speed, 
                                        h.edit_bottom_depth bottom_depth, h.performance, 
-                                       h.edit_wire_out, h.net_number, h.haul_type 
+                                       h.edit_wire_out, h.net_number, h.haul_type,
+                                       h.edit_net_spread
                                       from 
                                       race_data.cruises c, 
                                       race_data.edit_hauls h, 
@@ -127,8 +133,9 @@ sor_setup_directory <- function(channel = NULL,
                   scope_ratio = EDIT_WIRE_OUT/BOTTOM_DEPTH,
                   BOTTOM_DEPTH = dplyr::if_else(BOTTOM_DEPTH == 0, NA, BOTTOM_DEPTH))
   
-  stopifnot("setup_sor_directory: No height data in RACE_DATA.EDIT_HAULS for this vessel/cruise " = nrow(edit_height) > 0)
+  stopifnot("setup_sor_directory: No speed and net number data in RACE_DATA.EDIT_HAULS for this vessel/cruise " = nrow(speed_gear_df) > 0)
   
+  cat("setup_sor_directory: Retreiving total catch from RACE_DATA.EDIT_CATCH_SAMPLES\n")
   total_catch_df <- RODBC::sqlQuery(channel, 
                                     query = 
                                       paste0("select h.haul_id, c.vessel_id vessel, c.cruise,
@@ -147,6 +154,8 @@ sor_setup_directory <- function(channel = NULL,
                                         order by c.vessel_id, h.haul")
   )
   
+  stopifnot("setup_sor_directory: No catch data in RACE_DATA.EDIT_HAULS for this vessel/cruise " = nrow(total_catch_df) > 0)
+  
   unique_cvh <- dplyr::select(speed_gear_df, CRUISE, VESSEL, HAUL) |>
     unique()
   
@@ -159,10 +168,9 @@ sor_setup_directory <- function(channel = NULL,
   edit_sgt <- edit_sgt |>
     dplyr::inner_join(unique_cvh)
   
-  speed_net_df <- dplyr::full_join(speed_gear_df, 
-                                   total_catch_df, 
-                                   by = c("VESSEL", "CRUISE", "HAUL", "HAUL_ID")) |>
-    janitor::clean_names()
+  speed_net_df <- suppressMessages(dplyr::full_join(speed_gear_df, 
+                                                    total_catch_df) |>
+                                     janitor::clean_names())
   
   cat("setup_sor_directory: Writing racebase data to rds files in ", output_dir, "\n")
   
