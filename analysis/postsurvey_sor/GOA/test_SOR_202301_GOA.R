@@ -1,33 +1,33 @@
-# Test SOR on 2023 Eastern Bering Sea Shelf Survey 83-112 hauls
+# Test SOR on 2023 Gulf of Alaska Hauls
 # Sequential outlier rejection and fill missing spread and height
-# Last update: May 9, 2024
+# Last update: May 10, 2024
 
 library(trawlmetrics)
 
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
 # Settings -----------------------------------------------------------------------------------------
-region = "EBS"
-survey = "EBS_2023"
+region = "GOA"
+survey = "GOA_2023"
 year = 2023
 cruise = 202301
 haul_types = 3
-gear_codes = 44
-width_range = c(10, 22)
-convert_marport_to_netmind = TRUE
+gear_codes = 172
+width_range = c(8, 22)
+convert_marport_to_netmind = FALSE
 min_pings_for_sor = 50
-min_height_pings = 150
-fill_method = "ebs"
+min_height_pings = 50
+fill_method = "goa" # One method for the GOA and AI; see ?sor_fill_missing
 create_user = "ROHANS"
 
-cruise_idnum1 = 759
-vessel1 = 162
+cruise_idnum1 = 765
+vessel1 = 148
 
-cruise_idnum2 = 760
-vessel2 = 134
+cruise_idnum2 = 766
+vessel2 = 176
 
 
-# Process 2024 EBS Alaska Knight 83-112 ------------------------------------------------------------
+# Process 2023 GOA Ocean Explorer -------------------------------------------------------------------
 
 # Retrieve haul and net mensuration data from race_data then write spread and height data from 
 # individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
@@ -42,8 +42,8 @@ sor_setup_directory(cruise = cruise,
                     gear_codes = gear_codes,
                     channel = channel)
 
-# Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
-# Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
+# Run sequential outlier rejection on rds files from each haul and write outputs to
+# [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
 sor_run(cruise = cruise,
         vessel = vessel1,
         region = region,
@@ -73,7 +73,7 @@ sor_fill_missing(height_paths = here::here("output", region, cruise, vessel1,
                  min_height_pings = min_height_pings)
 
 
-# Process 2024 EBS Northwest Explorer 83-112 -------------------------------------------------------
+# Process 2023 GOA Alaska Provider ------------------------------------------------------------------
 
 # Retrieve haul and net mensuration data from race_data then write spread and height data from 
 # individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
@@ -149,7 +149,7 @@ comparison_data <- RODBC::sqlQuery(channel = channel,
                                     race_data.hauls rdh, 
                                     race_data.cruises rdc
                                    where rbh.cruise = ", cruise, 
-                                   "and rdh.cruise_id = rdc.cruise_id
+                                                  "and rdh.cruise_id = rdc.cruise_id
                                     and rbh.cruise = rdc.cruise
                                     and rdc.vessel_id = rbh.vessel
                                     and rbh.haul = rdh.haul
@@ -159,6 +159,7 @@ comparison_data <- RODBC::sqlQuery(channel = channel,
 
 edit_data <- read.csv(file = here::here("output", 
                                         paste0("race_data_edit_hauls_table_", survey, ".csv"))) |> 
+  dplyr::select(c("VESSEL", "CRUISE", "HAUL", "EDIT_NET_HEIGHT", "EDIT_NET_SPREAD")) |>
   dplyr::inner_join(comparison_data) |>
   dplyr::mutate(DIFF_HEIGHT = NET_HEIGHT - EDIT_NET_HEIGHT,
                 DIFF_WIDTH = NET_WIDTH - EDIT_NET_SPREAD,
@@ -175,3 +176,4 @@ edit_data |>
 
 edit_data |> 
   dplyr::arrange(-abs(DIFF_HEIGHT))
+
