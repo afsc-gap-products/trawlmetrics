@@ -1,7 +1,6 @@
 ---
 title: "Spread and Height Processing Flow Charts"
 format: html
-editor: visual
 ---
 
 ```{r, echo = FALSE, warning=FALSE}

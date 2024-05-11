@@ -1,5 +1,5 @@
 # Spread and Height Processing Flow Charts
-## Last update: May 11, 2024
+
 
 ### GOA/AI 
 
