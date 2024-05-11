@@ -94,7 +94,7 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
              subtitle = paste(
                "n_pings =", sel_dat$sor_results$n_pings, 
                " mean = ", round(sel_dat$sor_results$mean_spread, 2), 
-               " sd =", round(sel_dat$sor_results$sd, 2)),
+               " sd =", round(sel_dat$sor_results$sd_spread, 2)),
              caption = "red = rejected by SOR, blue = mean")
       
       p_rmse <- sel_dat$sor_rmse |>
