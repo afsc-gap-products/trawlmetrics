@@ -91,15 +91,13 @@ graph TD
 ```
 
 ### EBS Height
-```{r, echo = FALSE}
-mermaid("
+``` mermaid
 graph TD
     HA["Height Data<br>(One Vessel)"]-->HB["Gate Filter<br>0&lt;Height&lt;6"]
     HB["Gate Filter<br>3&lt;Height&lt;10"]-->HC["&gt;150 pings?"]
     HC["&gt;150 pings?"]-->|No| HG[Mean height for scope]
     HC["&gt;150 pings?"]-->|Yes| HH[Accept Height]
     HG[Mean height for scope]-->HH[Accept Height]
-", width = 768, height = 768)
 ```
 
 
