@@ -19,6 +19,7 @@ min_height_pings = 50
 convert_marport_to_netmind = FALSE
 fill_method = "goa"
 create_user = "ROHANS"
+delete_existing = TRUE
 
 cruise_idnum1 = 770
 vessel1 = 176
@@ -128,4 +129,5 @@ sor_save_results(final_dir = c(here::here("output", region, cruise, vessel1,
                  create_user = create_user, 
                  survey = c(survey, survey), 
                  cruise_idnum = c(cruise_idnum1, cruise_idnum2),
-                 channel = channel)
+                 channel = channel,
+                 delete_existing = delete_existing)

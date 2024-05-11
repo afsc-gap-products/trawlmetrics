@@ -17,6 +17,7 @@ width_range = c(8, 22)
 convert_marport_to_netmind = TRUE
 fill_method = "ebs"
 create_user = "ROHANS"
+delete_existing = TRUE
 
 cruise_idnum1 = 759
 vessel1 = 162
@@ -63,7 +64,8 @@ sor_fill_missing(height_paths = here::here("output", region, cruise, vessel1,
                  rds_dir = here::here("output", region, cruise, vessel1, 
                                       paste0("PING_FILES_", region, "_", year)),
                  fill_method = fill_method,
-                 convert_marport_to_netmind = convert_marport_to_netmind)
+                 convert_marport_to_netmind = convert_marport_to_netmind,
+                 delete_existing = delete_existing)
 
 
 # Add updated data to Oracle and write output to .csv
