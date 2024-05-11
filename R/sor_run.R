@@ -21,7 +21,8 @@ sor_run <- function(vessel = NULL,
     region <- toupper(region)
     stopifnot("run_sor: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
     
-    rds_dir <- here::here("output", region, cruise, vessel, paste0("ping_files_", survey))
+    rds_dir <- here::here("output", region, cruise, 
+                          paste(vessel, collapse = "_"), paste0("ping_files_", survey))
     stopifnot("run_sor: Directory from rds_dir does not exist." = dir.exists(rds_dir))
   
   rds_path <- list.files(rds_dir, full.names = TRUE, pattern = "pings.rds")
@@ -88,8 +89,10 @@ sor_run <- function(vessel = NULL,
   
   # Write corrected mean spread to a file that can be used to estimate spread for missing data
   
-  all_spread_path <- here::here("output", region, cruise, vessel, 
-             paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", vessel, ".rds"))
+  all_spread_path <- here::here("output", region, cruise, 
+                                paste(vessel, collapse = "_"), 
+             paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", 
+                    paste(vessel, collapse = "_"), ".rds"))
   message("run_sor: Writing aggregated SOR spread results to ",  all_spread_path)
   saveRDS(object = mean_spread_df,
           file = all_spread_path)

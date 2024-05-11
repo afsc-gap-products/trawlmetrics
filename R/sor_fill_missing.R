@@ -87,8 +87,8 @@ sor_fill_missing <- function(height_paths,
     
     spread_df <- dplyr::full_join(hs_df, 
                                   spread_df,
-                                  by = c("haul", "cruise", "vessel", "region", "survey", 
-                                         "cruise_idnum", "n_pings", "mean_spread", "sd_spread"))
+                                  by = c("haul", "cruise", "vessel",
+                                         "n_pings", "mean_spread", "sd_spread"))
     
     n_vessels <- length(unique(hs_df$vessel))
     
@@ -161,13 +161,13 @@ sor_fill_missing <- function(height_paths,
         family = "gaussian"),
       height = mgcv::gam(
         switch(n_vessels, 
-               '1' = mean_spread ~ factor(net_number) + 
+               '1' = edit_net_height ~ factor(net_number) + 
                  s(bottom_depth) + 
                  s(speed) + 
                  s(scope_ratio) + 
                  s(total_weight) +
                  s(mean_spread),
-               '2' = mean_spread ~ factor(net_number) + 
+               '2' = edit_net_height ~ factor(net_number) + 
                  factor(vessel) +
                  s(bottom_depth) + 
                  s(speed) + 
@@ -179,12 +179,12 @@ sor_fill_missing <- function(height_paths,
         family = "gaussian"),
       height_no_spread = mgcv::gam(
         switch(n_vessels, 
-               '1' = mean_spread ~ factor(net_number) + 
+               '1' = edit_net_height ~ factor(net_number) + 
                  s(bottom_depth) + 
                  s(speed) + 
                  s(scope_ratio) + 
                  s(total_weight),
-               '2' = mean_spread ~ factor(net_number) + 
+               '2' = edit_net_height ~ factor(net_number) + 
                  factor(vessel) +
                  s(bottom_depth) + 
                  s(speed) + 
@@ -195,12 +195,12 @@ sor_fill_missing <- function(height_paths,
         family = "gaussian"),
       height_no_net = mgcv::gam(
         switch(n_vessels, 
-               '1' = mean_spread ~ s(bottom_depth) + 
+               '1' = edit_net_height ~ s(bottom_depth) + 
                  s(speed) + 
                  s(scope_ratio) + 
                  s(total_weight) +
                  s(mean_spread),
-               '2' = mean_spread ~ factor(vessel) +
+               '2' = edit_net_height ~ factor(vessel) +
                  s(bottom_depth) + 
                  s(speed) + 
                  s(scope_ratio) + 
@@ -211,12 +211,12 @@ sor_fill_missing <- function(height_paths,
         family = "gaussian"),
       height_no_spread_net = mgcv::gam(
         switch(n_vessels, 
-               '1' = mean_spread ~ s(bottom_depth) + 
+               '1' = edit_net_height ~ s(bottom_depth) + 
                  s(speed) + 
                  s(scope_ratio) + 
                  s(total_weight) +
                  s(mean_spread),
-               '2' = mean_spread ~ factor(vessel) +
+               '2' = edit_net_height ~ factor(vessel) +
                  s(bottom_depth) + 
                  s(speed) + 
                  s(scope_ratio) + 
@@ -317,6 +317,8 @@ sor_fill_missing <- function(height_paths,
                             bottom_depth = bottom_depth,
                             invscope = invscope,
                             vessel = vessel)
+      
+      print(newdata)
       
       fit <- predict(models[[mod_name]], newdata = newdata)
       
@@ -447,7 +449,7 @@ sor_fill_missing <- function(height_paths,
                                fill_method = fill_method, 
                                type = "height", 
                                edit_wire_out_FM = sel_dat$haul$edit_wire_out,
-                               edit_net_height = sel_dat[['height']]$edit_net_height,
+                               edit_net_height = sel_dat$height$edit_net_height,
                                edit_net_spread = sel_dat$haul$edit_net_spread,
                                est_spread = est_spread,
                                est_height = est_height,
@@ -518,7 +520,7 @@ sor_fill_missing <- function(height_paths,
       
     }
     
-    final_cruise <- data.frame(cruise_id = sel_dat[['haul']]$cruise_idnum,
+    final_cruise <- data.frame(cruise_id = sel_dat[['haul']]$cruise_id,
                                haul_id = sel_dat[['height']]$haul_id,
                                cruise = sel_dat[['haul']]$cruise,
                                vessel = sel_dat[['haul']]$vessel,

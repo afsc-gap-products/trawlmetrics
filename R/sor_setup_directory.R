@@ -30,12 +30,8 @@ sor_setup_directory <- function(channel = NULL,
   channel <- get_connected(channel = channel, schema = "AFSC")
   
   # Setup file paths and directories  
-  output_dir <- here::here("output", region, cruise, vessel)
+  output_dir <- here::here("output", region, cruise, paste(vessel, collapse = "_"))
   ping_files_dir <- paste0(output_dir, "/ping_files_", survey)
-  
-  dir.create(paste0(output_dir, "/SOR_files_", survey), 
-             showWarnings = FALSE,
-             recursive = TRUE)
   
   dir.create(paste0(output_dir, "/SOR_graphics_", survey), 
              showWarnings = FALSE, 
@@ -116,7 +112,7 @@ sor_setup_directory <- function(channel = NULL,
                                        h.haul_id, m.edit_speed_ob_fb speed, 
                                        h.edit_bottom_depth bottom_depth, h.performance, 
                                        h.edit_wire_out, h.net_number, h.haul_type,
-                                       h.edit_net_spread
+                                       h.edit_net_spread, c.cruise_id
                                       from 
                                       race_data.cruises c, 
                                       race_data.edit_hauls h, 
@@ -156,7 +152,7 @@ sor_setup_directory <- function(channel = NULL,
   
   stopifnot("setup_sor_directory: No catch data in RACE_DATA.EDIT_HAULS for this vessel/cruise " = nrow(total_catch_df) > 0)
   
-  unique_cvh <- dplyr::select(speed_gear_df, CRUISE, VESSEL, HAUL) |>
+  unique_cvh <- dplyr::select(speed_gear_df, CRUISE, VESSEL, HAUL, HAUL_ID) |>
     unique()
   
   total_catch_df <- total_catch_df |>
@@ -196,15 +192,13 @@ sor_setup_directory <- function(channel = NULL,
   
   height_dat <- edit_height |> 
     janitor::clean_names() |> 
-    dplyr::filter(cruise_id == cruise_idnum) |>
-    dplyr::select(cruise_id, haul, haul_id, edit_net_height, edit_net_height_units, 
+    dplyr::filter(cruise_id %in% cruise_idnum) |>
+    dplyr::select(cruise_id, vessel, cruise, haul, haul_id, edit_net_height, edit_net_height_units, 
                   net_height_method, net_height_pings, net_height_standard_deviation,
                   edit_wire_out, edit_wire_out_units, wire_out_method) |> 
-    dplyr::mutate(cruise = cruise,
-                  vessel = vessel,
-                  edit_wire_out_FM = round(dplyr::if_else(edit_wire_out_units == "FT", 
-                                                   edit_wire_out/6, 
-                                                   as.numeric(edit_wire_out)), 0),
+    dplyr::mutate(edit_wire_out_FM = round(dplyr::if_else(edit_wire_out_units == "FT", 
+                                                          edit_wire_out/6, 
+                                                          as.numeric(edit_wire_out)), 0),
                   edit_wire_out_units_FM = dplyr::if_else(edit_wire_out_units == "FT", "FM", "FM")) |> 
     dplyr::mutate(invscope = 1/edit_wire_out)
   
@@ -275,12 +269,14 @@ sor_setup_directory <- function(channel = NULL,
               list(spread = spread_pings,
                    height = height_pings,
                    events = haul_events_dat,
-                   haul = cbind(sel_haul_dat, region, survey, cruise_idnum),
+                   haul = sel_haul_dat,
                    processing_date = Sys.time()),
             file = ping_path)
   }
   
   saveRDS(object = height_df, 
-          file = paste0(output_dir, "/", "HEIGHT_", region, "_", cruise, "_", vessel, ".rds"))
+          file = here::here(output_dir, 
+                            paste0("HEIGHT_", region, "_", cruise, "_", 
+                        paste(vessel, collapse = "_"), ".rds")))
   
 }

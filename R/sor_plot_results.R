@@ -15,13 +15,15 @@ sor_plot_results <- function(vessel = NULL, cruise = NULL, region = NULL, survey
   stopifnot("setup_sor_directory: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
   
   # Setup file paths to input (rds_dir) and output (output_dir) directories
-  rds_dir <- here::here("output", region, cruise, vessel, paste0("ping_files_", survey))
+  rds_dir <- here::here("output", region, cruise, paste(vessel, collapse = "_"), 
+                        paste0("ping_files_", survey))
   stopifnot("run_sor: Directory from rds_dir does not exist." = dir.exists(rds_dir))
   
   rds_path <- list.files(rds_dir, full.names = TRUE, pattern = "sor.rds")
   stopifnot("run_sor: No output files found in rds_dir." = length(rds_path) > 0)
   
-  output_dir <- here::here("output", region, cruise, vessel, paste0("SOR_graphics_", survey))
+  output_dir <- here::here("output", region, cruise, paste(vessel, collapse = "_"), 
+                           paste0("SOR_graphics_", survey))
   stopifnot("run_sor: Directory from rds_dir does not exist." = dir.exists(output_dir))
   
   if(region %in% c("EBS", "NBS")) {
