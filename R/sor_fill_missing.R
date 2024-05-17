@@ -417,7 +417,7 @@ sor_fill_missing <- function(height_paths,
         accept_spread <- tolower(accept_spread)
         
         if(!(accept_spread %in% c("y", "n"))) {
-          cat("Invalid selection. Must enter y or n.\n")
+          warning("Invalid selection. Must enter y or n.\n")
         }
         
         if(accept_spread == "y") {
@@ -429,11 +429,14 @@ sor_fill_missing <- function(height_paths,
           
           est_spread <- FALSE
           
-        } else {
+        }
+        
+        if(accept_spread == "n") {
           
           cat("sor_fill_missing: Rejecting mean spread. Spread will be estimated.\n")
           
           est_spread <- TRUE
+          
         }
         
       }
