@@ -80,7 +80,7 @@ graph TD
     SI[Inspect plot:<br>Spread OK?]-->|No| SL[Height and Net Number Available?]
     SI[Inspect plot:<br>Spread OK?]-->|Yes| SU[Accepted Spread]
     SV[Sequential Outlier<br>Rejection]-->SX[Predictors]
-    SD[Vessel<br>Net Number<br>Speed<br>Scope Ratio<br>Bottom Depth<br>Catch Weight<br>Good Obs. Height]-->SX[Predictors]
+    SD[Vessel<br>Net Number<br>Speed<br>Scope Ratio<br>Bottom Depth<br>Catch Weight<br>Good Obs. Height*]-->SX[Predictors]
     subgraph Generalized Additive Models
       SL[Height and Net Number Available?]-->|Ht: Yes<br>NN: Yes| SQ[GAM: Spread]
       SL[Height and Net Number Available?]-->|Ht: Yes<br>NN: No| SR[GAM: Spread<br>No NN]
@@ -97,6 +97,7 @@ graph TD
     ST[GAM: Spread<br>No Ht and NN]-->SU[Accepted Spread]
     SW[Inspect Plot]-->SU[Accepted Spread]
 ```
+*Good obs height means height pings have been gated and there are n>50.
 
 ### GOA/AI Spread GAMs
 | Model | Formula |
