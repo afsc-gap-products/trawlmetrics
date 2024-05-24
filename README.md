@@ -2,6 +2,10 @@
 ** In development**
 Tools for processing and analyzing trawl sensor data.
 
+# Documentation and usage
+
+- [Net spread and height processing flowchart](./assets/nm_flowchart.md)
+
 # References
 
 ### Marport-to-Netmind correction

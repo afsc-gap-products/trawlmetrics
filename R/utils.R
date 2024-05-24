@@ -24,6 +24,8 @@ get_connected <- function(channel = NULL, schema = NA){
   return(channel)
 }
 
+
+
 #' Filter pings based on date/time
 #' 
 #' @param data data.frame containing events, measurements, and date_times for events.

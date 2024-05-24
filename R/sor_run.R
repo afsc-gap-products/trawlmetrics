@@ -7,15 +7,22 @@
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight. Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param survey Survey name prefix to use in filename (e.g. NBS_2022). Must provide rds_dir or all of region, vessel, cruise, survey.
 #' @param min_pings_for_sor Minimum number of ping required to conduct sequential outlier rejection (default = 50).
+#' @param overwrite Logical indicating whether to overwrite prior SOR result files.
 #' @return Reads in measurement data from _ping.rds files from rds_dir and writes corrected results to _sor.rds files in rds_dir.
 #' @export
 
-sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL, min_pings_for_sor = 50) {
+sor_run <- function(vessel = NULL, 
+                    cruise = NULL, 
+                    region = NULL, 
+                    survey = NULL, 
+                    min_pings_for_sor = 50, 
+                    overwrite = FALSE) {
   
     region <- toupper(region)
     stopifnot("run_sor: Region must be 'EBS', 'NBS', 'GOA', or 'AI' " = region %in% c("EBS", "NBS", "GOA", "AI"))  
     
-    rds_dir <- here::here("output", region, cruise, vessel, paste0("ping_files_", survey))
+    rds_dir <- here::here("output", region, cruise, 
+                          paste(vessel, collapse = "_"), paste0("ping_files_", survey))
     stopifnot("run_sor: Directory from rds_dir does not exist." = dir.exists(rds_dir))
   
   rds_path <- list.files(rds_dir, full.names = TRUE, pattern = "pings.rds")
@@ -27,7 +34,7 @@ sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL, 
   
   for(ii in 1:length(rds_path)) {
 
-    if(!file.exists(output_path[ii])) {
+    if(!file.exists(output_path[ii]) | file.exists(output_path[ii]) & overwrite) {
       sel_dat <- readRDS(file = rds_path[ii])
       message("run_sor: Reading ", rds_path[ii])
       sel_dat <- readRDS(file = rds_path[ii])
@@ -43,15 +50,17 @@ sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL, 
           message("run_sor: Skipping SOR on ",  rds_path[ii], ". Less than 50 spread pings.")
         } else {
           message("run_sor: Running SOR on ",  rds_path[ii])
-          sor_pings <- sel_dat$spread %>%  
+          sor_pings <- sel_dat$spread |>  
             sequentialOR( 
-              method = 'ss', #smooth spline
-              # formula = data.sub$response_var~data.sub$predictor.var, #or formula = response_var~predictor.var 
+              method = 'ss',
               formula = measurement_value ~ date_time,
               n.reject = 1, 
               n.stop = 0.5, 
               threshold.stop = TRUE, 
               tail = "both")
+          
+          names(sor_pings$results)[which(names(sor_pings$results) == "mean")] <- "mean_spread"
+          names(sor_pings$results)[which(names(sor_pings$results) == "sd")] <- "sd_spread"
           
           sel_dat[['sor_ping_ranks']] <- sor_pings$obs_rank
           sel_dat[['sor_results']] <- sor_pings$results
@@ -67,7 +76,7 @@ sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL, 
     
     if(!is.null(sel_dat[['sor_results']])) {
       # Combine mean spread with haul data
-      mean_spread_df <- mean_spread_df %>% 
+      mean_spread_df <- mean_spread_df |> 
         dplyr::bind_rows(
           dplyr::bind_cols(sel_dat[['haul']], 
                            sel_dat[['sor_results']])
@@ -80,8 +89,10 @@ sor_run <- function(vessel = NULL, cruise = NULL, region = NULL, survey = NULL, 
   
   # Write corrected mean spread to a file that can be used to estimate spread for missing data
   
-  all_spread_path <- here::here("output", region, cruise, vessel, 
-             paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", vessel, ".rds"))
+  all_spread_path <- here::here("output", region, cruise, 
+                                paste(vessel, collapse = "_"), 
+             paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", 
+                    paste(vessel, collapse = "_"), ".rds"))
   message("run_sor: Writing aggregated SOR spread results to ",  all_spread_path)
   saveRDS(object = mean_spread_df,
           file = all_spread_path)

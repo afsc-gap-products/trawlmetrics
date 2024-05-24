@@ -9,7 +9,8 @@ sor_run(
   cruise = NULL,
   region = NULL,
   survey = NULL,
-  min_pings_for_sor = 50
+  min_pings_for_sor = 50,
+  overwrite = FALSE
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ sor_run(
 \item{survey}{Survey name prefix to use in filename (e.g. NBS_2022). Must provide rds_dir or all of region, vessel, cruise, survey.}
 
 \item{min_pings_for_sor}{Minimum number of ping required to conduct sequential outlier rejection (default = 50).}
+
+\item{overwrite}{Logical indicating whether to overwrite prior SOR result files.}
 }
 \value{
 Reads in measurement data from _ping.rds files from rds_dir and writes corrected results to _sor.rds files in rds_dir.

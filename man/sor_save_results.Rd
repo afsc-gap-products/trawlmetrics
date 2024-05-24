@@ -9,7 +9,8 @@ sor_save_results(
   create_user = "",
   survey,
   cruise_idnum,
-  channel = NULL
+  channel = NULL,
+  delete_existing = TRUE
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ sor_save_results(
 \item{cruise_idnum}{One or more cruise ID numbers as a numeric vector (e.g. 757). Must be the same length as final_dir.}
 
 \item{channel}{An RODBC channel. Will prompt user to get connected if NULL.}
+
+\item{delete_existing}{Logical indicating whether to overwrite data in RACE_DATA.EDIT_HAUL_IMPORT_SOR_UPDATES}
 }
 \description{
 Function to retrieve data for sequential outlier rejection from RACEBASE and split data by haul.
