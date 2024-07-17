@@ -18,10 +18,10 @@ results_file <- here::here("analysis",
                            "race_data_edit_hauls_table_EBS_2024.csv")
 
 # File *WITHOUT* Marport to Netmind conversion
-results_file <- here::here("analysis", 
-                           "postsurvey_sor",
-                           "EBS",
-                           "race_data_edit_hauls_table_EBS_2024_no_M2N.csv")
+# results_file <- here::here("analysis", 
+#                            "postsurvey_sor",
+#                            "EBS",
+#                            "race_data_edit_hauls_table_EBS_2024_no_M2N.csv")
 
 
 # Retrieve data ----
@@ -46,10 +46,13 @@ stations2024 <- RODBC::sqlQuery(channel = con,
                                 cruise, 
                                 haul, 
                                 wire_out,
-                                station as stationid
+                                station as stationid,
+                                net_number,
+                                average_bottom_depth as bottom_depth
                                 from race_data.v_extract_edit_haul
                                 where region = 'BS'
-                                and cruise = 202401")
+                                and cruise = 202401") |>
+  dplyr::mutate(WIRE_OUT = WIRE_OUT * 1.8288)
 
 # Get SOR output
 hs2024 <- read.csv(file = results_file) |>
@@ -61,7 +64,15 @@ hs2024 <- read.csv(file = results_file) |>
 
 all_hauls <- dplyr::bind_rows(hsprior, hs2024) |>
   dplyr::filter(STATIONID %in% hs2024$STATIONID) |>
-  dplyr::mutate(STATIONID = as.factor(STATIONID))
+  dplyr::mutate(STATIONID = as.factor(STATIONID),
+                SCOPE_RATIO = WIRE_OUT/BOTTOM_DEPTH)
+
+# Scope to depth ratio - No difference in scope ratios
+ggplot() +
+  geom_point(data = all_hauls,
+             mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_RATIO,
+                           color = CURRENT_YEAR),
+             alpha = 0.5)
 
 
 # Models with CURRENT YEAR (T/F) as a fixed effect and STATIONID as a random effect ----
@@ -76,6 +87,30 @@ fixef(mod_height_stn)
 plot(mod_spread_stn)
 summary(mod_spread_stn)
 fixef(mod_spread_stn)
+
+# Are residuals due to differences among individual nets? Perhaps. Some overspreading, some underspreading.
+mod_height_stn_no_year <- brms::brm(formula = NET_HEIGHT ~ STATIONID, data = all_hauls)
+
+all_hauls$RESID_NET_SPREAD <- resid(mod_height_stn_no_year)[,1]
+
+ggplot() +
+  geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
+             mapping = aes(x = HAUL, 
+                           y = RESID_NET_SPREAD, 
+                           color = factor(NET_NUMBER))) +
+  geom_hline(yintercept = 0, 
+             linetype = 2) +
+  facet_grid(~VESSEL)
+
+# Are residuals patterns associated with individual nets?
+ggplot() +
+  geom_boxplot(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
+             mapping = aes(x = NET_NUMBER, 
+                           y = RESID_NET_SPREAD,
+                           color = factor(NET_NUMBER))) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  facet_grid(~VESSEL)
+
 
 # Model used to estimate missing spread in the EBS ----
 mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + CURRENT_YEAR + I(1/WIRE_OUT) + 
