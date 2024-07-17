@@ -70,7 +70,8 @@ stations2024 <- RODBC::sqlQuery(channel = con,
                                 where region = 'AI'
                                 and cruise = 202401") |>
   dplyr::mutate(STN_STRATUM = paste0(STRATUM, "-", STATIONID)) |>
-  dplyr::select(-STATIONID, -STRATUM)
+  dplyr::select(-STATIONID, -STRATUM) |>
+  dplyr::mutate(WIRE_OUT = WIRE_OUT * 1.8288)
 
 speed2024 <- RODBC::sqlQuery(channel = con,
                              query = "select vessel, 
@@ -103,11 +104,19 @@ all_hauls <- dplyr::bind_rows(hsprior, hs2024) |>
   dplyr::mutate(SCOPE_RATIO = WIRE_OUT/BOTTOM_DEPTH,
                 SPEED = DISTANCE_FISHED/DURATION,
                 CRUISE_VESSEL = paste0(CRUISE, ".", VESSEL),
-                CRUISE_NET_NUMBER = paste0(CRUISE, ".", NET_NUMBER))
+                CRUISE_NET_NUMBER = paste0(CRUISE, ".", NET_NUMBER)) |>
+  dplyr::filter(SCOPE_RATIO < 15)
 
 # Number of stations used for the comparison
 length(unique(all_hauls$STN_STRATUM))
 
+# Scope to depth ratio - No difference in scope ratios
+ggplot() +
+  geom_point(data = all_hauls,
+             mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_RATIO,
+                           color = CURRENT_YEAR),
+             alpha = 0.5) +
+  scale_y_continuous(limits = c(1,8))
 
 # Models with CURRENT YEAR (T/F) as a fixed effect and STN_STRATUM as a random effect ----
 mod_height_stn <- brms::brm(formula = NET_HEIGHT ~ CURRENT_YEAR + (1|STN_STRATUM), data = all_hauls)
@@ -124,7 +133,33 @@ plot(mod_spread_stn)
 summary(mod_spread_stn)
 fixef(mod_spread_stn)
 
-# Model used to estimate missing spread in the AI ---- NEED THE AI MODEL
+# Are residuals patterns associated with differences in net geometry?
+# Perhaps. Some overspreading, some underspreading.
+
+mod_spread_stn_no_year <- brms::brm(formula = NET_SPREAD ~ STN_STRATUM, 
+                                    data = all_hauls,
+                                    iter = 5000)
+
+all_hauls$RESID_NET_SPREAD <- resid(mod_spread_stn_no_year)[,1]
+
+ggplot() +
+  geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
+             mapping = aes(x = HAUL, 
+                           y = RESID_NET_SPREAD, 
+                           color = factor(NET_NUMBER))) +
+  geom_hline(yintercept = 0, 
+             linetype = 2) +
+  facet_grid(~VESSEL)
+
+ggplot() +
+  geom_boxplot(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
+               mapping = aes(x = NET_NUMBER, 
+                             y = RESID_NET_SPREAD,
+                             color = factor(NET_NUMBER))) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  facet_grid(~VESSEL)
+
+# Model used to estimate missing spread in the AI
 mod_spread_cy_est <- mgcv::gam(formula = NET_SPREAD ~ CRUISE_VESSEL + 
                                  CRUISE_NET_NUMBER + 
                               s(BOTTOM_DEPTH) + 

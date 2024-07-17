@@ -74,7 +74,6 @@ ggplot() +
                            color = CURRENT_YEAR),
              alpha = 0.5)
 
-
 # Models with CURRENT YEAR (T/F) as a fixed effect and STATIONID as a random effect ----
 mod_height_stn <- brms::brm(formula = NET_HEIGHT ~ CURRENT_YEAR + (1|STATIONID), data = all_hauls)
 
@@ -88,10 +87,13 @@ plot(mod_spread_stn)
 summary(mod_spread_stn)
 fixef(mod_spread_stn)
 
-# Are residuals due to differences among individual nets? Perhaps. Some overspreading, some underspreading.
-mod_height_stn_no_year <- brms::brm(formula = NET_HEIGHT ~ STATIONID, data = all_hauls)
+# Are residuals patterns associated with differences in net geometry?
+# Perhaps. Some overspreading, some underspreading.
 
-all_hauls$RESID_NET_SPREAD <- resid(mod_height_stn_no_year)[,1]
+mod_spread_stn_no_year <- brms::brm(formula = NET_SPREAD ~ STATIONID, 
+                                    data = all_hauls)
+
+all_hauls$RESID_NET_SPREAD <- resid(mod_spread_stn_no_year)[,1]
 
 ggplot() +
   geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
@@ -102,7 +104,6 @@ ggplot() +
              linetype = 2) +
   facet_grid(~VESSEL)
 
-# Are residuals patterns associated with individual nets?
 ggplot() +
   geom_boxplot(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
              mapping = aes(x = NET_NUMBER, 
