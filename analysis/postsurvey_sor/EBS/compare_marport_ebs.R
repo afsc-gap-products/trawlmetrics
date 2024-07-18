@@ -112,6 +112,10 @@ ggplot() +
   geom_hline(yintercept = 0, linetype = 2) +
   facet_grid(~VESSEL)
 
+ggplot() +
+  geom_density(data = all_hauls,
+                 mapping = aes(x = RESID_NET_SPREAD, fill = CURRENT_YEAR), alpha = 0.5)
+
 
 # Model used to estimate missing spread in the EBS ----
 mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + CURRENT_YEAR + I(1/WIRE_OUT) + 
@@ -119,7 +123,7 @@ mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + CURRENT_YEAR + I(1/WIRE_OUT) +
       I(1/WIRE_OUT*NET_HEIGHT),
     data = all_hauls)
 
-mod_spread_no_year_est <- glm(formula = NET_SPREAD ~ I(1/WIRE_OUT) + 
+mod_spread_no_year_est <- glm(formula = NET_SPREAD ~ 0 + I(1/WIRE_OUT) + 
                         NET_HEIGHT + 
                         I(1/WIRE_OUT*NET_HEIGHT),
                       data = all_hauls)
