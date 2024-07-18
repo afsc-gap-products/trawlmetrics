@@ -1,28 +1,30 @@
 # Check for spread differences between old and new Marport sensors
 # Created by Sean Rohan <sean.rohan@noaa.gov>
-# July 16, 2024
+# July 18, 2024
 
 library(trawlmetrics)
 library(akgfmaps)
 library(lme4)
 library(RODBC)
 library(brms)
+library(cowplot)
 
-min_year <- 2014
+min_year <- 2013
 max_year <- 2024
 
-# File *WITH* Marport to Netmind conversion
-results_file <- here::here("analysis", 
-                           "postsurvey_sor",
-                           "EBS",
-                           "race_data_edit_hauls_table_EBS_2024.csv")
+# Use SOR results WITH (TRUE)or WITHOUT (FALSE) the Marport to Netmind correction?
+use_m2n <- TRUE
 
-# File *WITHOUT* Marport to Netmind conversion
-# results_file <- here::here("analysis", 
-#                            "postsurvey_sor",
-#                            "EBS",
-#                            "race_data_edit_hauls_table_EBS_2024_no_M2N.csv")
-
+results_file <- ifelse(use_m2n,
+                       here::here("analysis", 
+                                  "postsurvey_sor",
+                                  "EBS",
+                                  "race_data_edit_hauls_table_EBS_2024.csv"),
+                       results_file <- here::here("analysis",
+                                                  "postsurvey_sor",
+                                                  "EBS",
+                                                  "race_data_edit_hauls_table_EBS_2024_no_M2N.csv")
+       )
 
 # Retrieve data ----
 con <- trawlmetrics::get_connected(schema = "AFSC")
@@ -62,22 +64,26 @@ hs2024 <- read.csv(file = results_file) |>
   dplyr::mutate(CURRENT_YEAR = TRUE) |>
   dplyr::filter(STATIONID %in% akgfmaps::get_survey_stations(select.region = "sebs"))
 
+nrow(hs2024)
+
 all_hauls <- dplyr::bind_rows(hsprior, hs2024) |>
   dplyr::filter(STATIONID %in% hs2024$STATIONID) |>
   dplyr::mutate(STATIONID = as.factor(STATIONID),
                 SCOPE_RATIO = WIRE_OUT/BOTTOM_DEPTH)
 
-# Scope to depth ratio - No difference in scope ratios
-ggplot() +
-  geom_point(data = all_hauls,
-             mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_RATIO,
-                           color = CURRENT_YEAR),
-             alpha = 0.5)
+# Check that scope to depth ratios are normal - No difference in scope ratios
+(p_scope_ratios <- ggplot() +
+    geom_point(data = all_hauls,
+               mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_RATIO,
+                             color = CURRENT_YEAR),
+               alpha = 0.5))
 
 # Models with CURRENT YEAR (T/F) as a fixed effect and STATIONID as a random effect ----
 mod_height_stn <- brms::brm(formula = NET_HEIGHT ~ CURRENT_YEAR + (1|STATIONID), data = all_hauls)
 
-mod_spread_stn <- brms::brm(formula = NET_SPREAD ~ CURRENT_YEAR + (1|STATIONID), data = all_hauls)
+mod_spread_stn <- brms::brm(formula = NET_SPREAD ~ CURRENT_YEAR + (1|STATIONID), 
+                            data = all_hauls,
+                            iter = 5000)
 
 plot(mod_height_stn)
 summary(mod_height_stn)
@@ -90,47 +96,59 @@ fixef(mod_spread_stn)
 # Are residuals patterns associated with differences in net geometry?
 # Perhaps. Some overspreading, some underspreading.
 
-mod_spread_stn_no_year <- brms::brm(formula = NET_SPREAD ~ STATIONID, 
-                                    data = all_hauls)
+mod_spread_stn_no_year <- brms::brm(formula = NET_SPREAD ~ 0 + STATIONID, 
+                                    data = all_hauls,
+                                    iter = 1e4)
 
 all_hauls$RESID_NET_SPREAD <- resid(mod_spread_stn_no_year)[,1]
 
-ggplot() +
-  geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
-             mapping = aes(x = HAUL, 
-                           y = RESID_NET_SPREAD, 
-                           color = factor(NET_NUMBER))) +
-  geom_hline(yintercept = 0, 
-             linetype = 2) +
-  facet_grid(~VESSEL)
+(p_resid_by_haul <- ggplot() +
+    geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
+               mapping = aes(x = HAUL, 
+                             y = RESID_NET_SPREAD, 
+                             color = factor(NET_NUMBER))) +
+    geom_hline(yintercept = 0, 
+               linetype = 2) +
+    facet_grid(~VESSEL) +
+    scale_color_discrete(name = "Net #") +
+    ggtitle("EBS spread residual by haul"))
 
-ggplot() +
+(p_resid_by_net <- ggplot() +
   geom_boxplot(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
              mapping = aes(x = NET_NUMBER, 
                            y = RESID_NET_SPREAD,
                            color = factor(NET_NUMBER))) +
   geom_hline(yintercept = 0, linetype = 2) +
-  facet_grid(~VESSEL)
+  facet_grid(~VESSEL) +
+  scale_color_discrete(name = "Net #") +
+  ggtitle("EBS spread residual by net"))
 
-ggplot() +
+(p_resid_by_year <- ggplot() +
   geom_density(data = all_hauls,
-                 mapping = aes(x = RESID_NET_SPREAD, fill = CURRENT_YEAR), alpha = 0.5)
+                 mapping = aes(x = RESID_NET_SPREAD, fill = CURRENT_YEAR), 
+               alpha = 0.5) +
+    ggtitle("EBS spread residual 2024 vs. historical"))
+
+pdf(here::here("analysis", "postsurvey_sor", "EBS", "EBS_spread_resids.pdf"), 
+    width = 7.5, height = 10.5)
+print(
+cowplot::plot_grid(p_resid_by_haul,
+                   p_resid_by_net,
+                   p_resid_by_year,
+                   nrow = 3)
+)
+dev.off()
 
 
 # Model used to estimate missing spread in the EBS ----
-mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + CURRENT_YEAR + I(1/WIRE_OUT) + 
+mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + interaction(CRUISE, VESSEL) + I(1/WIRE_OUT) + 
       NET_HEIGHT + 
       I(1/WIRE_OUT*NET_HEIGHT),
     data = all_hauls)
 
-mod_spread_no_year_est <- glm(formula = NET_SPREAD ~ 0 + I(1/WIRE_OUT) + 
-                        NET_HEIGHT + 
-                        I(1/WIRE_OUT*NET_HEIGHT),
-                      data = all_hauls)
+anova(mod_spread_est, test = "Chisq")
 
-AIC(mod_spread_est, mod_spread_no_year_est)
-
-anova(mod_spread_no_year_est, mod_spread_est, test = "Chisq") # No evidence of YEAR effect
+mod_spread_est$coefficients[1:22] - mean(mod_spread_est$coefficients[1:22])
 
 # Vessel effect?
 mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + CURRENT_YEAR:factor(VESSEL) + I(1/WIRE_OUT) + 
@@ -157,9 +175,9 @@ fixef(mod_spread_year_stn)
 fixef(mod_spread_year_stn)[,1] - mean(fixef(mod_spread_year_stn)[,1])
 
 # Plots
-ggplot() +
+(p_spread_by_station <- ggplot() +
   geom_boxplot(data = dplyr::filter(all_hauls, !CURRENT_YEAR),
                mapping = aes(x = STATIONID, y = NET_SPREAD)) +
   geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR),
              mapping = aes(x = STATIONID, y = NET_SPREAD,
-                           color = CURRENT_YEAR))
+                           color = CURRENT_YEAR)))

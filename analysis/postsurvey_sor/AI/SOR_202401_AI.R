@@ -19,7 +19,7 @@ min_height_pings = 50
 convert_marport_to_netmind = FALSE
 fill_method = "goa"
 create_user = "ROHANS"
-delete_existing = TRUE
+delete_existing = FALSE
 
 cruise_idnum1 = 770
 vessel1 = 176

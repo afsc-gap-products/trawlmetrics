@@ -1,6 +1,6 @@
 # 2024 Eastern Bering Sea Shelf Survey 83-112 hauls
 # Sequential outlier rejection and fill missing spread and height
-# Last update: May 9, 2024
+# Last update: July 18, 2024
 
 library(trawlmetrics)
 
@@ -12,11 +12,12 @@ cruise = 202401
 haul_types = 3
 gear_codes = 44
 width_range = c(10, 22)
-convert_marport_to_netmind = TRUE
+convert_marport_to_netmind = FALSE
 min_pings_for_sor = 50
 min_height_pings = 150
 fill_method = "ebs"
 create_user = "ROHANS"
+delete_existing = FALSE # CHANGE TO TRUE FOR UPDATING RESULTS
 
 cruise_idnum1 = 767
 vessel1 = 162
@@ -49,10 +50,10 @@ sor_run(cruise = cruise,
 
 # Plot results of sequential outlier rejection for visual inspection.
 # Plots: [subdirectory]/ping_files_{survey}/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
-sor_plot_results(cruise = cruise,
-                 vessel = vessel1,
-                 region = region,
-                 survey = survey)
+# sor_plot_results(cruise = cruise,
+#                  vessel = vessel1,
+#                  region = region,
+#                  survey = survey)
 
 # Fill in missing height and spread data
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
@@ -93,10 +94,10 @@ sor_run(cruise = cruise,
 
 # Plot results of sequential outlier rejection for visual inspection.
 # Plots: [subdirectory]/ping_files_{survey}/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
-sor_plot_results(cruise = cruise,
-                 vessel = vessel2,
-                 region = region,
-                 survey = survey)
+# sor_plot_results(cruise = cruise,
+#                  vessel = vessel2,
+#                  region = region,
+#                  survey = survey)
 
 # Fill in missing height and spread data
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
@@ -121,4 +122,5 @@ sor_save_results(final_dir = c(here::here("output", region, cruise, vessel1,
                                           paste0("PING_FILES_", region, "_", year))), 
                  create_user = create_user, 
                  survey = c(survey, survey), 
+                 delete_existing = delete_existing, 
                  cruise_idnum = c(cruise_idnum1, cruise_idnum2))
