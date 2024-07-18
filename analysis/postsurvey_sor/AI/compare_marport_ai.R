@@ -1,6 +1,6 @@
 # Check for spread differences between old and new Marport sensors in the AI
 # Created by Sean Rohan <sean.rohan@noaa.gov>
-# July 16, 2024
+# July 18, 2024
 
 library(trawlmetrics)
 library(akgfmaps)
@@ -98,6 +98,8 @@ hs2024 <- read.csv(file = results_file) |>
   dplyr::inner_join(speed2024) |>
   dplyr::mutate(CURRENT_YEAR = TRUE)
 
+nrow(hs2024)
+
 all_hauls <- dplyr::bind_rows(hsprior, hs2024) |>
   dplyr::filter(STN_STRATUM %in% hs2024$STN_STRATUM,
                 STN_STRATUM %in% hsprior$STN_STRATUM) |>
@@ -111,12 +113,12 @@ all_hauls <- dplyr::bind_rows(hsprior, hs2024) |>
 length(unique(all_hauls$STN_STRATUM))
 
 # Scope to depth ratio - No difference in scope ratios
-ggplot() +
-  geom_point(data = all_hauls,
-             mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_RATIO,
-                           color = CURRENT_YEAR),
-             alpha = 0.5) +
-  scale_y_continuous(limits = c(1,8))
+(p_scope_ratios <- ggplot() +
+    geom_point(data = all_hauls,
+               mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_RATIO,
+                             color = CURRENT_YEAR),
+               alpha = 0.5) +
+    scale_y_continuous(limits = c(1,8)))
 
 # Models with CURRENT YEAR (T/F) as a fixed effect and STN_STRATUM as a random effect ----
 mod_height_stn <- brms::brm(formula = NET_HEIGHT ~ CURRENT_YEAR + (1|STN_STRATUM), data = all_hauls)
@@ -136,43 +138,61 @@ fixef(mod_spread_stn)
 # Are residuals patterns associated with differences in net geometry?
 # Perhaps. Some overspreading, some underspreading.
 
-mod_spread_stn_no_year <- brms::brm(formula = NET_SPREAD ~ STN_STRATUM, 
+mod_spread_stn_no_year <- brms::brm(formula = NET_SPREAD ~ 0 + STN_STRATUM, 
                                     data = all_hauls,
-                                    iter = 5000)
+                                    iter = 1e4)
 
 all_hauls$RESID_NET_SPREAD <- resid(mod_spread_stn_no_year)[,1]
 
-ggplot() +
-  geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
-             mapping = aes(x = HAUL, 
-                           y = RESID_NET_SPREAD, 
-                           color = factor(NET_NUMBER))) +
-  geom_hline(yintercept = 0, 
-             linetype = 2) +
-  facet_grid(~VESSEL)
-
-ggplot() +
-  geom_boxplot(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
-               mapping = aes(x = NET_NUMBER, 
-                             y = RESID_NET_SPREAD,
+(p_resid_by_haul <- ggplot() +
+    geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
+               mapping = aes(x = HAUL, 
+                             y = RESID_NET_SPREAD, 
                              color = factor(NET_NUMBER))) +
-  geom_hline(yintercept = 0, linetype = 2) +
-  facet_grid(~VESSEL)
+    geom_hline(yintercept = 0, 
+               linetype = 2) +
+    facet_grid(~VESSEL) +
+    ggtitle("AI spread residual by haul"))
+
+(p_resid_by_net <- ggplot() +
+    geom_boxplot(data = dplyr::filter(all_hauls, CURRENT_YEAR), 
+                 mapping = aes(x = NET_NUMBER, 
+                               y = RESID_NET_SPREAD,
+                               color = factor(NET_NUMBER))) +
+    geom_hline(yintercept = 0, linetype = 2) +
+    facet_grid(~VESSEL) +
+    ggtitle("AI spread residual by net"))
+
+(p_resid_by_year <- ggplot() +
+    geom_density(data = all_hauls,
+                 mapping = aes(x = RESID_NET_SPREAD, fill = CURRENT_YEAR), 
+                 alpha = 0.5) +
+    ggtitle("AI spread residual 2024 vs. historical"))
+
+pdf(here::here("analysis", "postsurvey_sor", "AI", "AI_spread_resids.pdf"), 
+    width = 7.5, height = 10.5)
+print(
+  cowplot::plot_grid(p_resid_by_haul,
+                     p_resid_by_net,
+                     p_resid_by_year,
+                     nrow = 3)
+)
+dev.off()
 
 # Model used to estimate missing spread in the AI
-mod_spread_cy_est <- mgcv::gam(formula = NET_SPREAD ~ CRUISE_VESSEL + 
-                                 CRUISE_NET_NUMBER + 
+mod_spread_cy_est <- mgcv::gam(formula = NET_SPREAD ~ 0 + CRUISE_VESSEL + 
                               s(BOTTOM_DEPTH) + 
                               s(SPEED) + 
                               s(SCOPE_RATIO) + 
                               s(TOTAL_WEIGHT) +
-                              s(NET_HEIGHT) +
-                              CURRENT_YEAR,
+                              s(NET_HEIGHT),
                             data = all_hauls)
 
 mgcv::anova.gam(mod_spread_cy_est)
 
-summary(mod_spread_all_hauls)
+summary(mod_spread_cy_est)
+
+mod_spread_cy_est$coefficients[1:12] - mean(mod_spread_cy_est$coefficients[1:12])
 
 
 # Annual effects -- How large might we expect year effects to be?
@@ -207,20 +227,10 @@ spread_delta <- all_hauls |>
                       dplyr::select(STN_STRATUM, NET_SPREAD, NET_NUMBER)) |>
   dplyr::mutate(SPREAD_DELTA = NET_SPREAD - MEAN_SPREAD)
 
-ggplot() +
-  geom_histogram(data = spread_delta,
-                 mapping = aes(x = SPREAD_DELTA))
-
-ggplot() +
-  geom_density(data = spread_delta,
-                 mapping = aes(x = SPREAD_DELTA, 
-                               fill = factor(NET_NUMBER)), 
-               alpha = 0.5)
-
 # Plots
-ggplot() +
+(p_spread_by_station <- ggplot() +
   geom_boxplot(data = dplyr::filter(all_hauls, !CURRENT_YEAR),
                mapping = aes(x = STN_STRATUM, y = NET_SPREAD)) +
   geom_point(data = dplyr::filter(all_hauls, CURRENT_YEAR),
              mapping = aes(x = STN_STRATUM, y = NET_SPREAD,
-                           color = CURRENT_YEAR))
+                           color = CURRENT_YEAR)))
