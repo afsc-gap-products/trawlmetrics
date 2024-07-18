@@ -148,7 +148,7 @@ mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + interaction(CRUISE, VESSEL) + I
 
 anova(mod_spread_est, test = "Chisq")
 
-mod_spread_est$coefficients[1:12] - mean(mod_spread_est$coefficients[1:12])
+mod_spread_est$coefficients[1:22] - mean(mod_spread_est$coefficients[1:22])
 
 # Vessel effect?
 mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + CURRENT_YEAR:factor(VESSEL) + I(1/WIRE_OUT) + 
