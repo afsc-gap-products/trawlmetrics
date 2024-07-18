@@ -129,6 +129,22 @@ all_hauls$RESID_NET_SPREAD <- resid(mod_spread_stn_no_year)[,1]
                alpha = 0.5) +
     ggtitle("EBS spread residual 2024 vs. historical"))
 
+(p_resid_all_years <- ggplot() +
+    geom_density(data = all_hauls,
+                 mapping = aes(x = RESID_NET_SPREAD, 
+                               fill = factor(floor(CRUISE/100))), 
+                 alpha = 0.5) +
+    scale_fill_discrete(name = "Year") +
+    ggtitle("EBS spread residuals by year"))
+
+(p_resid_all_years <- ggplot() +
+    geom_boxplot(data = all_hauls,
+                 mapping = aes(x = floor(CRUISE/100), 
+                               y = RESID_NET_SPREAD,
+                               group = CRUISE)) +
+    scale_x_continuous(name = "Year", breaks = seq(2010, 2024, 2)) +
+    ggtitle("EBS spread residuals by year"))
+
 pdf(here::here("analysis", "postsurvey_sor", "EBS", "EBS_spread_resids.pdf"), 
     width = 7.5, height = 10.5)
 print(
@@ -139,6 +155,10 @@ cowplot::plot_grid(p_resid_by_haul,
 )
 dev.off()
 
+pdf(here::here("analysis", "postsurvey_sor", "EBS", "EBS_resids_by_year.pdf"), 
+    width = 7.5, height = 5)
+print(p_resid_all_years)
+dev.off()
 
 # Model used to estimate missing spread in the EBS ----
 mod_spread_est <- glm(formula = NET_SPREAD ~ 0 + interaction(CRUISE, VESSEL) + I(1/WIRE_OUT) + 

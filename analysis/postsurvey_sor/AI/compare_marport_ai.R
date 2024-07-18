@@ -169,6 +169,14 @@ all_hauls$RESID_NET_SPREAD <- resid(mod_spread_stn_no_year)[,1]
                  alpha = 0.5) +
     ggtitle("AI spread residual 2024 vs. historical"))
 
+(p_resid_all_years <- ggplot() +
+    geom_boxplot(data = all_hauls,
+                 mapping = aes(x = floor(CRUISE/100), 
+                               y = RESID_NET_SPREAD,
+                               group = CRUISE)) +
+    scale_x_continuous(name = "Year", breaks = seq(2010, 2024, 2)) +
+    ggtitle("AI spread residuals by year"))
+
 pdf(here::here("analysis", "postsurvey_sor", "AI", "AI_spread_resids.pdf"), 
     width = 7.5, height = 10.5)
 print(
@@ -177,6 +185,11 @@ print(
                      p_resid_by_year,
                      nrow = 3)
 )
+dev.off()
+
+pdf(here::here("analysis", "postsurvey_sor", "AI", "AI_resids_by_year.pdf"), 
+    width = 7.5, height = 5)
+print(p_resid_all_years)
 dev.off()
 
 # Model used to estimate missing spread in the AI
