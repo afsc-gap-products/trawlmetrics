@@ -1,0 +1,7 @@
+trawlmetrics 2024.08.21 (August 21, 2024)
+----------------------------------------------------------------
+
+- Added method code 8 definition for processing GOA and AI 
+  spread data to reflect the new code in RACE_DATA, i.e., 
+  Marport with sequential outlier rejection.
+  
