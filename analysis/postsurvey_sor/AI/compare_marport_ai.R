@@ -7,6 +7,7 @@ library(akgfmaps)
 library(lme4)
 library(RODBC)
 library(brms)
+library(ggrepel)
 
 min_year <- 2012
 max_year <- 2024
@@ -119,6 +120,63 @@ length(unique(all_hauls$STN_STRATUM))
                              color = CURRENT_YEAR),
                alpha = 0.5) +
     scale_y_continuous(limits = c(1,8)))
+
+(p_scope_ratios <- ggplot() +
+    geom_point(data = dplyr::mutate(all_hauls,
+                                    AKP_2024 = VESSEL == 176 & CRUISE == 202401,
+                                    WIRE_OUT = round(WIRE_OUT)),
+               mapping = aes(x = BOTTOM_DEPTH, y = WIRE_OUT,
+                             color = AKP_2024),
+               alpha = 0.5) +
+    geom_text_repel(data = dplyr::mutate(all_hauls, AKP_2024 = VESSEL == 176 & CRUISE == 202401) |>
+                      dplyr::filter(
+                                         VESSEL == 176, CRUISE == 202401),
+                    mapping = aes(x = BOTTOM_DEPTH,
+                                  y = WIRE_OUT,
+                                  label = HAUL,
+                                  color = AKP_2024)) +
+    scale_y_continuous() +
+    theme_bw())
+
+
+(p_scope_ratios <- ggplot() +
+    geom_point(data = dplyr::mutate(all_hauls,
+                                    AKP_2024 = VESSEL == 176 & CRUISE == 202401,
+                                    WIRE_OUT = round(WIRE_OUT)),
+               mapping = aes(x = BOTTOM_DEPTH, y = SCOPE_RATIO,
+                             color = AKP_2024),
+               alpha = 0.5) +
+    geom_text_repel(data = dplyr::mutate(all_hauls, AKP_2024 = VESSEL == 176 & CRUISE == 202401) |>
+                      dplyr::filter(
+                                         VESSEL == 176, CRUISE == 202401),
+                    mapping = aes(x = BOTTOM_DEPTH,
+                                  y = SCOPE_RATIO,
+                                  label = HAUL,
+                                  color = AKP_2024)) +
+    scale_y_continuous() +
+    theme_bw())
+
+# 
+# (p_scope_ratios <- ggplot() +
+#     geom_boxplot(data = dplyr::filter(all_hauls, 
+#                                       VESSEL != 176 & 
+#                                       CRUISE != 202401) |>
+#                    dplyr::mutate(WIRE_OUT = round(WIRE_OUT)),
+#                mapping = aes(x = BOTTOM_DEPTH, y = WIRE_OUT, group = WIRE_OUT),
+#                orientation = "y") +
+#     geom_point(data = dplyr::filter(all_hauls, 
+#                                       VESSEL == 176, 
+#                                       CRUISE == 202401),
+#                  mapping = aes(x = BOTTOM_DEPTH, y = WIRE_OUT),
+#                color = "red",
+#                size = rel(0.9)) +
+#     geom_text_repel(data = dplyr::filter(all_hauls, 
+#                                          VESSEL == 176, CRUISE == 202401),
+#                     mapping = aes(x = BOTTOM_DEPTH, 
+#                                   y = WIRE_OUT, 
+#                                   label = HAUL),
+#                     color = "red") +
+#     scale_y_continuous())
 
 # Models with CURRENT YEAR (T/F) as a fixed effect and STN_STRATUM as a random effect ----
 mod_height_stn <- brms::brm(formula = NET_HEIGHT ~ CURRENT_YEAR + (1|STN_STRATUM), data = all_hauls)
