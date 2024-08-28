@@ -12,7 +12,7 @@ cruise = 202401
 haul_types = 3
 gear_codes = 44
 width_range = c(10, 22)
-convert_marport_to_netmind = FALSE
+convert_marport_to_netmind = TRUE
 min_pings_for_sor = 50
 min_height_pings = 150
 fill_method = "ebs"
@@ -50,10 +50,10 @@ sor_run(cruise = cruise,
 
 # Plot results of sequential outlier rejection for visual inspection.
 # Plots: [subdirectory]/ping_files_{survey}/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
-# sor_plot_results(cruise = cruise,
-#                  vessel = vessel1,
-#                  region = region,
-#                  survey = survey)
+sor_plot_results(cruise = cruise,
+                 vessel = vessel1,
+                 region = region,
+                 survey = survey)
 
 # Fill in missing height and spread data
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
@@ -94,10 +94,10 @@ sor_run(cruise = cruise,
 
 # Plot results of sequential outlier rejection for visual inspection.
 # Plots: [subdirectory]/ping_files_{survey}/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
-# sor_plot_results(cruise = cruise,
-#                  vessel = vessel2,
-#                  region = region,
-#                  survey = survey)
+sor_plot_results(cruise = cruise,
+                 vessel = vessel2,
+                 region = region,
+                 survey = survey)
 
 # Fill in missing height and spread data
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
