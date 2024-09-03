@@ -6,6 +6,7 @@ library(trawlmetrics)
 
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
+
 # Settings -----------------------------------------------------------------------------------------
 region = "AI"
 survey = "AI_2024"
@@ -19,7 +20,7 @@ min_height_pings = 50
 convert_marport_to_netmind = FALSE
 fill_method = "goa"
 create_user = "SIPLEM" # Change to your username
-delete_existing = FALSE # If TRUE, will replace *temporary* SOR files with the new ones you generate
+delete_existing = FALSE # If TRUE, will replace *temporary* SOR files with the new ones you generate. Only works if you have permission for the RACE_DATA.EDIT_IMPORT_SOR table (all 3 supervisors have it).
 
 cruise_idnum1 = 770
 vessel1 = 176
@@ -31,60 +32,88 @@ vessel <- c(vessel1, vessel2)
 cruise_idnum <- c(cruise_idnum1, cruise_idnum2)
 vessel_comb <- paste(vessel, collapse = "_")
 
+# Save local version of RACE_DATA.EDIT_HAULS (recommended by Duane) -------
+hauls <- RODBC::sqlQuery(channel, "SELECT * FROM RACE_DATA.HAULS")
+
+write.csv(x = hauls, file = here::here(
+  "output", region, cruise, vessel_comb,
+  paste0("RACE_DATA_HAULS_", region, "_", cruise, "_", vessel_comb, ".csv")
+), row.names = FALSE)
+
+
 # Process 2024 AI Ocean Explorer and Alaska Provider -----------------------------------------------
 
 # Retrieve haul and net mensuration data from race_data then write spread and height data from
 # individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
 # - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
 # - Hauls: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_pings.rds
-sor_setup_directory(cruise = cruise,
-                    cruise_idnum = cruise_idnum,
-                    vessel = vessel,
-                    region = region,
-                    survey = survey,
-                    haul_types = haul_types,
-                    gear_codes = gear_codes,
-                    channel = channel)
+sor_setup_directory(
+  cruise = cruise,
+  cruise_idnum = cruise_idnum,
+  vessel = vessel,
+  region = region,
+  survey = survey,
+  haul_types = haul_types,
+  gear_codes = gear_codes,
+  channel = channel
+)
 
 # Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
 # Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
-sor_run(cruise = cruise,
-        vessel = vessel,
-        region = region,
-        survey = survey,
-        min_pings_for_sor = min_pings_for_sor,
-        overwrite = TRUE)
+sor_run(
+  cruise = cruise,
+  vessel = vessel,
+  region = region,
+  survey = survey,
+  min_pings_for_sor = min_pings_for_sor,
+  overwrite = TRUE
+)
 
 # Plot results of sequential outlier rejection for visual inspection.
 # Plots: [subdirectory]/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
-sor_plot_results(cruise = cruise,
-                 vessel = vessel,
-                 region = region,
-                 survey = survey)
+sor_plot_results(
+  cruise = cruise,
+  vessel = vessel,
+  region = region,
+  survey = survey
+)
 
 # Fill in missing height and spread data
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
-sor_fill_missing(height_paths = here::here("output", region, cruise, vessel_comb,
-                                           paste0("HEIGHT_", region, "_", cruise, "_", vessel_comb, ".rds")),
-                 spread_paths = here::here("output", region, cruise, vessel_comb,
-                                           paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", vessel_comb, ".rds")),
-                 haul_path = here::here("output", region, cruise, vessel_comb,
-                                        paste0("edit_haul_", cruise, "_", vessel_comb, ".rds")),
-                 rds_dir = here::here("output", region, cruise, vessel_comb,
-                                      paste0("PING_FILES_", region, "_", year)),
-                 fill_method = fill_method,
-                 convert_marport_to_netmind = convert_marport_to_netmind,
-                 min_height_pings = min_height_pings)
+sor_fill_missing(
+  height_paths = here::here(
+    "output", region, cruise, vessel_comb,
+    paste0("HEIGHT_", region, "_", cruise, "_", vessel_comb, ".rds")
+  ),
+  spread_paths = here::here(
+    "output", region, cruise, vessel_comb,
+    paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", vessel_comb, ".rds")
+  ),
+  haul_path = here::here(
+    "output", region, cruise, vessel_comb,
+    paste0("edit_haul_", cruise, "_", vessel_comb, ".rds")
+  ),
+  rds_dir = here::here(
+    "output", region, cruise, vessel_comb,
+    paste0("PING_FILES_", region, "_", year)
+  ),
+  fill_method = fill_method,
+  convert_marport_to_netmind = convert_marport_to_netmind,
+  min_height_pings = min_height_pings
+)
 
 # Update tables ------------------------------------------------------------------------------------
 # Add updated data to Oracle and write output to .csv
-sor_save_results(final_dir = here::here("output", region, cruise, vessel_comb,
-                                        paste0("PING_FILES_", region, "_", year)),
-                 create_user = create_user,
-                 survey = c(survey, survey),
-                 cruise_idnum = cruise_idnum,
-                 channel = channel,
-                 delete_existing = delete_existing
+sor_save_results(
+  final_dir = here::here(
+    "output", region, cruise, vessel_comb,
+    paste0("PING_FILES_", region, "_", year)
+  ),
+  create_user = create_user,
+  survey = c(survey, survey),
+  cruise_idnum = cruise_idnum,
+  channel = channel,
+  delete_existing = delete_existing
 )
 
 # Compare edit tables to post-SOR ------------------------------------------------------------------
@@ -119,13 +148,16 @@ sor_tables <- read.csv(paste0("output/race_data_edit_hauls_table_", region, "_",
 head(sor_tables)
 compare_table <- edit_tables |>
   dplyr::left_join(sor_tables,
-                   by = c("vessel", "cruise", "cruise_id", "haul", "haul_id"), suffix = c(".edit", ".sor")) |>
-  dplyr::mutate(diff_height_pct = (edit_net_height.sor - edit_net_height.edit) / edit_net_height.edit  * 100,
-                diff_spread_pct = (edit_net_spread.sor - edit_net_spread.edit) / edit_net_spread.edit  * 100)
+    by = c("vessel", "cruise", "cruise_id", "haul", "haul_id"), suffix = c(".edit", ".sor")
+  ) |>
+  dplyr::mutate(
+    diff_height_pct = (edit_net_height.sor - edit_net_height.edit) / edit_net_height.edit * 100,
+    diff_spread_pct = (edit_net_spread.sor - edit_net_spread.edit) / edit_net_spread.edit * 100
+  )
 
 # For hauls with zero pings, change percent difference to "NA"
 compare_table$diff_height_pct[which(is.infinite(compare_table$diff_height_pct))] <- NA
 compare_table$diff_spread_pct[which(is.infinite(compare_table$diff_spread_pct))] <- NA
 compare_table <- compare_table |> dplyr::arrange(-diff_spread_pct)
 
-write.csv(x = compare_table, file = paste0("output/race_data_SOR_comparison_",region,"_",year,".csv"),row.names = FALSE)
+write.csv(x = compare_table, file = paste0("output/race_data_SOR_comparison_", region, "_", year, ".csv"), row.names = FALSE)
