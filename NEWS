@@ -1,3 +1,20 @@
+trawlmetrics 0.0.2 (September 26, 2024)
+----------------------------------------------------------------
+
+IMPROVEMENTS 
+
+- Improve ODBC handling in get_trawlmetrics().
+- Add DISTANCE_FISHED and DURATION to get_trawlmetrics() output.
+
+
+
+trawlmetrics 0.0.1 (September 25, 2024)
+----------------------------------------------------------------
+
+- Initial release.
+
+
+
 trawlmetrics 2024.08.21 (August 21, 2024)
 ----------------------------------------------------------------
 

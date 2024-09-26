@@ -8,6 +8,7 @@ get_trawlmetrics(
   survey,
   year,
   select_haul_types = c(3, 13, 20),
+  select_gear_code = NULL,
   save_rds = FALSE,
   channel = NULL
 )
