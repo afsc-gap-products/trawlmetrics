@@ -118,7 +118,7 @@ graph TD
 ^-Only uses accepted heights that were not estimated.
 
 
-## Historical Methods
+## Past Methods
 
 ### GOA/AI Spread (used through 2023)
 

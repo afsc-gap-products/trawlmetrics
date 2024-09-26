@@ -1,6 +1,6 @@
 # trawlmetrics
-** In development**
-Tools for processing and analyzing trawl sensor data.
+
+Tools for processing and analyzing trawl spread, height, and bottom contact sensor data collected during AFSC/RACE Groundfish Assessment Program bottom trawl surveys in Alaska.
 
 # Documentation and usage
 
