@@ -20,6 +20,8 @@ get_trawlmetrics(
 
 \item{select_haul_types}{Numeric vector of valid haul types. Default: c(3, 13, 20)}
 
+\item{select_gear_code}{Optional. Numeric vector of valid RACE gear codes. If not specified, selects codes 44 and 172.}
+
 \item{save_rds}{Should output be written to an RDS file? Options are TRUE, FALSE, or a valid filepath to the location where an .rds file should be saved.}
 
 \item{channel}{RODBC connection.}

@@ -3,6 +3,7 @@
 #' @param survey Survey names as a character vector. Options are: "EBS", "NBS", "GOA", "AI", "SLOPE", "CHUKCHI"
 #' @param year Survey year as a numeric vector.
 #' @param select_haul_types Numeric vector of valid haul types. Default: c(3, 13, 20)
+#' @param select_gear_code Optional. Numeric vector of valid RACE gear codes. If not specified, selects codes 44 and 172.
 #' @param save_rds Should output be written to an RDS file? Options are TRUE, FALSE, or a valid filepath to the location where an .rds file should be saved. 
 #' @param channel RODBC connection.
 #' @import RODBC getPass
