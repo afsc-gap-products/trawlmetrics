@@ -32,8 +32,11 @@ get_trawlmetrics <- function(survey,
   
   trawl_data <- RODBC::sqlQuery(channel = channel,
                                 query =
-                                  paste("select a.hauljoin, a.vessel, a.cruise, a.haul, 
-                                  a.net_measured, a.net_height, a.net_width, a.wire_length, 
+                                  paste("select a.hauljoin, d.haul_id, a.vessel, a.cruise, a.haul, 
+                                  a.net_measured, a.net_height, d.net_height_standard_deviation,
+                                  d.net_height_pings, d.net_height_method, a.net_width, 
+                                  d.net_spread_standard_deviation, d.net_spread_pings, 
+                                  d.net_spread_method, a.wire_length, 
                                   a.distance_fished, a.duration, a.bottom_depth, a.performance, 
                                   a.gear, a.accessories, a.stationid, a.start_time, d.net_number, 
                                   d.footrope_number, d.autotrawl_method, d.starboard_door_number, 
@@ -50,13 +53,22 @@ get_trawlmetrics <- function(survey,
                                         and d.cruise_id = b.cruise_id 
                                         and a.haul = d.haul 
                                         and e.gear_code = a.gear 
-                                        and a.performance = f.performance")) |>
+                                        and a.performance = f.performance"))
+  
+  if(class(trawl_data) == "character") {
+    stop("get_trawlmetrics: Trawl data query failed.")
+  }
+  
+  
+  trawl_data <- trawl_data |>
     dplyr::inner_join(gear_desc_df) |>
     dplyr::mutate(YEAR = floor(CRUISE/100),
-                  SCOPE_RATIO = WIRE_LENGTH/BOTTOM_DEPTH) |>
+                  SCOPE_RATIO = WIRE_LENGTH/BOTTOM_DEPTH,
+                  TOW_SPEED_KN = DISTANCE_FISHED/DURATION/1.852) |>
     dplyr::filter(HAUL_TYPE %in% select_haul_types,
                   !is.na(NET_MEASURED))
   
+
   trawl_data$TRAWL_ID <- paste(trawl_data$YEAR, trawl_data$VESSEL, trawl_data$NET_NUMBER, sep = "_")
   
   
