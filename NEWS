@@ -1,3 +1,12 @@
+trawlmetrics 0.0.3 (September 27, 2024)
+----------------------------------------------------------------
+
+IMPROVEMENTS
+
+- Add vessel speed in knots to get_trawlmetrics() output.
+- Add 
+
+
 trawlmetrics 0.0.2 (September 26, 2024)
 ----------------------------------------------------------------
 
