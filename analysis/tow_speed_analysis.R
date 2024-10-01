@@ -56,7 +56,9 @@ speed_fit <- data.frame(TOW_SPEED_KN = seq(2.8, 3.2, 0.01),
 
 speed_fit <- dplyr::bind_cols(speed_fit, 
                               as.data.frame(
-                                predict(tow_speed_gam, newdata = newdata, se.fit = TRUE)
+                                predict(tow_speed_gam, 
+                                        newdata = speed_fit, 
+                                        se.fit = TRUE)
                                 )
                               )
 
@@ -88,18 +90,36 @@ ggplot() +
   theme_bw()
 
 
+ggplot() +
+  # geom_point(data = mod_data,
+  #            mapping = aes(x = TOW_SPEED_KN,
+  #                          y = NET_WIDTH),
+  #            size = 0.1) +
+  geom_ribbon(data = speed_fit,
+              mapping = aes(x = TOW_SPEED_KN,
+                            ymin = fit - se.fit,
+                            ymax = fit + se.fit),
+              alpha = 0.5) +
+  geom_path(data = speed_fit, 
+            mapping = aes(x = TOW_SPEED_KN, 
+                          y = fit)) +
+  scale_x_continuous(name = "Tow speed (knots)", limits = c(2.8, 3.2)) +
+  scale_y_continuous(name = "Spread (m)") +
+  theme_bw()
+
+
 
 plot(tow_speed_gam)
 
-mod_dat$TOW_SPEED_KN
-mod_dat$TRAWL_ID
+mod_data$TOW_SPEED_KN
+mod_data$TRAWL_ID
 
 
 
 ggplot() +
   geom_hline(yintercept = 3) +
   geom_hline(yintercept = c(2.8, 3.2), linetype = 2) +
-  geom_boxplot(data = mod_dat,
+  geom_boxplot(data = mod_data,
                mapping = aes(x = YEAR, 
                              y = TOW_SPEED_KN, 
                              color = factor(VESSEL), 
@@ -110,7 +130,7 @@ ggplot() +
     theme_bw()
 
 
-mod_dat |>
-  dplyr::group_by(VESSEL, YEAR) |>
+mod_data |>
+  dplyr::group_by(YEAR, VESSEL) |>
   dplyr::summarise(MEAN_TOW_SPEED_KN = mean(TOW_SPEED_KN),
                    SD_TOW_SPEED_KN = sd(TOW_SPEED_KN))
