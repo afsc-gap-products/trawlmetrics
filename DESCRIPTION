@@ -17,5 +17,5 @@ Encoding: UTF-8
 LazyData: false
 RoxygenNote: 7.3.1
 Imports: cowplot, mgcv, stats, tibble, dplyr, janitor, RODBC, getPass, here, lubridate, lme4
-Suggests: knitr, rmarkdown, colorspace, viridis, flextable
+Suggests: knitr, rmarkdown, colorspace, flextable
 VignetteBuilder: knitr

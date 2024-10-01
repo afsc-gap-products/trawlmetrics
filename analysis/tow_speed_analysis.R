@@ -28,11 +28,15 @@ mod_data <- dplyr::filter(trawl_data,
   dplyr::mutate(TRAWL_ID = factor(TRAWL_ID),
                 dummy_var = 1)
 
+tow_speed_gam_base <- mgcv::gam(NET_WIDTH ~ s(TRAWL_ID, bs = "re", by = dummy_var), 
+          data = mod_data)
 
 tow_speed_gam <- mgcv::gam(NET_WIDTH ~ s(TOW_SPEED_KN) + s(TRAWL_ID, bs = "re", by = dummy_var), 
                            data = mod_data)
 
 plot(tow_speed_gam)
+
+AIC(tow_speed_gam_base, tow_speed_gam)
 
 
 speed_fit <- data.frame(TOW_SPEED_KN = seq(2.8, 3.2, 0.01),
