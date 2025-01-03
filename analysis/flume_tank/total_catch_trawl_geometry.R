@@ -127,6 +127,7 @@ p_cumulative_catch <- ggplot() +
                           color = SURVEY_ABBV),
             linewidth = 1.1) +
   scale_x_log10(name = "Total Catch (kg)") +
+  scale_y_continuous(name = "Cumulative proportion") +
   scale_color_colorblind(name = "Survey") +
   theme_bw() +
   theme(legend.position = c(0.1, 0.75))
