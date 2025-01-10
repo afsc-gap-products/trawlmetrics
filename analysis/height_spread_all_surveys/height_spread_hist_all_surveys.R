@@ -40,6 +40,39 @@ net_dat <-
 
 xlsx::write.xlsx(net_dat, file = here::here("analysis", "height_spread_all_surveys", "NET_HEIGHT_OBS_EBS_NBS_GOA_AI.xlsx"))
 
+survey_gear <- data.frame(SURVEY_DEFINITION_ID = c(47, 52, 98, 143),
+                          GEAR_NAME = c("PNE", "PNE", "83-112", "83-112"))
+
+net_dat <- dplyr::inner_join(net_dat, survey_gear)
+
+saveRDS(object = net_dat, 
+        file = here::here("analysis", "height_spread_all_surveys", "HEIGHT_SPREAD_EBS_NBS_GOA_AI.rds"))
+
+ggplot(data = net_dat,
+       mapping = aes(x = NET_WIDTH_M, y = NET_HEIGHT_M)) +
+  geom_hex() +
+  geom_smooth() +
+  scale_x_continuous(name = "Net spread (m)") +
+  scale_y_continuous(name = "Net height (m)") +
+  facet_wrap(~GEAR_NAME, scales = "free")
+
+ggplot(data = net_dat,
+       mapping = aes(x = NET_WIDTH_M, y = NET_HEIGHT_M)) +
+  geom_point() +
+  geom_smooth() +
+  scale_x_continuous(name = "Net spread (m)") +
+  scale_y_continuous(name = "Net height (m)") +
+  facet_wrap(~GEAR_NAME, scales = "free")
+
+ggplot() +
+  geom_boxplot(data = net_dat,
+               mapping = aes(x = round(NET_WIDTH_M, 0.1), y = NET_HEIGHT_M, group = round(NET_WIDTH_M, 0.1))) +
+  geom_smooth(data = net_dat,
+              mapping = aes(x = NET_WIDTH_M, y = NET_HEIGHT_M)) +
+  scale_x_continuous(name = "Net spread (m)") +
+  scale_y_continuous(name = "Net height (m)") +
+  facet_wrap(~GEAR_NAME, scales = "free")
+
 
 net_summary <- net_dat |>
   dplyr::group_by(SURVEY_DEFINITION_ID, SURVEY_NAME) |>
