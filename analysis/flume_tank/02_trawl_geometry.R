@@ -98,6 +98,18 @@ ggplot() +
   scale_fill_brewer() +
   theme_dark()
 
+ggplot() +
+  geom_point(data = dplyr::filter(flume_data, towing_speed_kn == 3),
+             mapping = aes(x = spread_u_wing_m,
+                           y = opening_headline_m,
+                           color = catch), size = rel(3)) +
+  facet_wrap(~paste0("Empty net - ", GEAR_NAME), scales = "free") +
+  scale_x_continuous(name = "Net width (m)") +
+  scale_y_continuous(name = "Net height (m)") +
+  scale_color_viridis_d(name = "Catch trt.", option = "C") +
+  scale_fill_brewer() +
+  theme_bw()
+
 
 # Effect of tow speed on trawl geometry across spread values
 
