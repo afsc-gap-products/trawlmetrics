@@ -10,21 +10,34 @@ library(ggthemes)
 
 # Load flume tank data
 
-path_flume_xlsx <- here::here("analysis", "flume_tank", "data", "flume_tank_data.xlsx")
+survey_id <- c(47, 52)
+trawl_name <- c("PNE")
 sheet_flume_xlsx <- "data"
 # sheet_flume_xlsx <- "example"
 
+path_flume_xlsx <- here::here("analysis", "flume_tank", "data", "flume_tank_data.xlsx")
+
+gear_table <- data.frame(trawl = c("PNE", "83-112"),
+                         GEAR_NAME = c("PNE", "83-112"))
+
 flume_data <- xlsx::read.xlsx(file = path_flume_xlsx,
                               sheetName = sheet_flume_xlsx) |>
-  dplyr::mutate(GEAR_NAME = "83-112",
-                type = "Flume tank",
-                fac_trial = factor(trial))
+  dplyr::filter(!is.na(bridles), 
+                pulling_point_elevation_mm < 300,
+                additional_floatation_kg == 0) |>
+  dplyr::inner_join(gear_table) |>
+  dplyr::mutate(type = "Flume tank",
+                fac_trial = factor(trial),
+                type = paste0("Flume tank,", footrope, ",", bridles))
+
+flume_data <- flume_data |> 
+  dplyr::filter(trawl == trawl_name)
 
 # Plot field vs. flume height/spread ----
 ggplot() +
   geom_point(data = trawlmetrics::bts_geom |>
-               dplyr::filter(SURVEY_DEFINITION_ID != 78) |>
-               dplyr::mutate(type = "Survey"),
+               dplyr::filter(SURVEY_DEFINITION_ID %in% survey_id) |>
+               dplyr::mutate(type = "BT Survey"),
              mapping = aes(x = NET_WIDTH_M,
                            y = NET_HEIGHT_M,
                            color = type),
@@ -37,13 +50,12 @@ ggplot() +
   facet_wrap(~GEAR_NAME, scales = "free") +
   scale_x_continuous(name = "Net width (m)") +
   scale_y_continuous(name = "Net height (m)") +
-  scale_color_manual(name = "Type",
-                     values = c("Survey" = "#000000", 
-                                "Flume tank" = "#E69F00"))
+  scale_color_colorblind(name = "Type") +
+  theme_bw()
 
 ggplot() +
   geom_point(data = trawlmetrics::bts_geom |>
-               dplyr::filter(SURVEY_DEFINITION_ID %in% c(98, 143)) |>
+               dplyr::filter(SURVEY_DEFINITION_ID %in% survey_id) |>
                dplyr::mutate(type = "Survey"),
              mapping = aes(x = NET_WIDTH_M,
                            y = NET_HEIGHT_M,
@@ -57,13 +69,14 @@ ggplot() +
   facet_wrap(~GEAR_NAME, scales = "free") +
   scale_x_continuous(name = "Net width (m)") +
   scale_y_continuous(name = "Net height (m)") +
-  scale_color_manual(name = "Type",
-                     values = c("Survey" = "#000000", 
-                                "Flume tank" = "#E69F00"))
+  scale_color_colorblind(name = "Type")
+  # scale_color_manual(name = "Type",
+  #                    values = c("Survey" = "#000000", 
+  #                               "Flume tank" = "#E69F00"))
 
 ggplot() +
   geom_point(data = trawlmetrics::bts_geom |>
-               dplyr::filter(SURVEY_DEFINITION_ID %in% c(98, 143)) |>
+               dplyr::filter(SURVEY_DEFINITION_ID %in% survey_id) |>
                dplyr::mutate(type = "Survey"),
              mapping = aes(x = NET_WIDTH_M,
                            y = NET_HEIGHT_M),
@@ -72,7 +85,8 @@ ggplot() +
   geom_point(data = dplyr::filter(flume_data, catch == "empty"),
              mapping = aes(x = spread_u_wing_m,
                            y = opening_headline_m,
-                           color = factor(towing_speed_kn)), size = rel(3)) +
+                           color = factor(towing_speed_kn),
+                           shape = factor(additional_floatation_kg)), size = rel(3)) +
   facet_wrap(~paste0("Empty net - ", GEAR_NAME), scales = "free") +
   scale_x_continuous(name = "Net width (m)") +
   scale_y_continuous(name = "Net height (m)") +
@@ -81,7 +95,7 @@ ggplot() +
 
 ggplot() +
   geom_density2d_filled(data = trawlmetrics::bts_geom |>
-               dplyr::filter(SURVEY_DEFINITION_ID %in% c(98, 143)) |>
+               dplyr::filter(SURVEY_DEFINITION_ID %in% survey_id) |>
                dplyr::mutate(type = "Survey"),
              mapping = aes(x = NET_WIDTH_M,
                            y = NET_HEIGHT_M),
@@ -95,7 +109,8 @@ ggplot() +
   scale_x_continuous(name = "Net width (m)") +
   scale_y_continuous(name = "Net height (m)") +
   scale_color_viridis_d(name = "Towing speed (kn)", option = "C") +
-  scale_fill_brewer() +
+  # scale_fill_brewer() +
+  scale_color_colorblind(name = "Type")
   theme_dark()
 
 ggplot() +
@@ -154,3 +169,17 @@ ggplot(data = flume_data,
   geom_point() +
   geom_smooth() +
   facet_wrap(~towing_speed_kn)
+
+
+#
+
+
+ggplot() +
+  geom_boxplot(data = trawlmetrics::bts_geom |>
+               dplyr::filter(SURVEY_DEFINITION_ID %in% survey_id),
+               mapping = aes(x = YEAR, group = YEAR, y = NET_HEIGHT_M))
+
+ggplot() +
+  geom_boxplot(data = trawlmetrics::bts_geom |>
+                 dplyr::filter(SURVEY_DEFINITION_ID %in% survey_id),
+               mapping = aes(x = YEAR, group = YEAR, y = NET_WIDTH_M))
