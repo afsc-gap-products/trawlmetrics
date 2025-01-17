@@ -5,6 +5,10 @@ library(ggrepel)
 library(tidyr)
 library(dplyr)
 
+# EBS v0
+# EBS v1 = EBS_v0 + 65 kg
+# EBS v2 = 
+
 # ggthemes::colorblind_pal()(8)
 # "#000000" "#E69F00" "#56B4E9" "#009E73" "#F0E442" "#0072B2" "#D55E00" "#CC79A7"
 
@@ -90,17 +94,41 @@ goa_vs_pne <- dplyr::filter(spread_height_ratio_flume, survey == "GOA") |>
                      values_fn = function(x) {mean(x, na.rm = TRUE)}) |>
   tidyr::pivot_longer(cols = c("GOA/AI_v5", "GOA/AI_v6"))
 
-ggplot() +
-  geom_point(data = goa_vs_pne,
-             mapping = aes(x = PNE, y = value, color = factor(spread_treatment)),
-             size = 3,
-             alpha = 0.7) +
-  geom_abline(slope = 1, intercept = 0, linetype = 2) +
-  scale_color_viridis_d(name = "Spread (m)") +
-  scale_x_continuous(name = "PNE height (m)") +
-  scale_y_continuous(name = "RACE height (m)") +
-  facet_wrap(~name) +
-  theme_bw()
+
+cowplot::plot_grid(
+  ggplot() +
+    geom_point(data = goa_vs_pne,
+               mapping = aes(x = PNE, y = value, color = factor(spread_treatment)),
+               size = 3,
+               alpha = 0.7) +
+    # geom_smooth(data = goa_vs_pne,
+    #             mapping = aes(x = PNE, y = value, color = factor(spread_treatment)),
+    #             alpha = 0.3,
+    #             method = 'lm') +
+    geom_abline(slope = 1, intercept = 0, linetype = 2) +
+    scale_color_viridis_d(name = "Spread (m)") +
+    scale_x_continuous(name = "PNE height (m)") +
+    scale_y_continuous(name = "RACE height (m)") +
+    facet_wrap(~name) +
+    theme_bw(),
+  ggplot() +
+    # geom_smooth(data = goa_vs_pne,
+    #             mapping = aes(x = PNE, y = value, color = factor(towing_speed_kn)),
+    #             alpha = 0.3,
+    #             method = 'lm') +
+    geom_point(data = goa_vs_pne,
+               mapping = aes(x = PNE, y = value, color = factor(towing_speed_kn)),
+               size = 3,
+               alpha = 0.7) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2) +
+    scale_color_viridis_d(name = "Towing speed (kn)", option = "B") +
+    scale_x_continuous(name = "PNE height (m)") +
+    scale_y_continuous(name = "RACE height (m)") +
+    facet_wrap(~name) +
+    theme_bw(),
+  nrow = 2,
+  align = "hv"
+)
 
 ebs_vs_pne <- dplyr::filter(spread_height_ratio_flume, survey == "EBS") |>
   dplyr::filter(!(spread_treatment == 16 & bridle_length == "short")) |>
@@ -121,5 +149,3 @@ ggplot() +
   scale_y_continuous(name = "RACE height (m)") +
   facet_wrap(~name) +
   theme_bw()
-
-dplyr::filter(spread_height_ratio_flume, footrope == "GOA/AI_v5", spread_treatment == 16, towing_speed_kn == 3)
