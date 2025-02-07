@@ -8,6 +8,6 @@ bts_geom <-  readRDS(file = here::here("analysis", "flume_tank", "data", "HEIGHT
 
 # Load flume tank data
 flume_tank <- read.xlsx(file = here::here("analysis", "flume_tank", "data", "flume_tank_data.xlsx"), 
-                        sheetName = 'example')
+                        sheetName = 'data')
 
 save(bts_geom, flume_tank, file = here::here("R", "sysdata.rda"))
