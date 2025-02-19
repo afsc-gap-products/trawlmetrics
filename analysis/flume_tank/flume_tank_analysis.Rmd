@@ -1,0 +1,84 @@
+---
+title: "Flume tank"
+output: word_document
+date: "2025-02-18"
+---
+
+```{r setup, include=FALSE}
+library(trawlmetrics)
+library(ggthemes)
+knitr::opts_chunk$set(echo = TRUE)
+
+dat <- trawlmetrics::flume_tank |> 
+  dplyr::filter(footrope %in% c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"), 
+                catch == "empty",
+                pulling_point_elevation_mm <= 200,
+                additional_floatation_kg == 0, 
+                !(bridles == 2 & trawl == "83-112"),
+                !(bridles == 2 & trawl == "PNE"),
+                !(bridles == "2-weighted" & trawl == "PNE"),
+                !benthic_bag)
+
+colors_trawl <- c("PNE" = "#000000",
+                  "83-112" = "#E69F00",
+                  "RACE" = "#56B4E9")
+
+pne_spreads <- unique(dat$spread_treatment[dat$trawl == "PNE"])
+ebs_spreads <- unique(dat$spread_treatment[dat$trawl == "83-112"])
+```
+
+# Height:spread ratios under varying spread and speed
+
+
+### PNE versus RACE Trawl with GOA/AI footrope
+
+This analysis compares changes in the ratio between upper wing tip spread and headline height across a range of upper wing tip spreads that is typically observed on GOA/AI surveys (14, 16, 17 m) and five towing speeds (2-4 knots).
+
+Results for the PNE only include the standard bridle configuration used on GOA and AI bottom trawl surveys. Several footrope, bridle, and headline weights and flotation combinations were tested on the RACE trawl during flume tank experiments, but this analysis only shows results for the final GOA/AI configuration of the RACE trawl (GOA/AI_v6). 
+
+Shallower slopes indicate the geometry of the trawl is less responsive to changes in towing speeds. 
+
+```{r pne_v_race}
+p1 <- ggplot(data = dplyr::filter(dat, spread_treatment %in% pne_spreads,
+                            trawl %in% c("PNE", "RACE"),
+                            footrope %in% c("PNE", "GOA/AI_v6")),
+       mapping = aes(x = towing_speed_kn,
+                     y = spread_u_wing_m/opening_headline_m,
+                     color = trawl)) +
+  geom_smooth(method = 'lm') +
+  geom_point() + 
+  facet_wrap(~paste0(spread_treatment, " m")) +
+  scale_x_continuous(name = "Towing speed (kn)") +
+  scale_y_continuous(name = "Upper Wing Spread:Headline Height") +
+  scale_color_manual(values = colors_trawl) +
+  theme_bw() +
+  theme(legend.title = element_blank())
+
+print(p1)
+```
+
+At 14.5 m, the Upper Wing Spread:Headline Height ratio for the PNE and RACE trawl showed similar responses to changes in towing speed, as shown by the slope. However, the shallower slope of the RACE trawl at 16 m and 17.5 m upper wing tip spread suggests the geometry of the RACE+GOA/AI_v6 was less responsive to changes in towing speed than the PNE across a broader range of expected spread conditions.
+
+### 83-112 versus RACE Trawl with EBS footrope
+
+This analysis compares the Upper Wing Spread:Headline Height ratio between the 83-112 and RACE trawl under a typical range of spreads for the EBS shelf survey.
+
+```{r pressure, echo=FALSE}
+p2 <- ggplot(data = dplyr::filter(dat, spread_treatment %in% ebs_spreads,
+                            trawl %in% c("83-112", "RACE"),
+                            footrope %in% c("83-112", "EBS_v2")),
+       mapping = aes(x = towing_speed_kn,
+                     y = spread_u_wing_m/opening_headline_m,
+                     color = trawl)) +
+  geom_point() + 
+  geom_smooth(method = 'lm') +
+  facet_wrap(~paste0(spread_treatment, " m")) +
+  scale_x_continuous(name = "Towing speed (kn)") +
+  scale_y_continuous(name = "Upper Wing Spread:Headline Height") +
+  scale_color_manual(values = colors_trawl) +
+  theme_bw() +
+  theme(legend.title = element_blank())
+
+print(p2)
+```
+
