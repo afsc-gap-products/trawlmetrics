@@ -1,5 +1,10 @@
-trawlmetrics 0.0.5 (February 18, 2025)
+trawlmetrics 0.0.5 (February 19, 2025)
 ----------------------------------------------------------------
+
+IMPROVEMENTS
+
+- Added historical total catch weight to the built-in data.
+
 
 NEW FUNCTIONALITY
 

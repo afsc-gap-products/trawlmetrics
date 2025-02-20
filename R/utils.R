@@ -70,6 +70,6 @@ marport_to_netmind <- function(x) {
 #' @references Lauth, R. R., and S. Kotwicki. 2014. A calibration function for correcting mean net spread values obtained from Marport spread sensors used in conjunction with the Marport MK II receiver. AFSC Processed Rep. 2014-02, 26 p. Alaska Fish. Sci. Cent., NOAA, Natl. Mar. Fish. Serv., 7600 Sand Point Way NE, Seattle WA 98115. https://apps-afsc.fisheries.noaa.gov/Publications/ProcRpt/PR2014-02.pdf
 #' @export
 
-netmind_to_marport(x) {
+netmind_to_marport <- function(x) {
   return((x-0.400465037)/0.935684155)
 }
