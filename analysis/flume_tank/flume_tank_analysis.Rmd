@@ -150,22 +150,6 @@ print(p0)
 
 The relationship between headline height and upper wing tip spread for the 83-112 model trawl was similar to field observations from Marport height and spread sensors.
 
-```{r lu_wingtip, include = TRUE, warning=FALSE}
-
-ggplot() +
-  geom_point(data = dplyr::filter(dat, trawl == "83-112"),
-             mapping = aes(x = towing_speed,  
-                           y = spread_u_wing_m/spread_l_wing_m,
-                           color = factor(spread_treatment, nsmall = 1)),
-             size = rel(2.5)) +
-  geom_text_repel(data = dplyr::filter(dat, trawl == "83-112"),
-                  mapping = aes(x = spread_u_wing_m,
-                                y = opening_headline_m,
-                                color = format(towing_speed_kn, nsmall = 1),
-                                label = trial))
-
-```
-
 # Bridle comparison
 
 RACE will consider replacing the standard bridle design that has been used on AFSC bottom trawl surveys with a split bridle design featuring separate ground gear and net-bridle connection segments that are connected by a half-bobbin and delta plate. The performance of these bridle designs were tested by comparing the performance of 83-112 and PNE nets with standard rigging to their performance using a split-bridle design.
@@ -510,12 +494,12 @@ GAP bottom trawl surveys collect oceanographic information and measure trawl dim
 
 The benthic bag and sensor models used for these trials represent approximations of potential effects because it was not feasible to produce physically scaled models that exactly replicated the size, weight, and density of real survey equipment.
 
-```{r bb_ctd_spread, include = TRUE, warning=FALSE, fig.cap = "Figure. Upper wing tip and lower wing tip spread (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spread) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
+```{r bb_ctd_spread, include = TRUE, warning=FALSE, fig.cap = "Figure. Upper wing tip and lower wing tip spread (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spd) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
 bb_ctd_dat <- trawlmetrics::flume_tank |> 
   dplyr::filter(trial %in% c(141, 144, 145))
 
-bb_ctd_dat$bb_ctd <- c("None", "BB", "BB+CTD+Spread")
-bb_ctd_dat$bb_ctd <- factor(bb_ctd_dat$bb_ctd, levels = c("None", "BB", "BB+CTD+Spread"))
+bb_ctd_dat$bb_ctd <- c("None", "BB", "BB/CTD/Spd")
+bb_ctd_dat$bb_ctd <- factor(bb_ctd_dat$bb_ctd, levels = c("None", "BB", "BB/CTD/Spd"))
 
 p_bb_spread <- bb_ctd_dat |>
   dplyr::select(trial, bb_ctd, spread_u_wing_m, spread_l_wing_m) |>
@@ -538,7 +522,7 @@ p_bb_spread <- bb_ctd_dat |>
 print(p_bb_spread)
 ```
 
-```{r bb_ctd_spread, include = TRUE, warning=FALSE, fig.cap = "Figure. Headline height (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spread) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
+```{r bb_ctd_height, include = TRUE, warning=FALSE, fig.cap = "Figure. Headline height (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spd) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
 p_bb_height <- ggplot(data = bb_ctd_dat,
        mapping = 
          aes(x = bb_ctd, 
