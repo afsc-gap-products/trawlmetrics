@@ -1,6 +1,7 @@
 ---
-title: "Flume tank preliminary analyss"
+title: "Flume tank analysis"
 output: word_document
+author: Sean Rohan
 date: 2025-02-24
 ---
 
@@ -57,11 +58,21 @@ pne_spreads <- unique(dat$spread_treatment[dat$trawl == "PNE"])
 ebs_spreads <- unique(dat$spread_treatment[dat$trawl == "83-112"])
 ```
 
-# Baseline
+# Overview
+
+The Resource Assessment and Conservation Engineering Division is undertaking survey modernization efforts to improve upon historical survey data products, streamline survey operations, reduce operational costs, and increase survey design flexibility. A major focus of survey design efforts is to replace existing survey research trawls with a cost effective design that uses easy to source components and provides consistent sampling efficiency for commercially important species across the typical range of operating conditions that surveys encounter. To support gear redesign, the Alaska Fisheries Science Center's Research Fishing Gear Program and Groundfish Assessment Program conducted experiments at the Flume Tank at the Marine Institute of Memorial University of Newfoundland (St. John's, Newfoundland and Labrador, Canada) from January 13-17, 2025.
+
+Flume tank experiments collected baseline performance information from 1:8 scale models of the 83-112 trawl that has been used in the eastern Bering Sea shelf and northern Bering Sea surveys since 1982 and Poly Nor'eastern trawl (PNE) that has been used on Gulf of Alaska and Aleutian Islands bottom trawl surveys since 1980 (Stauffer, 2003). The performance of these trawl designs had not been previously evaluated in a flume tank. Flume tank experiments also evaluated the performance of 1:8 scale prototype trawl and footrope designs being considered to replace the 83-112 and PNE. The performance of model trawls were evaluated across a range of towing speeds, wing spreads, and catch levels that were considered to be representative conditions encountered in the field. The results of the flume tank experiments will inform the next phases of gear redesign.
+
+# Experimental design
+
+# Experimental results
+
+## Baseline
 
 We collected 'baseline' data from 83-112 and PNE models to evaluate the performance of nets currently used on AFSC bottom trawl surveys in the eastern Bering Sea, northern Bering Sea, Gulf of Alaska, and Aleutian Islands. As part of these efforts, we sought to determine whether geometric changes observed for trawl models in the flume tank matched field observations.
 
-## Poly nor'eastern
+### Poly nor'eastern
 
 The Poly nor'eastern 4-seam high-rise trawl 
 
@@ -101,7 +112,7 @@ print(p0)
 
 The headline height of PNE model was shorter than Marport height observations typically observed in the field, although the slope of the relationship between height and spread suggests changes in geometry resembled those observed in the field. 
 
-## 83-112
+### 83-112
 
 ```{r field_spread_to_height_83112, include = TRUE, warning=FALSE, fig.cap="Figure 2. Upper wing tip spread versus headline height for the 83-112 showing field observations (small grey circles) and flume tank observations under 2.5-4 knot tow speeds (colored circles). Generalized additive model fitted mean and 95% CI is shown by the solid black line. Text labels denote the flume tank experimental trial number."}
 d1 <- trawlmetrics::bts_geom |>
@@ -150,14 +161,14 @@ print(p0)
 
 The relationship between headline height and upper wing tip spread for the 83-112 model trawl was similar to field observations from Marport height and spread sensors.
 
-# Bridle comparison
+## Bridle comparison
 
 RACE will consider replacing the standard bridle design that has been used on AFSC bottom trawl surveys with a split bridle design featuring separate ground gear and net-bridle connection segments that are connected by a half-bobbin and delta plate. The performance of these bridle designs were tested by comparing the performance of 83-112 and PNE nets with standard rigging to their performance using a split-bridle design.
 
 
-# Tow speed
+## Tow speed
 
-## Height:spread ratios
+### Height:spread ratios
 
 We compared changes in the ratio between upper wing tip spread and headline height across a range of spreads typically observed on GOA/AI surveys (14, 16, 17 m) and five towing speeds (2-4 knots).
 
@@ -216,11 +227,11 @@ print(p2)
 
 The 83-112 is a low-rise net and, therefore, has a higher Upper Wing Spread:Headline Height ratio than the 83-112. Results show that changes in speed resulted in similar rates of change in geometry in the Upper Wing Spread:Headline Height ratio for the 83-112 and RACE trawl at 12.5 m and 20 m spreads. At 17.5 m spread, the Upper Wing Spread:Headline Height ratio of the 83-112 changed more rapidly than the RACE trawl.
 
-# Bridle angle of attack
+## Bridle angle of attack
 
 [Placeholder: This is a critical analysis]
 
-# Upper versus lower wing tip spread
+## Upper versus lower wing tip spread
 
 The Groundfish Asessment Program calculates effort for survey hauls based on area swept estimates that rely on upper wing tip spread measurements collected using acoustic spread sensors. These spread sensors are attached to the upper bridle, just ahead of the upper wing tip of the net. In flume tank experiments, upper wing tip spread was higher than lower wing tip spread and footrope spread for all of the gears tested.
 
@@ -274,7 +285,7 @@ p_wing_spread <- ggplot() +
              size = rel(2.5)) +
   geom_text(data = lm_wing_coef,
             mapping = 
-              aes(x = 13.2, 
+              aes(x = 15.5, 
                   y = 23.5, 
                   label = paste0("y=", format(intercept, nsmall = 1, digits = 3), " + ", format(slope, nsmall = 1,digits = 3), "x"))) +
   geom_abline(intercept = 0, slope = 1, linetype = 2) +
@@ -287,9 +298,9 @@ p_wing_spread <- ggplot() +
   print(p_wing_spread)
 ```
 
-# Effect of catch
+## Effect of catch
 
-## Catch: Field observations
+### Catch: Field observations
 
 The capture efficiency of a trawl can change as catch accumulates because the catch affects drag, trawl geometry, and water flow through the net. An ideal survey trawl would have minimal variation in geometry, drag, and water flow to minimize variation in capture efficiency. Field observations suggest that the weight of survey catches produces small changes in geometry, based on the relationship between catch weight and net height/upper wing tip spread.
 
@@ -488,7 +499,7 @@ print(p1)
 
 Similar to field observations, the upper wing tip spread and headline height of the flume tank models were relatively insensitive to changes in catch. However, within the treatment range at the flume tank, observed effects were not monotonic and presumably may have been caused by slight variations in the position and orientation of the simulated catch slugs in the trawl (e.g. height for RACE EBS_V2).
 
-# Effects of benthic bag and sensors on height and spread
+## Effects of benthic bag and sensors on height and spread
 
 GAP bottom trawl surveys collect oceanographic information and measure trawl dimensions using a suite of sensors that includes spread and height sensors, a CTD, a temperature-depth recorder, bio-logging archival tag, and bottom contact sensor (three-axis accelerometer). In addition, the Gulf of Alaska and Aleutian Islands bottom trawl surveys deploy a small accessory net (i.e., 'benthic bag') between bobbins along the footrope of the Poly Nor'eastern to obtain qualitative presence-only samples of benthic fauna that are not available to the main trawl. We conducted flume tank trials using scaled models of the sensors and benthic bag affixed to the RACE Trawl with GOA/AI_v6 footrope to evaluate whether they affected trawl geometry. Trials were conducted by deploying the net with trawl masts spread at the same width as trials conducted at a spread of 16 m and 3 knots, then adding the benthic bag and sensors (CTD and spread sensors) in successive trials without changing the mast spread.
 
@@ -540,7 +551,12 @@ print(p_bb_height)
 
 Sensor and benthic bag treatments were associated with 8-16 cm of variation in the headline height, upper wing tip spread, and lower wing tip spread. This level of variation is low compared to the overall variation in trawl geometry across towing conditions evaluated in flume tank trials and is near the minimum detectable change in height and spread for the 1:8 scale model used in the flume tank. Flume tank results are consistent with field experiments that concluded attaching a Sea-Bird SBE19plus V2 to the top panel of the Poly Nor'eastern behind the headline does not affect the headline height while fishing (Rohan et al., 2023).
 
-# Short-scoping
+## Trawl drag and bridle tension
 
-[TBD]
+Concurrent with trawl design changes, RACE bottom trawl will transition to a new trawl door design to ensure a more consistent trawl geometry across survey conditions and reduce equipment costs through the use of replaceable door shoes, i.e., bolt-on plates that attach to the portion of the door that comes into contact with the seafloor. To inform the selection of new trawl doors, bridle tension measurements were collected during flume tank trials to estimate the drag of the trawl under a range of trawl speeds. Measurements were collected from trials conducted with the Poly Nor'eastern and RACE trawl, but not the 83-112 because of sensor malfunctions.
 
+## Short-scoping
+
+RACE bottom trawl surveys use a standard scope table to determine how much wire to pay out at a given depth to ensure the trawl reaches and remains on bottom during standardized survey hauls. The amount of wire required to reach bottom and sink time can vary depending on current speeds.
+
+# Discussion
