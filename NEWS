@@ -1,3 +1,31 @@
+trawlmetrics 0.0.7 (March 7, 2025)
+----------------------------------------------------------------
+
+- Corrected bridle angle of attack and door spread from flume 
+  tank experiments.
+
+
+trawlmetrics 0.0.6 (February 24, 2025)
+----------------------------------------------------------------
+
+IMPROVEMENTS
+
+- Added additional flume tank data.
+
+
+trawlmetrics 0.0.5 (February 19, 2025)
+----------------------------------------------------------------
+
+IMPROVEMENTS
+
+- Added historical total catch weight to the built-in data.
+
+
+NEW FUNCTIONALITY
+
+- Add netmind_to_marport() function to convert Netmind spread to
+  Marport spread values.
+
 trawlmetrics 0.0.4 (January 10, 2025)
 ----------------------------------------------------------------
 

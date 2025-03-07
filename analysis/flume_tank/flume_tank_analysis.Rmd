@@ -1,0 +1,788 @@
+---
+title: "Preliminary flume tank analysis"
+output: word_document
+author: Sean Rohan
+date: 2025-02-24
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+library(trawlmetrics)
+library(ggthemes)
+library(ggrepel)
+library(scales)
+library(gapindex)
+
+survey_abbv <- data.frame(SURVEY_ABBV = c("AI", "GOA", "EBS", "NBS", "BSS"),
+                          SURVEY_DEFINITION_ID = c(52, 47, 98, 143, 78))
+
+dat <- trawlmetrics::flume_tank |> 
+  dplyr::filter(footrope %in% c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"), 
+                catch == "empty",
+                pulling_point_elevation_mm <= 200,
+                additional_floatation_kg == 0, 
+                !(bridles == 2 & trawl == "83-112"),
+                !(bridles == 2 & trawl == "PNE"),
+                !(bridles == "2-weighted" & trawl == "PNE"),
+                trial > 0,
+                !benthic_bag)
+
+colors_trawl <- c("PNE" = "#000000",
+                  "83-112" = "#E69F00",
+                  "RACE" = "#56B4E9")
+
+colors_speed <- c('2.0' = "#0D0887FF",
+                  '2.5' = "#6A00A8FF",
+                  '3.0' = "#B12A90FF",
+                  '3.5' = "#E16462FF",
+                  '4.0' = "#FCA636FF",
+                  'Field obs.' = "grey",
+                  'Field fit' = "black")
+
+color_spread_all <- c(`12.5` = "#440154FF",
+                      `14.5` = "#414487FF",
+                      `16.0` = "#2A788EFF",
+                      `17.5` = "#22A884FF",
+                      `20.0` = "#7AD151FF")
+
+color_spread_83112 <- c(`12.5` = "#440154FF",
+                        `14.5` = "#414487FF",
+                        `16.0` = "#2A788EFF",
+                        `17.5` = "#22A884FF",
+                        `20.0` = "#7AD151FF")
+
+colors_wing <- c("L. wing" = "#4E79A7", "U. wing" = "#E15759")
+
+pne_spreads <- unique(dat$spread_treatment[dat$trawl == "PNE"])
+ebs_spreads <- unique(dat$spread_treatment[dat$trawl == "83-112"])
+
+# Get EBS shelf wing spread
+ebs_dat <- gapindex::get_data(year_set = 1982:2024,
+                              survey_set = "EBS")
+
+# Get SEBS map layers
+sebs_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "EPSG:3338")
+```
+
+# Overview
+
+The Resource Assessment and Conservation Engineering Division is undertaking survey modernization efforts to improve upon historical survey data products, streamline survey operations, reduce operational costs, and increase survey design flexibility. A major focus of survey design efforts is to replace existing survey research trawls with a cost effective design that uses easy to source components and provides consistent sampling efficiency for commercially important species across the typical range of operating conditions that surveys encounter. To support gear redesign, the Alaska Fisheries Science Center's Research Fishing Gear Program and Groundfish Assessment Program conducted experiments at the Flume Tank at the Marine Institute of Memorial University of Newfoundland (St. John's, Newfoundland and Labrador, Canada) from January 13-17, 2025.
+
+Flume tank experiments collected baseline performance information from 1:8 scale models of the 83-112 trawl that has been used in the eastern Bering Sea shelf and northern Bering Sea surveys since 1982 and Poly Nor'eastern trawl (PNE) that has been used on Gulf of Alaska and Aleutian Islands bottom trawl surveys since 1980 (Stauffer, 2003). The performance of these trawl designs had not been previously evaluated in a flume tank. Flume tank experiments also evaluated the performance of 1:8 scale prototype trawl and footrope designs being considered to replace the 83-112 and PNE. The performance of model trawls were evaluated across a range of towing speeds, wing spreads, and catch levels that were considered to be representative conditions encountered in the field. The results of the flume tank experiments will inform the next phases of gear redesign.
+
+# Experimental results
+
+## Baseline
+
+We collected 'baseline' data from 83-112 and PNE models to evaluate the performance of nets currently used on AFSC bottom trawl surveys in the eastern Bering Sea, northern Bering Sea, Gulf of Alaska, and Aleutian Islands. As part of these efforts, we sought to determine whether geometric changes observed for trawl models in the flume tank matched field observations.
+
+### Poly nor'eastern
+
+The Poly nor'eastern 4-seam high-rise trawl 
+
+```{r field_spread_to_height_pne, include = TRUE, warning=FALSE, fig.cap="Figure 1. Upper wing tip spread versus headline height for the Poly nor'eastern showing field observations (small grey circles) and flume tank observations under 2.5-4 knot tow speeds (colored circles). Generalized additive model fitted mean and 95% CI is shown by the solid black line. Text labels denote the flume tank experimental trial number."}
+d1 <- trawlmetrics::bts_geom |>
+  dplyr::filter(GEAR_NAME == 'PNE',
+                YEAR > 2004) |>
+  dplyr::mutate(TOW_SPEED_KN = DISTANCE_FISHED_KM/DURATION_HR/1.852)
+
+p0 <- ggplot() +
+  geom_point(data = d1,
+             mapping = aes(x = NET_WIDTH_M,
+                           y = NET_HEIGHT_M,
+                           color = "Field obs."),
+             size = rel(0.1)) +
+  geom_smooth(data = d1,
+              mapping = aes(x = NET_WIDTH_M,
+                            y = NET_HEIGHT_M,
+                            color = "Field fit")) +
+  geom_point(data = dplyr::filter(dat, trawl == "PNE"),
+             mapping = aes(x = spread_u_wing_m,
+                           y = opening_headline_m,
+                           color = format(towing_speed_kn, nsmall = 1)),
+             size = rel(2.5)) +
+        geom_text_repel(data = dplyr::filter(dat, trawl == "PNE"),
+             mapping = aes(x = spread_u_wing_m,
+                           y = opening_headline_m,
+                           color = format(towing_speed_kn, nsmall = 1),
+                           label = trial)) +
+  scale_x_continuous(name = "Upper wing tip spread (m)", limits = c(12.5, 22)) +
+  scale_y_continuous(name = "Headline height (m)") +
+  scale_color_manual(name = "Tow speed (kn)", values = colors_speed) +
+  theme_bw()
+
+print(p0)
+```
+
+The headline height of PNE model was shorter than Marport height observations typically observed in the field, although the slope of the relationship between height and spread suggests changes in geometry resembled those observed in the field. 
+
+### 83-112
+
+```{r field_spread_to_height_83112, include = TRUE, warning=FALSE, fig.cap="Figure 2. Upper wing tip spread versus headline height for the 83-112 showing field observations (small grey circles) and flume tank observations under 2.5-4 knot tow speeds (colored circles). Generalized additive model fitted mean and 95% CI is shown by the solid black line. Text labels denote the flume tank experimental trial number."}
+d1 <- trawlmetrics::bts_geom |>
+  dplyr::filter(GEAR_NAME == '83-112',
+                YEAR > 2004) |>
+  dplyr::mutate(TOW_SPEED_KN = DISTANCE_FISHED_KM/DURATION_HR/1.852)
+
+p0 <- ggplot() +
+  geom_point(data = d1,
+             mapping = aes(x = netmind_to_marport(NET_WIDTH_M),
+                           y = NET_HEIGHT_M,
+                           color = "Field obs."),
+             size = rel(0.1)) +
+  geom_smooth(data = d1,
+              mapping = aes(x = netmind_to_marport(NET_WIDTH_M),
+                            y = NET_HEIGHT_M,
+                            color = "Field fit")) +
+  # geom_line(data = dplyr::filter(dat, trawl == "83-112", towing_speed_kn > 2, towing_speed_kn < 4),
+  #             mapping = aes(x = spread_u_wing_m,
+  #                           y = opening_headline_m,
+  #                           color = format(towing_speed_kn, nsmall = 1)),
+  #             method = 'lm',
+  #           stat = "smooth", size = rel(1.2)) +
+  #   geom_smooth(data = dplyr::filter(dat, trawl == "83-112", towing_speed_kn > 2, towing_speed_kn < 4),
+  #             mapping = aes(x = spread_u_wing_m,
+  #                           y = opening_headline_m,
+  #                           color = format(towing_speed_kn, nsmall = 1)),
+  #          method = "lm", alpha = 0.15) +
+    geom_point(data = dplyr::filter(dat, trawl == "83-112"),
+             mapping = aes(x = spread_u_wing_m,
+                           y = opening_headline_m,
+                           color = format(towing_speed_kn, nsmall = 1)),
+             size = rel(2.5)) +
+      geom_text_repel(data = dplyr::filter(dat, trawl == "83-112"),
+             mapping = aes(x = spread_u_wing_m,
+                           y = opening_headline_m,
+                           color = format(towing_speed_kn, nsmall = 1),
+                           label = trial)) +
+  scale_x_continuous(name = "Upper wing tip spread (m)") +
+  scale_y_continuous(name = "Headline height (m)") +
+  scale_color_manual(name = "Tow speed (kn)", values = colors_speed) +
+  theme_bw()
+
+print(p0)
+```
+
+The relationship between headline height and upper wing tip spread for the 83-112 model trawl was similar to field observations from Marport height and spread sensors.
+
+## Bridle comparison
+
+RACE will consider replacing the standard bridle design that has been used on AFSC bottom trawl surveys with a split bridle design featuring separate ground gear and net-bridle connection segments that are connected by a half-bobbin and delta plate. The performance of these bridle designs were tested by comparing the performance of 83-112 and PNE nets with standard rigging to performance using a split-bridle design.
+
+[Analysis pending]
+
+## Tow speed
+
+### Height:spread ratios
+
+We compared changes in the ratio between upper wing tip spread and headline height across a range of spreads typically observed on GOA/AI surveys (14, 16, 17 m) and five towing speeds (2-4 knots).
+
+Results for the PNE only include the standard bridle configuration used on GOA and AI bottom trawl surveys. Several footrope, bridle, and headline weights and flotation combinations were tested on the RACE trawl during flume tank experiments, but this analysis only shows results for the final GOA/AI configuration of the RACE trawl (GOA/AI_v6). 
+
+Shallower slopes indicate the geometry of the trawl is less responsive to changes in towing speeds. 
+
+```{r race_v_pne, include = TRUE, warning=FALSE, fig.cap="Figure 3. Ratio between upper wing tip spread and headline height for the Poly nor'eastern and RACE Trawl with GOA/AI_v6 footrope. Circles denote observations, solid lines and shading respectively show linear regression model fits and 95% confidence intervals."}
+p1 <- ggplot(data = dplyr::filter(dat, spread_treatment %in% pne_spreads,
+                            trawl %in% c("PNE", "RACE"),
+                            footrope %in% c("PNE", "GOA/AI_v6")),
+       mapping = aes(x = towing_speed_kn,
+                     y = spread_u_wing_m/opening_headline_m,
+                     color = trawl,
+                     label = trial)) +
+  geom_smooth(method = 'lm') +
+  geom_point() + 
+  geom_text_repel() +
+  facet_wrap(~paste0(spread_treatment, " m")) +
+  scale_x_continuous(name = "Towing speed (kn)") +
+  scale_y_continuous(name = "Upper Wing Spread:Headline Height") +
+  scale_color_manual(values = colors_trawl) +
+  theme_bw() +
+  theme(legend.title = element_blank())
+
+print(p1)
+```
+
+At 14.5 m, the Upper Wing Spread:Headline Height ratio for the PNE and RACE trawl showed similar responses to changes in towing speed, as shown by the slope. However, the shallower slope of the RACE trawl at 16 m and 17.5 m upper wing tip spread suggests the geometry of the RACE+GOA/AI_v6 was less responsive to changes in towing speed than the PNE across a broader range of expected spread conditions.
+
+We also compared the Upper Wing Spread:Headline Height ratio between the 83-112 and RACE trawl with EBS footrope under spreads that are typical for the EBS shelf survey (12.5, 17.5, 20.0 m). The EBS shelf survey uses a 'Marport to NetMind' conversion (Lauth and Kotwicki, 2014) to convert spreads that are estimated using Marport sensors to the equivalent that would be observed using the NetMind sensors prior to 2013. Based on the conversion, spreads of 12.5, 17.5, and 20.0 m correspond with Marport sensor spreads of 12.9, 18.3, and 20.9 m, respectively. The GOA/AI surveys do not use such a conversion.
+
+Data for the 83-112 only include trials with the standard bridle configuration used on the EBS shelf bottom trawl surveys. Data for the RACE trawl only include trials with bridle #2 and the EBS_v2 footrope.
+
+```{r race_vs_83112, include = TRUE, warning=FALSE, fig.cap="Figure 4. Ratio between upper wing tip spread and headline height for the 83-112 and RACE Trawl with GOA/AI_v6 footrope. Circles denote observations, solid lines and shading respectively show linear regression model fits and 95% confidence intervals."}
+p2 <- 
+  ggplot(data = dplyr::filter(dat, spread_treatment %in% ebs_spreads,
+                            trawl %in% c("83-112", "RACE"),
+                            footrope %in% c("83-112", "EBS_v2")),
+       mapping = aes(x = towing_speed_kn,
+                     y = spread_u_wing_m/opening_headline_m,
+                     color = trawl,
+                     label = trial)) +
+  geom_smooth(method = 'lm') +
+    geom_point() + 
+    geom_text_repel() +
+  facet_wrap(~paste0(spread_treatment, " m")) +
+  scale_x_continuous(name = "Towing speed (kn)") +
+  scale_y_continuous(name = "Upper Wing Spread:Headline Height") +
+  scale_color_manual(values = colors_trawl) +
+  theme_bw() +
+  theme(legend.title = element_blank())
+
+print(p2)
+```
+
+The 83-112 is a low-rise net and, therefore, has a higher Upper Wing Spread:Headline Height ratio than the 83-112. Results show that changes in speed resulted in similar rates of change in geometry in the Upper Wing Spread:Headline Height ratio for the 83-112 and RACE trawl at 12.5 m and 20 m spreads. At 17.5 m spread, the Upper Wing Spread:Headline Height ratio of the 83-112 changed more rapidly than the RACE trawl.
+
+## Bridle angle of attack
+
+[Placeholder: This is a critical analysis but we're waiting on potential corrections to the data provided by the flume tank.]
+
+## Upper versus lower wing tip spread
+
+The Groundfish Assessment Program calculates effort for survey hauls based on area swept estimates that rely on upper wing tip spread measurements collected using acoustic spread sensors. These spread sensors are attached to the upper bridle, just ahead of the upper wing tip of the net. In flume tank experiments, upper wing tip spread was higher than lower wing tip spread and footrope spread for all of the gears tested.
+
+```{r wing_spread, include = TRUE, warning=FALSE, fig.cap="Figure 5. Upper wing tip spread (m) versus lower wing tip spread (m) for the 83-112, Poly Nor'eastern, RACE Trawl with EBS_v2 footrope and RACE trawl with GOA/AI_v6 footrope. Circle color denotes towing speed, solid black line denotes linear regression model fitted mean and ribbon shading denotes 95% confidence interval. Dashed line shows the 1:1 line between upper and lower spread."}
+lm_wing_83112 <- 
+  lm(
+    spread_l_wing_m ~ spread_u_wing_m, 
+    data = dplyr::filter(dat, trawl == "83-112")
+  )
+
+lm_wing_pne <- 
+  lm(
+    spread_l_wing_m ~ spread_u_wing_m, 
+    data = dplyr::filter(dat, trawl == "PNE")
+  )
+
+lm_wing_race_ebs <- 
+  lm(
+    spread_l_wing_m ~ spread_u_wing_m, 
+    data = dplyr::filter(dat, trawl == "RACE", footrope == "EBS_v2")
+  )
+
+lm_wing_race_goaai <- 
+  lm(
+    spread_l_wing_m ~ spread_u_wing_m, 
+    data = dplyr::filter(dat, trawl == "RACE", footrope == "GOA/AI_v6")
+  )
+
+lm_wing_coef <- data.frame(slope = c(lm_wing_83112$coefficients[[2]],
+                              lm_wing_pne$coefficient[[2]],
+                              lm_wing_race_ebs$coefficient[[2]],
+                              lm_wing_race_goaai$coefficient[[2]]),
+                    intercept = 
+                      c(lm_wing_83112$coefficients[[1]],
+                        lm_wing_pne$coefficient[[1]],
+                        lm_wing_race_ebs$coefficient[[1]],
+                        lm_wing_race_goaai$coefficient[[1]]),
+                    trawl = c("83-112", "PNE", "RACE", "RACE"),
+                    footrope = c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"))
+
+p_wing_spread <- ggplot() +
+  geom_smooth(data = dat,
+             mapping = aes(x = spread_u_wing_m,  
+                           y = spread_l_wing_m),
+             method = 'lm',
+             color = "black") +
+  geom_point(data = dat,
+             mapping = aes(x = spread_u_wing_m,  
+                           y = spread_l_wing_m,
+                           color = format(towing_speed_kn, nsmall = 1)),
+             size = rel(2.5)) +
+  geom_text(data = lm_wing_coef,
+            mapping = 
+              aes(x = 15.5, 
+                  y = 23.5, 
+                  label = paste0("y=", format(intercept, nsmall = 1, digits = 3), " + ", format(slope, nsmall = 1,digits = 3), "x"))) +
+  geom_abline(intercept = 0, slope = 1, linetype = 2) +
+  scale_color_manual(name = "Towing speed (kn)", values = colors_speed) +
+  scale_x_continuous(name = "Upper wing spread (m)") +
+  scale_y_continuous(name = "Lower wing spread (m)") +
+  facet_wrap(~paste0(trawl, " (", footrope, ")")) +
+  theme_bw()
+  
+  print(p_wing_spread)
+```
+
+If flume tank observations reflect trawl geometry in the field, lower wing tip spread would be 3.8-16.8% wider than upper wing tip spread based on the flume tank regression for the 83-112.
+
+```{r lower_wing_hist_83112, include = TRUE, warning=FALSE, fig.cap="Figure 6. Estimated percent difference between lower wing tip spread and upper wing tip spread based on the flume tank regression for the 83-112, by year. Positive values indicate the estimated lower wing tip spread is wider than the upper wing tip spread."}
+
+haul_df <- ebs_dat$haul |>
+  dplyr::mutate(YEAR = floor(CRUISE/100))
+
+haul_df$NET_WIDTH_LWR_EST <- 
+  predict(
+    lm_wing_83112,
+    newdata = data.frame(spread_u_wing_m = haul_df$NET_WIDTH)
+    )
+
+haul_df$PCT_DIFF <- (haul_df$NET_WIDTH_LWR_EST - haul_df$NET_WIDTH)/haul_df$NET_WIDTH * 100
+
+haul_sf <- haul_df |>
+  sf::st_as_sf(
+    coords = c("START_LONGITUDE", "START_LATITUDE"), 
+    crs = "WGS84")
+
+station_diff <- haul_df |>
+  dplyr::group_by(STATIONID) |>
+  dplyr::summarise(MEDIAN_DIFF = median(PCT_DIFF))
+
+station_diff <- sebs_layers$survey.grid |>
+  dplyr::inner_join(station_diff |> 
+                      dplyr::select(STATION = STATIONID, MEDIAN_DIFF),
+                    by = "STATION")
+
+p_spread_diff_hist <- ggplot() +
+  geom_histogram(data = haul_df,
+                 mapping = aes(x = PCT_DIFF)) +
+  geom_text(data = 
+              data.frame(
+                x = -5, 
+                y = 180,
+                YEAR = c(1982:2019, 2021:2024)
+              ),
+            mapping = aes(x = x, y = y, label = YEAR)) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_x_continuous(name = "Difference (%)") +
+  scale_y_continuous(name = "Hauls (#)") +
+  theme_bw() +
+  facet_wrap(~YEAR) +
+  theme(strip.background = element_blank(),
+        strip.text = element_blank())
+
+print(p_spread_diff_hist)
+```
+
+```{r, include = TRUE, warning=FALSE, fig.cap="Figure 7. Estimated median percent difference between lower wing tip spread and upper wing tip spread, by EBS survey grid cell, based on the regression between upper and lower wing tip spread from flume tank experiments."}
+p_spread_diff_map <- ggplot() +
+  geom_sf(data = sebs_layers$survey.area,
+          fill = NA, 
+          color = "black") +
+  geom_sf(data = station_diff,
+          mapping = aes(fill = MEDIAN_DIFF)) +
+  geom_sf(data = sebs_layers$akland) +
+  scale_fill_viridis_c(name = "Spread diff. (%)") +
+  scale_x_continuous(limits = sebs_layers$plot.boundary$x,
+                     breaks = sebs_layers$lon.breaks) +
+  scale_y_continuous(limits = sebs_layers$plot.boundary$y,
+                     breaks = sebs_layers$lat.breaks) +
+  theme_bw()
+
+print(p_spread_diff_map)
+```
+
+Spatial variation in upper wing tip spread across the EBS shelf survey area suggests the difference between upper and lower wing tip spread would vary spatially in the EBS, with the lowest differences in shallower areas that typically have narrower spreads and larger differences in deeper areas that typically have wider spreads.
+
+
+## Mouth area
+
+```{r mouth_area, include = TRUE, warning=FALSE, fig.cap="Figure 8. Mouth area (m2) for the 83-112, Poly Nor'eastern, RACE Trawl with EBS_v2 footrope and RACE trawl with GOA/AI_v6 footrope."}
+tension_dat <- trawlmetrics::flume_tank |> 
+  dplyr::filter(footrope %in% c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"), 
+                catch == "empty",
+                pulling_point_elevation_mm <= 200,
+                additional_floatation_kg == 0, 
+                !(bridles == "2-weighted" & trawl == "PNE"),
+                trial > 0,
+                !benthic_bag)
+
+lm_mouth_area_83112 <- lm(mouth_area_m2 ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "83-112"))
+lm_mouth_area_pne <- lm(mouth_area_m2 ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "PNE"))
+lm_mouth_area_race_ebs <- lm(mouth_area_m2 ~ towing_speed_kn, 
+                        data = dplyr::filter(tension_dat, trawl == "RACE", footrope == "EBS_v2"))
+lm_mouth_area_race_goaai <- lm(mouth_area_m2 ~ towing_speed_kn, 
+                          data = dplyr::filter(tension_dat, trawl == "RACE", footrope == "GOA/AI_v6"))
+
+lm_mouth_area_coef <- data.frame(slope = c(lm_mouth_area_83112$coefficients[[2]],
+                                      lm_mouth_area_pne$coefficient[[2]],
+                                      lm_mouth_area_race_ebs$coefficient[[2]],
+                                      lm_mouth_area_race_goaai$coefficient[[2]]),
+                            intercept = 
+                              c(lm_mouth_area_83112$coefficients[[1]],
+                                lm_mouth_area_pne$coefficient[[1]],
+                                lm_mouth_area_race_ebs$coefficient[[1]],
+                                lm_mouth_area_race_goaai$coefficient[[1]]),
+                            trawl = c("83-112", "PNE", "RACE", "RACE"),
+                            footrope = c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"))
+p_spd_mouth_area <- 
+  ggplot() +
+  geom_smooth(data = dat,
+              mapping = aes(x = towing_speed_kn,
+                            y = mouth_area_m2, 
+                            color = format(spread_treatment, nsmall = 1)),
+              method = 'lm') +
+  geom_point(data = dat,
+             mapping = aes(x = towing_speed_kn,
+                           y = mouth_area_m2,
+                           color = format(spread_treatment, nsmall = 1)),
+             size = rel(2.5)) +
+  scale_x_continuous(name = "Towing speed (kn)") +
+  scale_y_continuous(name = expression('Mouth area ('*m^2*')')) +
+  scale_color_manual(name = "Spread", values = color_spread_all) +
+  scale_shape(name = "Bridles", solid = FALSE) +
+  facet_wrap(~paste0(trawl, " (", footrope, ")")) +
+  theme_bw()
+
+print(p_spd_mouth_area)
+```
+The 83-112, RACE with EBS_v2 footrope, and RACE trawl with GOA/AI_v6 footrope showed similar rates of changes in mouth area across changes in towing speed, based on the slopes regressions between towing speed and mouth area. The rate of change in PNE mouth area with towing speed differed among spread treatments.
+
+## Effect of catch
+
+### Catch: Field observations
+
+The capture efficiency of a trawl can change as catch accumulates because the catch affects drag, trawl geometry, and water flow through the net. An ideal survey trawl would have minimal variation in geometry, drag, and water flow to minimize variation in capture efficiency. Field observations suggest that the weight of survey catches produces small changes in geometry, based on the relationship between catch weight and net height/upper wing tip spread.
+
+```{r catch_vs_spread_field, include = TRUE, warning=FALSE, fig.cap="Figure 9. Observed total catch weight (kg) versus observed upper wing tip spread (m) in meters, by survey. Points denote observations for individual hauls, solid line and shading denote generalized additve model (GAM) fit and 95% confidence intervals between log10-transformed catch weight and measured spread. Text in the upper left corner shows the deviance explained (%) by each GAM."}
+goa_spread_gam <- mgcv::gam(
+  formula = NET_WIDTH_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "GOA"),
+  family = gaussian()
+)
+
+goa_height_gam <- mgcv::gam(
+  formula = NET_HEIGHT_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "GOA"),
+  family = gaussian()
+)
+
+ai_spread_gam <- mgcv::gam(
+  formula = NET_WIDTH_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "AI"),
+  family = gaussian()
+)
+
+ai_height_gam <- mgcv::gam(
+  formula = NET_HEIGHT_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "AI"),
+  family = gaussian()
+)
+
+ebs_spread_gam <- mgcv::gam(
+  formula = NET_WIDTH_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "EBS"),
+  family = gaussian()
+)
+
+
+ebs_height_gam <- mgcv::gam(
+  formula = NET_HEIGHT_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "EBS"),
+  family = gaussian()
+)
+
+nbs_spread_gam <- mgcv::gam(
+  formula = NET_WIDTH_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "NBS"),
+  family = gaussian()
+)
+
+nbs_height_gam <- mgcv::gam(
+  formula = NET_HEIGHT_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "NBS"),
+  family = gaussian()
+)
+
+extract_dev_expl <- function(x) {
+  x_summary <- summary(x)
+  return(round(x_summary$dev.expl*100, 2))
+}
+
+height_spread_dev_df <- 
+  data.frame(
+    SURVEY_ABBV = c("EBS", "NBS", "GOA", "AI"),
+    DEV_EXPL_HEIGHT = 
+      c(
+        extract_dev_expl(ebs_height_gam),
+        extract_dev_expl(nbs_height_gam),
+        extract_dev_expl(goa_height_gam),
+        extract_dev_expl(ai_height_gam)
+      ),
+    DEV_EXPL_SPREAD = 
+      c(
+        extract_dev_expl(ebs_spread_gam),
+        extract_dev_expl(nbs_spread_gam),
+        extract_dev_expl(goa_spread_gam),
+        extract_dev_expl(ai_spread_gam)
+      )
+  )
+
+p_spread_gam <- suppressMessages(
+  ggplot(data = dplyr::filter(bts_geom, 
+                              NET_MEASURED == 1,
+                              SURVEY_ABBV %in% height_spread_dev_df$SURVEY_ABBV),
+                       mapping = aes(x = TOTAL_WEIGHT_KG,
+                                     y = NET_WIDTH_M)) +
+  geom_point(size = rel(0.1),
+             color = "grey70") +
+  geom_text(data = height_spread_dev_df,
+            mapping = aes(x = 3, y = 23,
+                          label = paste0("D.E.: ", DEV_EXPL_SPREAD, "%")),
+            hjust = 0) +
+  geom_smooth(formula = y ~ s(x, bs = "tp"),
+              method = 'gam') +
+  scale_x_log10(name = "Total Catch (kg)", labels = label_scientific()) +
+  scale_y_continuous(name = "Upper wing spread (m)") +
+  facet_wrap(~factor(SURVEY_ABBV, levels = survey_abbv$SURVEY_ABBV)) +
+  theme_bw()
+)
+
+p_height_gam <- suppressMessages(
+  ggplot(data = dplyr::filter(bts_geom, 
+                              NET_MEASURED == 1,
+                              SURVEY_ABBV %in% height_spread_dev_df$SURVEY_ABBV),
+                       mapping = aes(x = TOTAL_WEIGHT_KG,
+                                     y = NET_HEIGHT_M)) +
+  geom_point(size = rel(0.1),
+             color = "grey70") +
+  geom_text(data = height_spread_dev_df,
+            mapping = aes(x = 3, y = 10.5,
+                          label = paste0("D.E.: ", DEV_EXPL_HEIGHT, "%")),
+            hjust = 0) +
+  geom_smooth(formula = y ~ s(x, bs = "tp"),
+              method = 'gam') +
+  scale_x_log10(name = "Total Catch (kg)", labels = label_scientific()) +
+  scale_y_continuous(name = "Headline height (m)") +
+  facet_wrap(~factor(SURVEY_ABBV, levels = survey_abbv$SURVEY_ABBV)) +
+  theme_bw()
+)
+
+
+
+print(p_spread_gam)
+```
+
+```{r catch_vs_height_field, include = TRUE, warning=FALSE, fig.cap="Figure 10. Observed total catch weight (kg) versus observed headline opening height (m) in meters, by survey. Points denote observations for individual hauls, solid line and shading denote generalized additve model (GAM) fit and 95% confidence intervals between log10-transformed catch weight and measured height. Text in the upper left corner shows the deviance explained (%) by each GAM."}
+print(p_height_gam)
+```
+
+Gaussian generalized additive models fit between catch weight and height/spread indicate that catch weight explains 1.01-8.55% of the deviance in upper wing tip spread and 0.62-6.55% of the deviance in height, depending on the survey and gear, before accounting for potential confounding factors that may be correlated with total catch weight and may also affect height and spread (e.g. scope to depth ratio). Overall, the effects of catch on height and spread are relatively small compared to the range of variation in height and spread observed during each survey.
+
+### Catch: Flume tank observations
+
+We conducted catch experiments at four treatment levels under a towing speed of 3 knots to evaluate whether increasing catches affected trawl geometry. Although it was not feasible to accurately simulate 'true' catch volume, weight, or density observed in the field. Experimental trials were conducted by fixing the mast spread in the flume tank equal to the average spread treatment, corresponding with 17.5 m for the 83-112 and 16 m for the PNE and RACE trawl, then successively stuffing balled-up web material into the cod-end to simulate catch. Nets were removed from the tank between treatments so that catch boluses could be added to the cod-end.
+
+Trials with the 83-112 were conducted using both the standard bridle and bridle #2. Trials with the PNE were only conducted with the standard bridle. Trials with the RACE trawl were conducted with bridle #2 and both EBS_v2 and GOA/AI_v6 footropes.
+
+```{r catch_vs_spread, include = TRUE, warning=FALSE, fig.cap="Figure 11. Flume tank catch treatments versus upper and lower wingtip spread for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triagles) denote the bridle configuration and colors denote the measurement (upper or lower wing)."}
+catch_trials <- trawlmetrics::flume_tank |> 
+  dplyr::filter(trial %in% c(3, 11:13, 18, 25:27, 37, 47:49, 165, 176:178, 141, 152:154))
+
+
+p0 <- catch_trials |>
+  dplyr::select(trial, catch, spread_u_wing_m, spread_l_wing_m, bridles, trawl, footrope) |>
+  dplyr::mutate(catch = dplyr::if_else(catch == "empty", "0", catch)) |>
+  tidyr::pivot_longer(cols = c("spread_u_wing_m", "spread_l_wing_m")) |>
+  dplyr::inner_join(data.frame(dim_name = c("U. wing", "L. wing"),
+                               name = c("spread_u_wing_m", "spread_l_wing_m"))) |>
+  ggplot(mapping = aes(x = factor(catch, 
+                                  levels = c(0, 1, 2, 3)), 
+                       y = value,
+                       shape = bridles,
+                       color = dim_name)) +
+  geom_point() +
+  scale_x_discrete(name = "Catch treatment") +
+  scale_y_continuous(name = "Spread (m)") +
+  scale_color_manual(name = "Position", values = c("L. wing" = "#4E79A7", "U. wing" = "#E15759")) +
+  scale_shape(name = "Bridles") +
+  facet_wrap(~paste0(trawl, " (", footrope, ")"), nrow = 2, scales = "free_y") +
+  theme_bw()
+
+print(p0)
+```
+
+```{r catch_vs_height, include = TRUE, warning=FALSE, fig.cap="Figure 12. Flume tank catch treatments versus headline opening height for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triagles) denote the bridle configuration."}
+p1 <- catch_trials |>
+  dplyr::select(trial, catch, opening_headline_m, bridles, trawl, footrope) |>
+  dplyr::mutate(catch = dplyr::if_else(catch == "empty", "0", catch)) |>
+  ggplot(mapping = aes(x = factor(catch, 
+                                  levels = c(0, 1, 2, 3)), 
+                       y = opening_headline_m,
+                       shape = bridles)) +
+  geom_point() +
+  scale_x_discrete(name = "Catch treatment") +
+  scale_y_continuous(name = "Height (m)") +
+  scale_color_manual(name = "Position", values = colors_wing) +
+  scale_shape(name = "Bridles") +
+  facet_wrap(~paste0(trawl, " (", footrope, ")"), nrow = 2, scales = "free_y") +
+  theme_bw()
+
+print(p1)
+```
+
+Similar to field observations, the upper wing tip spread and headline height of the flume tank models were relatively insensitive to changes in catch. However, within the treatment range at the flume tank, observed effects were not monotonic and presumably may have been caused by slight variations in the position and orientation of the simulated catch slugs in the trawl (e.g. height for RACE EBS_V2).
+
+## Effects of benthic bag and sensors on height and spread
+
+GAP bottom trawl surveys collect oceanographic information and measure trawl dimensions using a suite of sensors that includes spread and height sensors, a CTD, a temperature-depth recorder, bio-logging archival tag, and bottom contact sensor (three-axis accelerometer). In addition, the Gulf of Alaska and Aleutian Islands bottom trawl surveys deploy a small accessory net (i.e., 'benthic bag') between bobbins along the footrope of the Poly Nor'eastern to obtain qualitative presence-only samples of benthic fauna that are not available to the main trawl. We conducted flume tank trials using scaled models of the sensors and benthic bag affixed to the RACE Trawl with GOA/AI_v6 footrope to evaluate whether they affected trawl geometry. Trials were conducted by deploying the net with trawl masts spread at the same width as trials conducted at a spread of 16 m and 3 knots, then adding the benthic bag and sensors (CTD and spread sensors) in successive trials without changing the mast spread.
+
+The benthic bag and sensor models used for these trials represent approximations of potential effects because it was not feasible to produce physically scaled models that exactly replicated the size, weight, and density of real survey equipment.
+
+```{r bb_ctd_spread, include = TRUE, warning=FALSE, fig.cap = "Figure 13. Upper wing tip and lower wing tip spread (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spd) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
+bb_ctd_dat <- trawlmetrics::flume_tank |> 
+  dplyr::filter(trial %in% c(141, 144, 145))
+
+bb_ctd_dat$bb_ctd <- c("None", "BB", "BB/CTD/Spd")
+bb_ctd_dat$bb_ctd <- factor(bb_ctd_dat$bb_ctd, levels = c("None", "BB", "BB/CTD/Spd"))
+
+p_bb_spread <- bb_ctd_dat |>
+  dplyr::select(trial, bb_ctd, spread_u_wing_m, spread_l_wing_m) |>
+  tidyr::pivot_longer(
+    cols = c("spread_u_wing_m", "spread_l_wing_m")) |>
+  dplyr::mutate(
+    name = dplyr::if_else(name == "spread_u_wing_m", "U. wing", "L. wing")
+  ) |>
+  ggplot(mapping = 
+           aes(x = bb_ctd, 
+               y = value, 
+               label = trial)
+         ) +
+  geom_point() +
+  scale_y_continuous(name = "Wing spread (m)") +
+  theme_bw() +
+  theme(axis.title.x = element_blank()) +
+  facet_wrap(~name, scales = "free_y")
+
+print(p_bb_spread)
+```
+
+```{r bb_ctd_height, include = TRUE, warning=FALSE, fig.cap = "Figure 14. Headline height (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spd) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
+p_bb_height <- ggplot(data = bb_ctd_dat,
+       mapping = 
+         aes(x = bb_ctd, 
+             y = opening_headline_m, 
+             label = trial)
+       ) +
+  geom_point() +
+  geom_text_repel() +
+  scale_y_continuous(name = "Headline height (m)") +
+  theme_bw() +
+  theme(axis.title.x = element_blank())
+
+print(p_bb_height)
+```
+
+Sensor and benthic bag treatments were associated with 8-16 cm of variation in the headline height, upper wing tip spread, and lower wing tip spread. This level of variation is low compared to the overall variation in trawl geometry across towing conditions evaluated in flume tank trials and is near the minimum detectable change in height and spread for the 1:8 scale model used in the flume tank. Flume tank results are consistent with field experiments that concluded attaching a Sea-Bird SBE19plus V2 to the top panel of the Poly Nor'eastern behind the headline does not affect the headline height while fishing (Rohan et al., 2023).
+
+## Trawl drag and bridle tension
+
+Concurrent with trawl design changes, RACE bottom trawl will transition to a new trawl door design to ensure a more consistent trawl geometry across survey conditions and reduce equipment costs through the use of replaceable door shoes, i.e., bolt-on plates that attach to the portion of the door that comes into contact with the seafloor. To inform the selection of new trawl doors, bridle tension measurements were collected during flume tank trials to estimate the drag of the trawl under a range of trawl speeds. Measurements were collected from trials conducted with the Poly Nor'eastern and RACE trawl, but not the 83-112 because of sensor malfunctions.
+
+```{r bridle_tension, include = TRUE, warning=FALSE, fig.cap = "Figure 15. Towing speed (knots) versus bridle tension (metric tons) for the 83-112, Poly nor'eastern, RACE trawl with EBS_v2 footrope, and RACE trawl with GOA/AI_v6 footrope. Color denotes the wing tip spread treatment and symbols indicate the bridle used."}
+lm_tension_83112 <- lm(bridle_tension_total_t ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "83-112"))
+lm_tension_pne <- lm(bridle_tension_total_t ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "PNE"))
+lm_tension_race_ebs <- lm(bridle_tension_total_t ~ towing_speed_kn, 
+                         data = dplyr::filter(tension_dat, trawl == "RACE", footrope == "EBS_v2"))
+lm_tension_race_goaai <- lm(bridle_tension_total_t ~ towing_speed_kn, 
+                          data = dplyr::filter(tension_dat, trawl == "RACE", footrope == "GOA/AI_v6"))
+
+lm_tension_coef <- data.frame(slope = c(lm_tension_83112$coefficients[[2]],
+                                     lm_tension_pne$coefficient[[2]],
+                                     lm_tension_race_ebs$coefficient[[2]],
+                                     lm_tension_race_goaai$coefficient[[2]]),
+                           intercept = 
+                             c(lm_tension_83112$coefficients[[1]],
+                               lm_tension_pne$coefficient[[1]],
+                               lm_tension_race_ebs$coefficient[[1]],
+                               lm_tension_race_goaai$coefficient[[1]]),
+                           trawl = c("83-112", "PNE", "RACE", "RACE"),
+                           footrope = c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"))
+p_spd_tension <- 
+  ggplot() +
+  geom_smooth(data = tension_dat,
+              mapping = aes(x = towing_speed_kn,
+                            y = bridle_tension_total_t),
+              method = 'lm',
+              color = "black") +
+  geom_point(data = tension_dat,
+             mapping = aes(x = towing_speed_kn,
+                           y = bridle_tension_total_t,
+                           color = format(spread_treatment, nsmall = 1),
+                           shape = bridles),
+             size = rel(2.5)) +
+  geom_text(data = lm_tension_coef,
+            mapping =
+              aes(x = 3,
+                  y = 8.25,
+                  label = paste0("y=", format(intercept, nsmall = 1, digits = 3), " + ", format(slope, nsmall = 1,digits = 3), "x"))) +
+  scale_x_continuous(name = "Towing speed (kn)") +
+  scale_y_continuous(name = "Total bridle tension (t)") +
+  scale_color_manual(name = "Spread", values = color_spread_all) +
+  scale_shape(name = "Bridles", solid = FALSE) +
+  facet_wrap(~paste0(trawl, " (", footrope, ")")) +
+  theme_bw()
+
+print(p_spd_tension)
+```
+
+
+```{r trawl_drag, include = TRUE, warning=FALSE, fig.cap = "Figure 16. Towing speed (knots) versus mouth drag (kilogram-force/m2) for the 83-112, Poly nor'eastern, RACE trawl with EBS_v2 footrope, and RACE trawl with GOA/AI_v6 footrope. Color denotes the wing tip spread treatment and symbols indicate the bridle (standard or bridle #2)."}
+lm_force_83112 <- lm(mouth_drag_kgf_m2 ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "83-112"))
+lm_force_pne <- lm(mouth_drag_kgf_m2 ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "PNE"))
+lm_force_race_ebs <- lm(mouth_drag_kgf_m2 ~ towing_speed_kn, 
+                          data = dplyr::filter(tension_dat, trawl == "RACE", footrope == "EBS_v2"))
+lm_force_race_goaai <- lm(mouth_drag_kgf_m2 ~ towing_speed_kn, 
+                            data = dplyr::filter(tension_dat, trawl == "RACE", footrope == "GOA/AI_v6"))
+
+lm_force_coef <- data.frame(slope = c(lm_force_83112$coefficients[[2]],
+                                        lm_force_pne$coefficient[[2]],
+                                        lm_force_race_ebs$coefficient[[2]],
+                                        lm_force_race_goaai$coefficient[[2]]),
+                              intercept = 
+                                c(lm_force_83112$coefficients[[1]],
+                                  lm_force_pne$coefficient[[1]],
+                                  lm_force_race_ebs$coefficient[[1]],
+                                  lm_force_race_goaai$coefficient[[1]]),
+                              trawl = c("83-112", "PNE", "RACE", "RACE"),
+                              footrope = c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"))
+p_spd_force <- 
+  ggplot() +
+  geom_smooth(data = dat,
+              mapping = aes(x = towing_speed_kn,
+                            y = mouth_drag_kgf_m2),
+              method = 'lm',
+              color = "black") +
+  geom_point(data = dat,
+             mapping = aes(x = towing_speed_kn,
+                           y = mouth_drag_kgf_m2,
+                           color = format(spread_treatment, nsmall = 1),
+                           shape = bridles),
+             size = rel(2.5)) +
+  geom_text(data = lm_force_coef,
+            mapping =
+              aes(x = 3,
+                  y = 150,
+                  label = paste0("y=", format(intercept, nsmall = 1, digits = 3), " + ", format(slope, nsmall = 1,digits = 3), "x"))) +
+  scale_x_continuous(name = "Towing speed (kn)") +
+  scale_y_continuous(name = expression('Mouth drag (kgf'%.%m^-2*')')) +
+  scale_color_manual(name = "Spread", values = color_spread_all) +
+  scale_shape(name = "Bridles", solid = FALSE) +
+  facet_wrap(~paste0(trawl, " (", footrope, ")")) +
+  theme_bw()
+
+print(p_spd_force)
+```
+
+## Short-scoping
+
+RACE bottom trawl surveys use a standard scope table to determine how much wire to pay out at a given depth to ensure the trawl reaches and remains on bottom during standardized survey hauls. The amount of wire required to reach bottom and sink time can vary depending on current speeds.
+
+[Analysis pending]

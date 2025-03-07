@@ -1,5 +1,5 @@
 # Retrieve spread and height data from GAP_PRODUCTS tables
-# Save data and summmaries to xlsx files
+# Save data and summaries to xlsx files
 
 library(trawlmetrics) # devtools::install_github("afsc-gap-products/trawlmetrics")
 library(dplyr)

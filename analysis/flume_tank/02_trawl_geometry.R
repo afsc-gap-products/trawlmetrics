@@ -25,7 +25,7 @@ flume_data <- xlsx::read.xlsx(file = path_flume_xlsx,
   dplyr::filter(!is.na(bridles), 
                 pulling_point_elevation_mm < 300,
                 additional_floatation_kg == 0, 
-                treatment > 0,
+                trial > 0,
                 bridles != "2-weighted") |>
   dplyr::inner_join(gear_table) |>
   dplyr::mutate(type = "Flume tank",

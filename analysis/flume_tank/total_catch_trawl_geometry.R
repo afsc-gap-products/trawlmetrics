@@ -82,6 +82,19 @@ write.csv(catch_quantiles,
           row.names = FALSE)
 
 # Plot trawl geometry by catch weight ----
+
+test_gam <- mgcv::gam(
+  formula = NET_WIDTH_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
+  data = dplyr::filter(bts_geom, 
+                       NET_MEASURED == 1,
+                       SURVEY_ABBV == "GOA"),
+  family = gaussian()
+  )
+
+summary(test_gam)
+
+plot(test_gam)
+
 p_spread_gam <- ggplot(data = dplyr::filter(total_catch, NET_MEASURED == 1),
                        mapping = aes(x = TOTAL_WEIGHT_KG,
                                      y = NET_WIDTH_M)) +
