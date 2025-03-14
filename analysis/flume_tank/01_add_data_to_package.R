@@ -6,9 +6,6 @@ library(trawlmetrics)
 library(xlsx)
 library(ggthemes)
 
-# Historical geometry data from hauls where trawl geometry was measured
-bts_geom <-  readRDS(file = here::here("analysis", "flume_tank", "data", "HEIGHT_SPREAD_EBS_NBS_GOA_AI.rds"))
-
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
 survey_abbv <- data.frame(SURVEY_ABBV = c("AI", "GOA", "EBS", "NBS", "BSS"),
@@ -49,31 +46,17 @@ gp_catch <- RODBC::sqlQuery(
   dplyr::inner_join(survey_abbv, by = 'SURVEY_DEFINITION_ID')
 
 total_catch <- gp_catch |>
-  dplyr::group_by(HAULJOIN, 
-                  VESSEL_ID, 
-                  SURVEY_DEFINITION_ID, 
-                  SURVEY_NAME,
-                  SURVEY_ABBV,
-                  HAUL, 
-                  CRUISE,
-                  DEPTH_GEAR_M, 
-                  DEPTH_M, 
-                  NET_MEASURED,
-                  NET_WIDTH_M, 
-                  NET_HEIGHT_M, 
-                  DISTANCE_FISHED_KM, 
-                  DURATION_HR, 
-                  WIRE_LENGTH_M, 
-                  GEAR,
-                  ACCESSORIES) |>
-  dplyr::summarise(TOTAL_WEIGHT_KG = sum(WEIGHT_KG),
-                   .groups = 'keep')
+  dplyr::group_by(HAULJOIN) |>
+  dplyr::summarise(TOTAL_WEIGHT_KG = sum(WEIGHT_KG, na.rm = TRUE),
+                   .groups = 'keep') |>
+  dplyr::ungroup()
 
-bts_geom <- 
-  total_catch |>
-  dplyr::ungroup() |>
-  dplyr::select(VESSEL_ID, CRUISE, HAUL, NET_MEASURED, TOTAL_WEIGHT_KG, SURVEY_ABBV) |> 
-  dplyr::inner_join(bts_geom)
+bts_geom <- dplyr::inner_join(gp_catch, total_catch) |>
+  dplyr::mutate(NET_MEASURED = NET_MEASURED == 1)
+
+bts_geom$GEAR_NAME <- "83-112"
+bts_geom$GEAR_NAME[bts_geom$GEAR == 160] <- "PNE" 
+bts_geom$GEAR_NAME[bts_geom$GEAR == 172] <- "PNE"
 
 # Load flume tank data
 flume_tank <- read.xlsx(file = here::here("analysis", "flume_tank", "data", "flume_tank_data.xlsx"), 
