@@ -1,3 +1,9 @@
+trawlmetrics 0.0.8 (March 14, 2025)
+----------------------------------------------------------------
+
+- Add EBS slope to built-in data.
+  
+
 trawlmetrics 0.0.7 (March 7, 2025)
 ----------------------------------------------------------------
 
@@ -25,6 +31,7 @@ NEW FUNCTIONALITY
 
 - Add netmind_to_marport() function to convert Netmind spread to
   Marport spread values.
+
 
 trawlmetrics 0.0.4 (January 10, 2025)
 ----------------------------------------------------------------
