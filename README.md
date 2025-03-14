@@ -1,5 +1,5 @@
   <!-- badges: start -->
-  [![R-CMD-check](https://github.com/sean-rohan-NOAA/trawlmetrics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/sean-rohan-NOAA/trawlmetrics/actions/workflows/R-CMD-check.yaml)
+  [![R-CMD-check](https://github.com/afsc-gap-products/trawlmetrics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/afsc-gap-products/trawlmetrics/actions/workflows/R-CMD-check.yaml)
   <!-- badges: end -->
 
 # trawlmetrics
