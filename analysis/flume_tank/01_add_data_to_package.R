@@ -69,7 +69,8 @@ total_catch <- gp_catch |>
   dplyr::summarise(TOTAL_WEIGHT_KG = sum(WEIGHT_KG),
                    .groups = 'keep')
 
-bts_geom <- total_catch |>
+bts_geom <- 
+  total_catch |>
   dplyr::ungroup() |>
   dplyr::select(VESSEL_ID, CRUISE, HAUL, NET_MEASURED, TOTAL_WEIGHT_KG, SURVEY_ABBV) |> 
   dplyr::inner_join(bts_geom)
