@@ -1,3 +1,7 @@
+  <!-- badges: start -->
+  [![R-CMD-check](https://github.com/sean-rohan-NOAA/trawlmetrics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/sean-rohan-NOAA/trawlmetrics/actions/workflows/R-CMD-check.yaml)
+  <!-- badges: end -->
+
 # trawlmetrics
 
 Tools for processing and analyzing trawl spread, height, and bottom contact sensor data collected during AFSC/RACE Groundfish Assessment Program bottom trawl surveys in Alaska.
