@@ -28,6 +28,10 @@ gp_catch <- RODBC::sqlQuery(
       H.DEPTH_M,
       H.NET_WIDTH_M,
       H.NET_HEIGHT_M,
+      H.LONGITUDE_DD_START AS START_LONGITUDE,
+      H.LATITUDE_DD_START AS START_LATITUDE,
+      H.LONGITUDE_DD_END AS END_LONGITUDE,
+      H.LATITUDE_DD_END AS END_LATITUDE,
       H.DISTANCE_FISHED_KM,
       H.DURATION_HR,
       H.STATION,
@@ -45,21 +49,58 @@ gp_catch <- RODBC::sqlQuery(
 ) |>
   dplyr::inner_join(survey_abbv, by = 'SURVEY_DEFINITION_ID')
 
-total_catch <- gp_catch |>
+total_catch <- 
+  gp_catch |>
   dplyr::group_by(HAULJOIN) |>
   dplyr::summarise(TOTAL_WEIGHT_KG = sum(WEIGHT_KG, na.rm = TRUE),
                    .groups = 'keep') |>
   dplyr::ungroup()
 
-bts_geom <- dplyr::inner_join(gp_catch, total_catch) |>
-  dplyr::mutate(NET_MEASURED = NET_MEASURED == 1)
+bts_geom <- gp_catch |>
+  dplyr::select(-SPECIES_CODE, -WEIGHT_KG) |>
+  unique() |>
+  dplyr::inner_join(total_catch) |>
+  dplyr::mutate(NET_MEASURED = NET_MEASURED == 1) |>
+  dplyr::mutate(YEAR = floor(CRUISE/100))
 
 bts_geom$GEAR_NAME <- "83-112"
 bts_geom$GEAR_NAME[bts_geom$GEAR == 160] <- "PNE" 
 bts_geom$GEAR_NAME[bts_geom$GEAR == 172] <- "PNE"
 
-# Load flume tank data
-flume_tank <- read.xlsx(file = here::here("analysis", "flume_tank", "data", "flume_tank_data.xlsx"), 
-                        sheetName = 'data')
+bts_geom <- 
+  bts_geom |> 
+  dplyr::select(
+    HAULJOIN, 
+    SURVEY_DEFINITION_ID, 
+    SURVEY_ABBV, 
+    YEAR, 
+    CRUISE, 
+    VESSEL_ID, 
+    HAUL, 
+    STATION, 
+    START_LONGITUDE,
+    START_LATITUDE,
+    END_LONGITUDE,
+    END_LATITUDE,
+    GEAR_NAME, 
+    GEAR, 
+    ACCESSORIES, 
+    WIRE_LENGTH_M, 
+    NET_MEASURED, 
+    NET_WIDTH_M, 
+    NET_HEIGHT_M, 
+    DISTANCE_FISHED_KM, 
+    DURATION_HR, 
+    DEPTH_M, 
+    TOTAL_WEIGHT_KG
+  ) |>
+  unique()
 
-save(bts_geom, flume_tank, file = here::here("R", "sysdata.rda"))
+# Load data from flume tank experiments conducted at the Marine Institute (St. John's, Newfoundland) in January 2025
+flume_tank <- read.xlsx(file = here::here("analysis", "flume_tank", "data", "flume_tank_data.xlsx"), 
+                        sheetName = 'data') |>
+  dplyr::select(-date_time_nst)
+
+save(bts_geom, file = here::here("data", "bts_geom.rda"), compress = "xz")
+save(flume_tank, file = here::here("data", "flume_tank.rda"), compress = "xz")
+

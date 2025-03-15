@@ -14,12 +14,12 @@ Perform trawl effort correction and retrieve gear performance measures.
 Authors:
 \itemize{
   \item Caitlin Allen-Akselrud \email{caitlin.allen_akselrud@noaa.gov}
-  \item Shannon Nardi \email{shannon.nardi@noaa.gov}
 }
 
 Other contributors:
 \itemize{
-  \item Liz Dawson \email{liz.dawson@noaa.gov} [contributor]
+  \item Shannon Nardi [contributor]
+  \item Liz Dawson [contributor]
   \item Duane Stevenson \email{duane.tevenson@noaa.gov} [contributor]
   \item Stan Kotwicki \email{stan.kotwicki@noaa.gov} [contributor]
 }
