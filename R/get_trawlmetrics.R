@@ -55,7 +55,7 @@ get_trawlmetrics <- function(survey,
                                         and e.gear_code = a.gear 
                                         and a.performance = f.performance"))
   
-  if(class(trawl_data) == "character") {
+  if(is(trawl_data, "character")) {
     stop("get_trawlmetrics: Trawl data query failed.")
   }
   

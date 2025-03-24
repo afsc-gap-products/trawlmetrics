@@ -7,22 +7,29 @@
 \format{
 A data frame
 \describe{
+     \item{HAULJOIN}{Unique ID given to a haul}
      \item{SURVEY_DEFINITION_ID}{The survey definition ID key code is an integer that uniquely identifies a survey region/survey design.}
-     \item{CRUISE}{This is a six-digit integer identifying the cruise number of the form: YYYY99 (where YYYY = year of the cruise; 99 = 2-digit number and is sequential; 01 denotes the first cruise that vessel made in this year, 02 is the second, etc.).}
+     \item{SURVEY_ABBV}{Abbreviated survey name}
      \item{YEAR}{Year the observation (survey) was collected.}
+     \item{CRUISE}{This is a six-digit integer identifying the cruise number of the form: YYYY99 (where YYYY = year of the cruise; 99 = 2-digit number and is sequential; 01 denotes the first cruise that vessel made in this year, 02 is the second, etc.).}
      \item{VESSEL_ID}{ID number of the vessel used to collect data for that haul.}
-     \item{SURVEY_NAME}{Long name of the survey conducted}
-     \item{VESSEL_NAME}{Name of the vessel used to collect data for that haul.}
-     \item{DEPTH_M}{Bottom depth (meters).}
-     \item{WIRE_LENGTH_M}{Length of wire deployed during a given haul in meters.}
-     \item{GEAR}{Bottom trawl survey gear code.}
-     \item{ACCESSORIES}{Type of accessories used on net.}
      \item{HAUL}{This number uniquely identifies a sampling event (haul) within a cruise. It is a sequential number, in chronological order of occurrence.}
-     \item{DISTANCE_FISHED_KM}{Distance the net fished (thousands of kilometers).}
-     \item{NET_WIDTH_M}{Measured or estimated distance (meters) between wingtips of the trawl.}
-     \item{NET_HEIGHT_M}{Measured or estimated distance (meters) between footrope and headrope of the trawl.}
-     \item{DURATION_HR}{This is the elapsed time between start and end of a haul (decimal hours).}
-     \item{GEAR_NAME}{Gear name as a character vector.}
+     \item{STATION}{Station name/ID}
+     \item{START_LONGITUDE}{Vessel longitude at the start of the haul in decimal degrees}
+     \item{START_LATITUDE}{Vessel latitude at the start of the haul in decimal degrees}
+     \item{END_LONGITUDE}{Vessel longitude at the start of the haul in decimal degrees}
+     \item{END_LATITUDE}{Vessel latitude at the start of the haul in decimal degrees}
+     \item{GEAR_NAME}{Abbreviated name of the gear, 83-112 (83-112 eastern otter trawl )or PNE (Poly nor'eastern)}
+     \item{GEAR}{Bottom trawl survey gear code.}
+     \item{ACCESSORIES}{Acessory code for footrope, benthic bag, etc.}
+     \item{WIRE_LENGTH_M}{Length of wire deployed during a given haul in meters.}
+     \item{NET_MEASURED}{Were upper wing tip spread spread and opening headline height measurements available from acoustic sensors? TRUE or FALSE}
+     \item{NET_WIDTH_M}{Measured or estimated distance (meters) between the upper wingtips of the trawl.}
+     \item{NET_HEIGHT_M}{Measured or estimated distance (meters) between headline and sea floor at the center of the headline.}
+     \item{DISTANCE_FISHED_KM}{Distance the net fished between start and end position in kilometers.}
+     \item{DURATION_HR}{Time elapsed between start and end positions in hours.}
+     \item{DEPTH_M}{Bottom depth (meters).}
+     \item{TOTAL_WEIGHT_KG}{Total weight of the catch in kilograms}
 }
 }
 \source{

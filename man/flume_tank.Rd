@@ -7,28 +7,39 @@
 \format{
 A data frame
 \describe{
-     \item{date_time_nst}{Date and time in Newfoundland Standard Time (UTC-3.5).}
      \item{trial}{Trial number.}
      \item{trawl}{Trawl model (e.g., "83-112", "PNE", "RACE").}
      \item{bridles}{Type of bridles used (e.g., "standard", "bridle 1", "bridle 2").}
-     \item{footrope}{Footrope used on the trawl (e.g., "EBS" or "GOA").}
-     \item{pulling_point_elevation_m}{Elevation of the pulling point on the trawl mast in meters.}
-     \item{backstrap_length_m}{Backstrap length in meters.}
+     \item{bridle_length}{Bridle length as character vector.}
+     \item{footrope}{Footrope used on the trawl.}
+     \item{benthic_bag}{Was a model benthic bag attached to the footrope?}
+     \item{marport}{Were model Marport spread and height sensors attached to the trawl?}
+     \item{ctd}{Was a model CTD attached to the trawl?}
+     \item{floats_n}{Number of floats attached to the headline of the model.}
+     \item{total_buoyancy_kgf}{Total buoyancy in kilograms of force}
+     \item{additional_floatation_kg}{Additional flotation attached to the headline, in kilograms of force, relative to the base configuration.}
+     \item{bcs_unit}{Was a full size bottom contact sensor unit attached to the footrope? If NA, no unit was deployed.}
+     \item{catch}{Catch treatment. Either Empty or catch level 1,2, or 3.}
+     \item{pulling_point_elevation_mm}{Elevation of the pulling point on the trawl mast in meters.}
      \item{bridle_u_length_m}{Upper bridle length in meters.}
      \item{bridle_l_length_m}{Lower bridle length in meters.}
      \item{sweep_length_m}{Sweep length in meters.}
      \item{u_bridle_extension_m}{Upper bridle extension length in meters.}
      \item{towing_speed_kn}{Towing speed in knots.}
-     \item{spread_door_m}{Door spread in meters.}
+     \item{door_m}{Door spread in meters.}
+     \item{spread_treatment}{Upper wing tip spread treatment.}
      \item{spread_u_wing_m}{Upper wing spread in meters.}
+     \item{spread_m_wing_m}{Middle wing spread in meters.}
      \item{spread_l_wing_m}{Lower wing spread in meters.}
      \item{spread_mean_we_m}{Mean wing spread in meters.}
      \item{opening_wing_m}{Wing opening height in meters.}
      \item{opening_headline_m}{Headline opening height in meters.}
-     \item{height_headline_m}{Headline opening height from the bottom in meters.}
-     \item{bridle_tension_port_t}{Port bridle tension in metric tons.}
-     \item{bridle_tension_stbd_t}{Starboard bridle tension in metric tons.}
-     \item{bridle_tension_total_t}{Total bridle tension in metric tons.}
+     \item{upper_wingend_height_m}{Upper wing tip end distance from bottom in meters.}
+     \item{lower_wingend_height_m}{Lower wing tip end distance from bottom in meters. NA = 0}
+     \item{fishing_line_height_m}{Distance between the fishing line and bottom, in meters.}
+     \item{bridle_tension_port_t}{Port bridle/sweep tension in metric tons.}
+     \item{bridle_tension_stbd_t}{Starboard bridle/sweep tension in metric tons.}
+     \item{bridle_tension_total_t}{Sum of port and starboard bridle/sweep tension}
      \item{mouth_area_m2}{Mouth opening area in square meters.}
      \item{mouth_drag_kgf_m2}{Mouth drag in kilogram-force per square meter.}
      \item{bridle_angle_deg}{Bridle angle of attack in degrees.}
@@ -41,6 +52,6 @@ A data frame
 flume_tank
 }
 \description{
-Net measurement data from flume tank experiments conducted at the Centre for Sustainable Aquatic Resources (CSAR), Memorial University of Newfoundland, St. John's, Newfoundland and Labrador from January 13-17, 2025. CURRENTLY EXAMPLE DATA.
+Net measurement data from flume tank experiments conducted at the Centre for Sustainable Aquatic Resources (CSAR), Marine Institute, Memorial University of Newfoundland, St. John's, Newfoundland and Labrador from January 13-17, 2025. CURRENTLY EXAMPLE DATA.
 }
 \keyword{datasets}

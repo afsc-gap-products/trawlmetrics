@@ -1,12 +1,12 @@
 Package: trawlmetrics
 Type: Package
 Title: Trawl effort correction and gear performance measures
-Version: 0.0.8
-Date: 2025-03-14
+Version: 0.0.9
+Date: 2025-03-24
 Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("aut", "cre")),
     person("Caitlin", "Allen-Akselrud", email = "caitlin.allen_akselrud@noaa.gov", role = c("aut")),
-    person("Shannon", "Nardi", email = "shannon.nardi@noaa.gov", role = "aut"),
-    person("Liz", "Dawson", email = "liz.dawson@noaa.gov", role = "ctb"),
+    person("Shannon", "Nardi", role = "ctb"),
+    person("Liz", "Dawson", role = "ctb"),
     person("Duane", "Stevenson", email = "duane.tevenson@noaa.gov", role = "ctb"),
     person("Stan", "Kotwicki", email = "stan.kotwicki@noaa.gov", role = "ctb"))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
@@ -14,8 +14,7 @@ Depends: R (>= 3.5), ggplot2
 Description: Perform trawl effort correction and retrieve gear performance measures.
 License: GPL (>=2)
 Encoding: UTF-8
-LazyData: false
+LazyData: true
 RoxygenNote: 7.3.2
 Imports: cowplot, mgcv, stats, tibble, dplyr, janitor, RODBC, getPass, here, lubridate, lme4
-Suggests: knitr, rmarkdown, colorspace, viridis, flextable
-VignetteBuilder: knitr
+Suggests: knitr, rmarkdown, colorspace, viridis

@@ -1,6 +1,10 @@
+  <!-- badges: start -->
+  [![R-CMD-check](https://github.com/afsc-gap-products/trawlmetrics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/afsc-gap-products/trawlmetrics/actions/workflows/R-CMD-check.yaml)
+  <!-- badges: end -->
+
 # trawlmetrics
 
-Tools for processing and analyzing trawl spread, height, and bottom contact sensor data collected during AFSC/RACE Groundfish Assessment Program bottom trawl surveys in Alaska.
+Tools for processing and analyzing trawl spread, height, and bottom contact sensor data collected during AFSC/RACE Groundfish Assessment Program bottom trawl surveys.
 
 # Documentation and usage
 
