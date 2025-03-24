@@ -41,7 +41,6 @@ doc/*.html
 .Renviron
 
 # Local data directory
-/data/
 /sim_data/
 /archive/
 /inst/extdata/nc/
