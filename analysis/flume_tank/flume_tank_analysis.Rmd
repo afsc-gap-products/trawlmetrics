@@ -2,7 +2,7 @@
 title: "Preliminary flume tank analysis"
 output: word_document
 author: Sean Rohan
-date: 2025-03-13
+date: 2025-03-25
 ---
 
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE}
@@ -78,7 +78,7 @@ The Resource Assessment and Conservation Engineering Division is undertaking sur
 
 Flume tank experiments collected baseline performance information from 1:8 scale models of the 83-112 trawl that has been used in the eastern Bering Sea shelf and northern Bering Sea surveys since 1982 and Poly Nor'eastern trawl (PNE) that has been used on Gulf of Alaska and Aleutian Islands bottom trawl surveys since 1980 (Stauffer, 2003). The performance of these trawl designs had not been previously evaluated in a flume tank. Flume tank experiments also evaluated the performance of 1:8 scale prototype trawl and footrope designs being considered to replace the 83-112 and PNE. The performance of model trawls were evaluated across a range of towing speeds, wing spreads, and catch levels that were considered to be representative conditions encountered in the field. The results of the flume tank experiments will inform the next phases of gear redesign.
 
-# Results
+# Experimental design and results
 
 ## Baseline: Poly nor'eastern
 
@@ -120,7 +120,7 @@ p0 <- ggplot() +
 print(p0)
 ```
 
-The headline height of PNE model was shorter than typically observed in the field (\@ref(fig:field_spread_to_height_pne)), although the slope of the relationship between height and spread suggests changes in geometry resembled those observed in the field. 
+The headline height of PNE model was shorter than typically observed in the field (Fig. 1), although the slope of the relationship between height and spread suggests changes in geometry resembled those observed in the field. 
 
 ## Baseline: 83-112
 
@@ -140,17 +140,6 @@ p0 <- ggplot() +
               mapping = aes(x = netmind_to_marport(NET_WIDTH_M),
                             y = NET_HEIGHT_M,
                             color = "Field fit")) +
-  # geom_line(data = dplyr::filter(dat, trawl == "83-112", towing_speed_kn > 2, towing_speed_kn < 4),
-  #             mapping = aes(x = spread_u_wing_m,
-  #                           y = opening_headline_m,
-  #                           color = format(towing_speed_kn, nsmall = 1)),
-  #             method = 'lm',
-  #           stat = "smooth", size = rel(1.2)) +
-  #   geom_smooth(data = dplyr::filter(dat, trawl == "83-112", towing_speed_kn > 2, towing_speed_kn < 4),
-  #             mapping = aes(x = spread_u_wing_m,
-  #                           y = opening_headline_m,
-  #                           color = format(towing_speed_kn, nsmall = 1)),
-  #          method = "lm", alpha = 0.15) +
     geom_point(data = dplyr::filter(dat, trawl == "83-112"),
              mapping = aes(x = spread_u_wing_m,
                            y = opening_headline_m,
@@ -173,9 +162,91 @@ The relationship between headline height and upper wing tip spread for the 83-11
 
 ## Bridle comparison
 
-Future  standard bridle design that has been used on AFSC bottom trawl surveys with a split bridle design featuring separate ground gear and net-bridle connection segments that are connected by a half-bobbin and delta plate. The performance of these bridle designs were tested by comparing the performance of 83-112 and PNE nets with standard rigging to performance using a split-bridle design.
+Future gear may include a split bridle that has separate ground gear and net-bridle connection segments. We compared the geometry of the 83-112 and PNE nets with standard rigging to performance using a split-bridle design. The upper wing tip spread did not differ between bridle for either net. Bridle #2 resulted in a lower headline height for both the 83-112 and PNE.
 
-[Analysis pending]
+```{r compare_bridles, include = TRUE, warning=FALSE, fig.cap="Figure 3. Upper wing tip spread and headline height for the 83-112 and Poly'noreastern for the standard bridle versus bridle #2. Colors denote towing speed and the dashed vertical line denotes the 1:1 line. "}
+compare_bridles <-
+  trawlmetrics::flume_tank |> 
+  dplyr::filter(footrope %in% c("83-112", "PNE"), 
+                catch == "empty",
+                pulling_point_elevation_mm <= 200,
+                additional_floatation_kg == 0, 
+                !(bridles == "2-weighted" & trawl == "PNE"),
+                trial > 0,
+                !benthic_bag) |>
+  dplyr::group_by(towing_speed_kn,
+                  bridles,
+                  trawl,
+                  spread_treatment) |>
+  dplyr::summarise(door_m = mean(door_m, na.rm = TRUE),
+                   spread_u_wing_m = mean(spread_u_wing_m, na.rm = TRUE),
+                   spread_l_wing_m = mean(spread_l_wing_m, na.rm = TRUE),
+                   opening_headline_m = mean(opening_headline_m, na.rm = TRUE),
+                   mouth_area_m2 = mean(mouth_area_m2, na.rm = TRUE),
+                   mouth_drag_kgf_m2 = mean(mouth_drag_kgf_m2, na.rm = TRUE), 
+                   bridle_angle_deg = mean(bridle_angle_deg, na.rm = TRUE),
+                   bridle_tension_total_t = mean(bridle_tension_total_t, na.rm = TRUE)) |>
+  tidyr::pivot_wider(
+    values_from = 
+      c(
+        "door_m", 
+        "spread_u_wing_m", 
+        "spread_l_wing_m", 
+        "opening_headline_m",
+        "mouth_area_m2", 
+        'mouth_drag_kgf_m2',
+        "bridle_angle_deg",
+        "bridle_tension_total_t"
+      ),
+    names_from = "bridles"
+  )
+
+p_bridle_uws <- ggplot() +
+  geom_point(data = compare_bridles,
+             mapping = 
+               aes(
+                 x = spread_u_wing_m_standard, 
+                 y = spread_u_wing_m_2,
+                 color = format(towing_speed_kn, nsmall = 1),
+               )
+  ) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  scale_x_continuous(name = "U. wing - Standard (m)") +
+  scale_y_continuous(name = "U. wing - #2 (m)") +
+  scale_color_manual(name = "Speed (kn)", values = colors_speed) +
+  facet_wrap(~trawl, scales = "free") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+p_bridle_hh <- 
+  ggplot() +
+  geom_point(data = compare_bridles,
+             mapping = 
+               aes(
+                 x = opening_headline_m_standard, 
+                 y = opening_headline_m_2,
+                 color = format(towing_speed_kn, nsmall = 1),
+               )
+  ) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  scale_x_continuous(name = "Height - Standard (m)") +
+  scale_y_continuous(name = "Height - #2 (m)") +
+  scale_color_manual(name = "Speed (kn)", values = colors_speed) +
+  facet_wrap(~trawl, scales = "free") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+p_bridles <- 
+  cowplot::plot_grid(
+    p_bridle_uws,
+    p_bridle_hh,
+    nrow = 2,
+    align = "v"
+  )
+
+print(p_bridles)
+```
+
 
 ## Tow speed effects
 
@@ -187,7 +258,7 @@ Results for the PNE only include the standard bridle configuration used on GOA a
 
 Shallower slopes indicate the geometry of the trawl is less responsive to changes in towing speeds. 
 
-```{r race_v_pne, include = TRUE, warning=FALSE, fig.cap="Figure 3. Ratio between upper wing tip spread and headline height for the Poly nor'eastern and RACE Trawl with GOA/AI_v6 footrope. Circles denote observations, solid lines and shading respectively show linear regression model fits and 95% confidence intervals."}
+```{r race_v_pne, include = TRUE, warning=FALSE, fig.cap="Figure 4. Ratio between upper wing tip spread and headline height for the Poly nor'eastern and RACE Trawl with GOA/AI_v6 footrope. Circles denote observations, solid lines and shading respectively show linear regression model fits and 95% confidence intervals."}
 p1 <- ggplot(data = dplyr::filter(dat, spread_treatment %in% pne_spreads,
                             trawl %in% c("PNE", "RACE"),
                             footrope %in% c("PNE", "GOA/AI_v6")),
@@ -214,7 +285,7 @@ We also compared the Upper Wing Spread:Headline Height ratio between the 83-112 
 
 Data for the 83-112 only include trials with the standard bridle configuration used on the EBS shelf bottom trawl surveys. Data for the RACE trawl only include trials with bridle #2 and the EBS_v2 footrope.
 
-```{r race_vs_83112, include = TRUE, warning=FALSE, fig.cap="Figure 4. Ratio between upper wing tip spread and headline height for the 83-112 and RACE Trawl with GOA/AI_v6 footrope. Circles denote observations, solid lines and shading respectively show linear regression model fits and 95% confidence intervals."}
+```{r race_vs_83112, include = TRUE, warning=FALSE, fig.cap="Figure 5. Ratio between upper wing tip spread and headline height for the 83-112 and RACE Trawl with GOA/AI_v6 footrope. Circles denote observations, solid lines and shading respectively show linear regression model fits and 95% confidence intervals."}
 p2 <- 
   ggplot(data = dplyr::filter(dat, spread_treatment %in% ebs_spreads,
                             trawl %in% c("83-112", "RACE"),
@@ -240,7 +311,7 @@ The 83-112 is a low-rise net and, therefore, has a higher Upper Wing Spread:Head
 
 ## Bridle angle of attack
 
-```{r speed_v_bridle_angle, include = TRUE, warning = FALSE, fig.cap = "Figure 5. Towing speed versus bridle angle in flume tank experiments under different spread treaments and bridles."}
+```{r speed_v_bridle_angle, include = TRUE, warning = FALSE, fig.cap = "Figure 6. Towing speed versus bridle angle in flume tank experiments under different spread treatments and bridles."}
 
 dat_angle_speed <- trawlmetrics::flume_tank |> 
   dplyr::filter(footrope %in% c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"), 
@@ -265,7 +336,44 @@ p_angle_speed <- ggplot(data = dat_angle_speed,
   scale_x_continuous(name = "Speed (kts)") +
   scale_y_continuous(name = expression('Bridle angle ('*degree*')')) +
   theme_bw()
+
+print(p_angle_speed)
 ```
+
+```{r uwt_spread_angle_of_attack, include = TRUE, warning = FALSE, fig.cap="Figure 7. Upper wing tip spread versus angle of attack for the 83-112, PNE, RACE trawl with EBS_v2, and RACE trawl with GOA/AI_v6 footropes. Circles denote individual observations, solid line and shading denote a GAM fitted mean +/- two standard errors. Dashed horizontal lines denote the target 18-21 degree angle of attack."}
+uwt_aoa <- trawlmetrics::flume_tank |> 
+  dplyr::filter(footrope %in% c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"), 
+                catch == "empty",
+                pulling_point_elevation_mm <= 200,
+                additional_floatation_kg == 0, 
+                !(bridles == 2 & trawl == "83-112"),
+                !(bridles == 2 & trawl == "PNE"),
+                !(bridles == "2-weighted" & trawl == "PNE"),
+                trial > 0,
+                !benthic_bag)
+
+p_spread_aoa <- ggplot() +
+  geom_smooth(data = uwt_aoa,
+              mapping = aes(x = spread_u_wing_m, 
+                            y = bridle_angle_deg,
+                            color = paste0(trawl, " (", footrope, ")")),
+              method = 'gam', formula = y ~ s(x, bs = "cs", k = 5)) +
+  geom_point(data = uwt_aoa,
+             mapping = aes(x = spread_u_wing_m, 
+                           y = bridle_angle_deg,
+                           color = paste0(trawl, " (", footrope, ")")),
+             size = rel(2.5),
+             shape = 1) +
+  geom_hline(yintercept = c(18, 21), linetype  = 2) +
+  scale_color_colorblind(name = "Spread (m)") +
+  scale_color_manual(name = "Spread (m)", values = colors_trawl_footrope) +
+  scale_y_continuous(name = expression('Bridle angle ('*degree*')')) +
+  theme_bw()
+
+print(p_spread_aoa)
+```
+
+
 
 ```{r bridle_angle_analysis, include = TRUE, warning = FALSE}
 target_angle_of_attack <- c(18, 21)
@@ -382,7 +490,7 @@ gam_angle_depth_pne_de <-
 ```
 Door spread historically has not been measured during regular AFSC bottom trawl survey operations. Therefore, flume tank observations provided a unique opportunity to estimate bridle of attack that may have been observed during actual bottom trawl survey operations in the EBS, NBS, GOA, and AI. Results suggest that `r pct_hauls_18_21_83112`% of 83-112 hauls in the EBS/NBS and `r pct_hauls_18_21_pne`% of PNE hauls in the GOA and AI were predicted to have a bridle angle of attack within the 18-21 degree range.
 
-```{r survey_bridle_angle_plot, include = TRUE, warning=FALSE, fig.cap="Figure 6. Frequency of estimated bridle angle of attack (degrees) for survey hauls based on predictions from generalized additive models fitted between flume tank upper wing tip spread and bridle angle of attack, by survey. Dashed vertical lines denote the 'ideal' angle of attack range (18 to 21 degrees)."}
+```{r survey_bridle_angle_plot, include = TRUE, warning=FALSE, fig.cap="Figure 8. Frequency of estimated bridle angle of attack (degrees) for survey hauls based on predictions from generalized additive models fitted between flume tank upper wing tip spread and bridle angle of attack, by survey. Dashed vertical lines denote the 'ideal' angle of attack range (18 to 21 degrees)."}
 p_bridle_angle_pne <-
   ggplot() +
   geom_histogram(
@@ -431,7 +539,7 @@ print(
 
 Survey observations have shown that upper wing tip spread varies with depth, which suggests bridle angle of attack also varies with depth. We fitted generalized additive models between bottom depth and estimated bridle angle of attack for the 83-112 and PNE to evaluate the sensitivity of each gear to variation in bottom depth. Model fits suggest that the bridle angle of attack for the 83-112 is more sensitive to variation in bottom depth than the PNE, as shown by the higher deviance explained (`r gam_angle_depth_83112_de`% for the 83-112, `r gam_angle_depth_pne_de`% for the PNE) and the 83-112's more rapid rate of change in angle of attack within the overlapping bottom depth range for the gears (11-205 m).
 
-```{r bridle_angle_depth, include = TRUE, warning=FALSE, fig.cap="Figure 7. Bottom depth (meters) versus bridle angle of attack (degrees) for the 83-112 and Poly nor'eastern from 2013-2024 bottom trawl surveys. Points denote estimates for individual hauls. Solid lines and shading show generalized additive models fitted mean +/- two standard errors, and deviance explained (DE; %) is shown for each model. Dashed horizontal lines denote the 'ideal' angle of attack range (18 to 21 degrees)."}
+```{r bridle_angle_depth, include = TRUE, warning=FALSE, fig.cap="Figure 9. Bottom depth (meters) versus bridle angle of attack (degrees) for the 83-112 and Poly nor'eastern from 2013-2024 bottom trawl surveys. Points denote estimates for individual hauls. Solid lines and shading show generalized additive models fitted mean +/- two standard errors, and deviance explained (DE; %) is shown for each model. Dashed horizontal lines denote the 'ideal' angle of attack range (18 to 21 degrees)."}
 p_depth_v_angle <- 
   ggplot() +
   geom_point(
@@ -480,7 +588,7 @@ print(p_depth_v_angle)
 
 The Groundfish Assessment Program calculates effort for survey hauls based on area swept estimates that rely on upper wing tip spread measurements collected using acoustic spread sensors. These spread sensors are attached to the upper bridle, just ahead of the upper wing tip of the net. In flume tank experiments, upper wing tip spread was higher than lower wing tip spread and footrope spread for all of the gears tested.
 
-```{r wing_spread, include = TRUE, warning=FALSE, fig.cap="Figure 8. Upper wing tip spread (m) versus lower wing tip spread (m) for the 83-112, Poly Nor'eastern, RACE Trawl with EBS_v2 footrope and RACE trawl with GOA/AI_v6 footrope. Circle color denotes towing speed, solid black line denotes linear regression model fitted mean and ribbon shading denotes 95% confidence interval. Dashed line shows the 1:1 line between upper and lower spread."}
+```{r wing_spread, include = TRUE, warning=FALSE, fig.cap="Figure 10. Upper wing tip spread (m) versus lower wing tip spread (m) for the 83-112, Poly Nor'eastern, RACE Trawl with EBS_v2 footrope and RACE trawl with GOA/AI_v6 footrope. Circle color denotes towing speed, solid black line denotes linear regression model fitted mean and ribbon shading denotes 95% confidence interval. Dashed line shows the 1:1 line between upper and lower spread."}
 lm_wing_83112 <- 
   lm(
     spread_l_wing_m ~ spread_u_wing_m, 
@@ -545,7 +653,7 @@ p_wing_spread <- ggplot() +
 
 If flume tank observations reflect trawl geometry in the field, lower wing tip spread would be 3.8-16.8% wider than upper wing tip spread based on the flume tank regression for the 83-112.
 
-```{r lower_wing_hist_83112, include = TRUE, warning=FALSE, fig.cap="Figure 9. Estimated percent difference between lower wing tip spread and upper wing tip spread based on the flume tank regression for the 83-112, by year. Positive values indicate the estimated lower wing tip spread is wider than the upper wing tip spread."}
+```{r lower_wing_hist_83112, include = TRUE, warning=FALSE, fig.cap="Figure 11. Estimated percent difference between lower wing tip spread and upper wing tip spread based on the flume tank regression for the 83-112, by year. Positive values indicate the estimated lower wing tip spread is wider than the upper wing tip spread."}
 
 haul_df <- ebs_dat$haul |>
   dplyr::mutate(YEAR = floor(CRUISE/100))
@@ -593,7 +701,7 @@ p_spread_diff_hist <- ggplot() +
 print(p_spread_diff_hist)
 ```
 
-```{r spread_diff_map, include = TRUE, warning=FALSE, fig.cap="Figure 10. Estimated median percent difference between lower wing tip spread and upper wing tip spread, by EBS survey grid cell, based on the regression between upper and lower wing tip spread from flume tank experiments."}
+```{r spread_diff_map, include = TRUE, warning=FALSE, fig.cap="Figure 12. Estimated median percent difference between lower wing tip spread and upper wing tip spread, by EBS survey grid cell, based on the regression between upper and lower wing tip spread from flume tank experiments."}
 p_spread_diff_map <- ggplot() +
   geom_sf(data = sebs_layers$survey.area,
           fill = NA, 
@@ -616,7 +724,7 @@ Spatial variation in upper wing tip spread across the EBS shelf survey area sugg
 
 ## Mouth area
 
-```{r mouth_area, include = TRUE, warning=FALSE, fig.cap="Figure 11. Mouth area (m2) for the 83-112, Poly Nor'eastern, RACE Trawl with EBS_v2 footrope and RACE trawl with GOA/AI_v6 footrope."}
+```{r mouth_area, include = TRUE, warning=FALSE, fig.cap="Figure 13. Mouth area (m2) for the 83-112, Poly Nor'eastern, RACE Trawl with EBS_v2 footrope and RACE trawl with GOA/AI_v6 footrope."}
 tension_dat <- trawlmetrics::flume_tank |> 
   dplyr::filter(footrope %in% c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"), 
                 catch == "empty",
@@ -671,7 +779,7 @@ The 83-112, RACE with EBS_v2 footrope, and RACE trawl with GOA/AI_v6 footrope sh
 
 Concurrent with trawl design changes, RACE bottom trawl will transition to a new trawl door design to ensure a more consistent trawl geometry across survey conditions and reduce equipment costs through the use of replaceable door shoes, i.e., bolt-on plates that attach to the portion of the door that comes into contact with the seafloor. To inform the selection of new trawl doors, bridle tension measurements were collected during flume tank trials to estimate the drag of the trawl under a range of trawl speeds. Measurements were collected from trials conducted with the Poly Nor'eastern and RACE trawl, but not the 83-112 because of sensor malfunctions.
 
-```{r bridle_tension, include = TRUE, warning=FALSE, fig.cap = "Figure 12. Towing speed (knots) versus bridle tension (metric tons) for the 83-112, Poly nor'eastern, RACE trawl with EBS_v2 footrope, and RACE trawl with GOA/AI_v6 footrope. Color denotes the wing tip spread treatment and symbols indicate the bridle used."}
+```{r bridle_tension, include = TRUE, warning=FALSE, fig.cap = "Figure 14. Towing speed (knots) versus bridle tension (metric tons) for the 83-112, Poly nor'eastern, RACE trawl with EBS_v2 footrope, and RACE trawl with GOA/AI_v6 footrope. Color denotes the wing tip spread treatment and symbols indicate the bridle used."}
 lm_tension_83112 <- lm(bridle_tension_total_t ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "83-112"))
 lm_tension_pne <- lm(bridle_tension_total_t ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "PNE"))
 lm_tension_race_ebs <- lm(bridle_tension_total_t ~ towing_speed_kn, 
@@ -719,7 +827,7 @@ print(p_spd_tension)
 ```
 
 
-```{r trawl_drag, include = TRUE, warning=FALSE, fig.cap = "Figure 13. Towing speed (knots) versus mouth drag (kilogram-force/m2) for the 83-112, Poly nor'eastern, RACE trawl with EBS_v2 footrope, and RACE trawl with GOA/AI_v6 footrope. Color denotes the wing tip spread treatment and symbols indicate the bridle (standard or bridle #2)."}
+```{r trawl_drag, include = TRUE, warning=FALSE, fig.cap = "Figure 15. Towing speed (knots) versus mouth drag (kilogram-force/m2) for the 83-112, Poly nor'eastern, RACE trawl with EBS_v2 footrope, and RACE trawl with GOA/AI_v6 footrope. Color denotes the wing tip spread treatment and symbols indicate the bridle (standard or bridle #2)."}
 lm_force_83112 <- lm(mouth_drag_kgf_m2 ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "83-112"))
 lm_force_pne <- lm(mouth_drag_kgf_m2 ~ towing_speed_kn, data = dplyr::filter(tension_dat, trawl == "PNE"))
 lm_force_race_ebs <- lm(mouth_drag_kgf_m2 ~ towing_speed_kn, 
@@ -772,7 +880,7 @@ print(p_spd_force)
 
 The capture efficiency of a trawl can change as catch accumulates because the catch affects drag, trawl geometry, and water flow through the net. An ideal survey trawl would have minimal variation in geometry, drag, and water flow to minimize variation in capture efficiency. Field observations suggest that the weight of survey catches produces small changes in geometry, based on the relationship between catch weight and net height/upper wing tip spread.
 
-```{r catch_vs_spread_field, include = TRUE, warning=FALSE, fig.cap="Figure 14. Observed total catch weight (kg) versus observed upper wing tip spread (m) in meters, by survey. Points denote observations for individual hauls, solid line and shading denote generalized additve model (GAM) fit and 95% confidence intervals between log10-transformed catch weight and measured spread. Text in the upper left corner shows the deviance explained (%) by each GAM."}
+```{r catch_vs_spread_field, include = TRUE, warning=FALSE, fig.cap="Figure 16. Observed total catch weight (kg) versus observed upper wing tip spread (m) in meters, by survey. Points denote observations for individual hauls, solid line and shading denote generalized additive model (GAM) fit and 95% confidence intervals between log10-transformed catch weight and measured spread. Text in the upper left corner shows the deviance explained (%) by each GAM."}
 goa_spread_gam <- mgcv::gam(
   formula = NET_WIDTH_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
   data = dplyr::filter(bts_geom, 
@@ -907,7 +1015,7 @@ p_height_gam <- suppressMessages(
 print(p_spread_gam)
 ```
 
-```{r catch_vs_height_field, include = TRUE, warning=FALSE, fig.cap="Figure 15. Observed total catch weight (kg) versus observed headline opening height (m) in meters, by survey. Points denote observations for individual hauls, solid line and shading denote generalized additve model (GAM) fit and 95% confidence intervals between log10-transformed catch weight and measured height. Text in the upper left corner shows the deviance explained (%) by each GAM."}
+```{r catch_vs_height_field, include = TRUE, warning=FALSE, fig.cap="Figure 17. Observed total catch weight (kg) versus observed headline opening height (m) in meters, by survey. Points denote observations for individual hauls, solid line and shading denote generalized additve model (GAM) fit and 95% confidence intervals between log10-transformed catch weight and measured height. Text in the upper left corner shows the deviance explained (%) by each GAM."}
 print(p_height_gam)
 ```
 
@@ -919,7 +1027,7 @@ We conducted catch experiments at four treatment levels under a towing speed of 
 
 Trials with the 83-112 were conducted using both the standard bridle and bridle #2. Trials with the PNE were only conducted with the standard bridle. Trials with the RACE trawl were conducted with bridle #2 and both EBS_v2 and GOA/AI_v6 footropes.
 
-```{r catch_vs_spread, include = TRUE, warning=FALSE, fig.cap="Figure 16. Flume tank catch treatments versus upper and lower wingtip spread for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triagles) denote the bridle configuration and colors denote the measurement (upper or lower wing)."}
+```{r catch_vs_spread, include = TRUE, warning=FALSE, fig.cap="Figure 18. Flume tank catch treatments versus upper and lower wingtip spread for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triangles) denote the bridle configuration and colors denote the measurement (upper or lower wing)."}
 catch_trials <- trawlmetrics::flume_tank |> 
   dplyr::filter(trial %in% c(3, 11:13, 18, 25:27, 37, 47:49, 165, 176:178, 141, 152:154))
 
@@ -946,7 +1054,7 @@ p0 <- catch_trials |>
 print(p0)
 ```
 
-```{r catch_vs_height, include = TRUE, warning=FALSE, fig.cap="Figure 17. Flume tank catch treatments versus headline opening height for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triagles) denote the bridle configuration."}
+```{r catch_vs_height, include = TRUE, warning=FALSE, fig.cap="Figure 19. Flume tank catch treatments versus headline opening height for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triangles) denote the bridle configuration."}
 p1 <- catch_trials |>
   dplyr::select(trial, catch, opening_headline_m, bridles, trawl, footrope) |>
   dplyr::mutate(catch = dplyr::if_else(catch == "empty", "0", catch)) |>
@@ -973,7 +1081,7 @@ GAP bottom trawl surveys collect oceanographic information and measure trawl dim
 
 The benthic bag and sensor models used for these trials represent approximations of potential effects because it was not feasible to produce physically scaled models that exactly replicated the size, weight, and density of real survey equipment.
 
-```{r bb_ctd_spread, include = TRUE, warning=FALSE, fig.cap = "Figure 18. Upper wing tip and lower wing tip spread (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spd) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
+```{r bb_ctd_spread, include = TRUE, warning=FALSE, fig.cap = "Figure 20. Upper wing tip and lower wing tip spread (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spd) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
 bb_ctd_dat <- trawlmetrics::flume_tank |> 
   dplyr::filter(trial %in% c(141, 144, 145))
 
@@ -1001,7 +1109,7 @@ p_bb_spread <- bb_ctd_dat |>
 print(p_bb_spread)
 ```
 
-```{r bb_ctd_height, include = TRUE, warning=FALSE, fig.cap = "Figure 19. Headline height (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spd) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
+```{r bb_ctd_height, include = TRUE, warning=FALSE, fig.cap = "Figure 21. Headline height (m) for flume tank benthic bag (BB), CTD, and spread sensor (Spd) treatments conducted using the RACE trawl with GOA/AI_v6 footrope."}
 p_bb_height <- ggplot(data = bb_ctd_dat,
        mapping = 
          aes(x = bb_ctd, 
@@ -1023,4 +1131,4 @@ Sensor and benthic bag treatments were associated with 8-16 cm of variation in t
 
 RACE bottom trawl surveys use a standard scope table to determine how much wire to pay out at a given depth. The scope table helps to ensure the trawl reaches and remains on bottom during standardized survey hauls. The amount of wire required to reach bottom and sink time can vary depending on current speeds.
 
-[Analysis pending]
+For each trawl, we sought to determine the door elevation at which the bridles lifted off bottom to provide a reference value to guide accuracy requirements for a scope table.
