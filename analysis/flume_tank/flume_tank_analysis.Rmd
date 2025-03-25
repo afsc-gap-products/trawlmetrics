@@ -168,7 +168,7 @@ Future gear may include a split bridle that has separate ground gear and net-bri
 compare_bridles <-
   trawlmetrics::flume_tank |> 
   dplyr::filter(footrope %in% c("83-112", "PNE"), 
-                # catch == "empty",
+                catch == "empty",
                 pulling_point_elevation_mm <= 200,
                 additional_floatation_kg == 0, 
                 !(bridles == "2-weighted" & trawl == "PNE"),
@@ -211,13 +211,12 @@ p_bridle_uws <- ggplot() +
                )
   ) +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
-  scale_x_continuous(name = "Standard bridle u. wing spread (m)") +
-  scale_y_continuous(name = "Bridle #2 u. wing spread (m)") +
+  scale_x_continuous(name = "U. wing - Standard (m)") +
+  scale_y_continuous(name = "U. wing - #2 (m)") +
   scale_color_manual(name = "Speed (kn)", values = colors_speed) +
   facet_wrap(~trawl, scales = "free") +
   theme_bw() +
-  theme(legend.position = "inside", 
-        legend.position.inside = c(0.1, 0.75))
+  theme(legend.position = "none")
 
 p_bridle_hh <- 
   ggplot() +
@@ -230,20 +229,20 @@ p_bridle_hh <-
                )
   ) +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
-  scale_x_continuous(name = "Standard bridle headline height (m)") +
-  scale_y_continuous(name = "Bridle #2 headline height (m)") +
+  scale_x_continuous(name = "Height - Standard (m)") +
+  scale_y_continuous(name = "Height - #2 (m)") +
   scale_color_manual(name = "Speed (kn)", values = colors_speed) +
   facet_wrap(~trawl, scales = "free") +
   theme_bw() +
-  theme(legend.position = "none")
+  theme(legend.position = "bottom")
 
 p_bridles <- 
   cowplot::plot_grid(
-  p_bridle_uws,
-  p_bridle_hh,
-  nrow = 2,
-  align = "hv"
-)
+    p_bridle_uws,
+    p_bridle_hh,
+    nrow = 2,
+    align = "v"
+  )
 
 print(p_bridles)
 ```
@@ -312,7 +311,7 @@ The 83-112 is a low-rise net and, therefore, has a higher Upper Wing Spread:Head
 
 ## Bridle angle of attack
 
-```{r speed_v_bridle_angle, include = TRUE, warning = FALSE, fig.cap = "Figure 6. Towing speed versus bridle angle in flume tank experiments under different spread treaments and bridles."}
+```{r speed_v_bridle_angle, include = TRUE, warning = FALSE, fig.cap = "Figure 6. Towing speed versus bridle angle in flume tank experiments under different spread treatments and bridles."}
 
 dat_angle_speed <- trawlmetrics::flume_tank |> 
   dplyr::filter(footrope %in% c("83-112", "PNE", "EBS_v2", "GOA/AI_v6"), 
@@ -881,7 +880,7 @@ print(p_spd_force)
 
 The capture efficiency of a trawl can change as catch accumulates because the catch affects drag, trawl geometry, and water flow through the net. An ideal survey trawl would have minimal variation in geometry, drag, and water flow to minimize variation in capture efficiency. Field observations suggest that the weight of survey catches produces small changes in geometry, based on the relationship between catch weight and net height/upper wing tip spread.
 
-```{r catch_vs_spread_field, include = TRUE, warning=FALSE, fig.cap="Figure 16. Observed total catch weight (kg) versus observed upper wing tip spread (m) in meters, by survey. Points denote observations for individual hauls, solid line and shading denote generalized additve model (GAM) fit and 95% confidence intervals between log10-transformed catch weight and measured spread. Text in the upper left corner shows the deviance explained (%) by each GAM."}
+```{r catch_vs_spread_field, include = TRUE, warning=FALSE, fig.cap="Figure 16. Observed total catch weight (kg) versus observed upper wing tip spread (m) in meters, by survey. Points denote observations for individual hauls, solid line and shading denote generalized additive model (GAM) fit and 95% confidence intervals between log10-transformed catch weight and measured spread. Text in the upper left corner shows the deviance explained (%) by each GAM."}
 goa_spread_gam <- mgcv::gam(
   formula = NET_WIDTH_M ~ s(log10(TOTAL_WEIGHT_KG), bs = "tp"),
   data = dplyr::filter(bts_geom, 
@@ -1028,7 +1027,7 @@ We conducted catch experiments at four treatment levels under a towing speed of 
 
 Trials with the 83-112 were conducted using both the standard bridle and bridle #2. Trials with the PNE were only conducted with the standard bridle. Trials with the RACE trawl were conducted with bridle #2 and both EBS_v2 and GOA/AI_v6 footropes.
 
-```{r catch_vs_spread, include = TRUE, warning=FALSE, fig.cap="Figure 18. Flume tank catch treatments versus upper and lower wingtip spread for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triagles) denote the bridle configuration and colors denote the measurement (upper or lower wing)."}
+```{r catch_vs_spread, include = TRUE, warning=FALSE, fig.cap="Figure 18. Flume tank catch treatments versus upper and lower wingtip spread for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triangles) denote the bridle configuration and colors denote the measurement (upper or lower wing)."}
 catch_trials <- trawlmetrics::flume_tank |> 
   dplyr::filter(trial %in% c(3, 11:13, 18, 25:27, 37, 47:49, 165, 176:178, 141, 152:154))
 
@@ -1055,7 +1054,7 @@ p0 <- catch_trials |>
 print(p0)
 ```
 
-```{r catch_vs_height, include = TRUE, warning=FALSE, fig.cap="Figure 19. Flume tank catch treatments versus headline opening height for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triagles) denote the bridle configuration."}
+```{r catch_vs_height, include = TRUE, warning=FALSE, fig.cap="Figure 19. Flume tank catch treatments versus headline opening height for the 83-112 (standard bridle and bridle #2), Poly nor'eastern (standard bridle), RACE trawl with EBS_v2 footrope (bridle #2), and RACE trawl with GOA/AI_v6 footrope (bridle #2). Symbols (circles/triangles) denote the bridle configuration."}
 p1 <- catch_trials |>
   dplyr::select(trial, catch, opening_headline_m, bridles, trawl, footrope) |>
   dplyr::mutate(catch = dplyr::if_else(catch == "empty", "0", catch)) |>
