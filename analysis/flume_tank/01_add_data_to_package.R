@@ -22,6 +22,7 @@ gp_catch <- RODBC::sqlQuery(
       CR.SURVEY_NAME,
       C.SPECIES_CODE, 
       C.WEIGHT_KG,
+      C.COUNT,
       H.NET_MEASURED,
       H.HAUL,
       H.DEPTH_GEAR_M,
@@ -53,6 +54,7 @@ total_catch <-
   gp_catch |>
   dplyr::group_by(HAULJOIN) |>
   dplyr::summarise(TOTAL_WEIGHT_KG = sum(WEIGHT_KG, na.rm = TRUE),
+                   TOTAL_COUNT = sum(COUNT, na.rm = TRUE),
                    .groups = 'keep') |>
   dplyr::ungroup()
 
@@ -92,15 +94,16 @@ bts_geom <-
     DISTANCE_FISHED_KM, 
     DURATION_HR, 
     DEPTH_M, 
-    TOTAL_WEIGHT_KG
+    TOTAL_WEIGHT_KG,
+    TOTAL_COUNT
   ) |>
   unique()
 
 # Load data from flume tank experiments conducted at the Marine Institute (St. John's, Newfoundland) in January 2025
-flume_tank <- read.xlsx(file = here::here("analysis", "flume_tank", "data", "flume_tank_data.xlsx"), 
-                        sheetName = 'data') |>
-  dplyr::select(-date_time_nst)
+# flume_tank <- read.xlsx(file = here::here("analysis", "flume_tank", "data", "flume_tank_data.xlsx"), 
+#                         sheetName = 'data') |>
+#   dplyr::select(-date_time_nst)
 
 save(bts_geom, file = here::here("data", "bts_geom.rda"), compress = "xz")
-save(flume_tank, file = here::here("data", "flume_tank.rda"), compress = "xz")
+# save(flume_tank, file = here::here("data", "flume_tank.rda"), compress = "xz")
 
