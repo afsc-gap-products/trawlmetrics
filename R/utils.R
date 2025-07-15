@@ -39,12 +39,19 @@ get_pings2 <- function(data, start_event_code, end_event_code) {
     dplyr::distinct() 
   start_t <- data_sub |> dplyr::filter(event == start_event_code) |> 
     dplyr::select(date_time)
-  end_t <- data_sub |> dplyr::filter(event == end_event_code) |> 
+  
+  end_t <- data_sub |> 
+    dplyr::filter(event == end_event_code) |> 
     dplyr::select(date_time)
-  data_new <- data |>
-    dplyr::mutate(start = start_t$date_time, end = end_t$date_time) |>
-    dplyr::filter(date_time >= start & date_time <= end) |>
-    dplyr::filter(!is.na(measurement_value)) 
+  
+  if(nrow(end_t) >= 1) {
+    data_new <- data |>
+      dplyr::mutate(start = start_t$date_time, end = end_t$date_time) |>
+      dplyr::filter(date_time >= start & date_time <= end) |>
+      dplyr::filter(!is.na(measurement_value)) 
+  } else {
+    data_new <- data[0, ]
+  }
   
   return(data_new)
 }
