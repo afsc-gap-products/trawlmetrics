@@ -34,6 +34,17 @@ vessel <- c(vessel1, vessel2)
 cruise_idnum <- c(cruise_idnum1, cruise_idnum2)
 vessel_comb <- paste(vessel, collapse = "_")
 
+# Load historical GOA haul data
+
+goa_hist <- bts_geom |>
+  dplyr::filter(SURVEY_DEFINITION_ID == 47, NET_MEASURED == TRUE) |>
+  dplyr::mutate(VESSEL = 176)
+
+goa_hist <- 
+  dplyr::bind_rows(
+    goa_hist,
+    dplyr::mutate(goa_hist, VESSEL = 148)
+  )
 
 # Process 2025 GOA Ocean Explorer and Alaska Provider -----------------------------------------------
 
@@ -348,10 +359,15 @@ before_corrections <- readRDS(file =
   )
 
 ggplot() +
+  geom_point(
+    data = goa_hist,
+    mapping = aes(x = NET_HEIGHT_M, y = NET_WIDTH_M),
+    color = "grey",
+    alpha = 0.5,
+    size = rel(.15)
+  ) +
   geom_point(data = dplyr::filter(before_corrections, performance >= 0),
-             mapping = aes(x = edit_net_height, y = mean_spread)) +
-  # geom_text_repel(data = dplyr::filter(before_corrections, PERFORMANCE >= 0),
-  #                 mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD), label = HAUL)) +
+             mapping = aes(x = edit_net_height, y = mean_spread), alpha = 0.5) +
   facet_wrap(~vessel) +
   scale_x_continuous(name = "EDIT_NET_HEIGHT", limits = c(0, 10)) +
   scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 22)) +
@@ -359,8 +375,16 @@ ggplot() +
 
 # After corrections
 ggplot() +
+  geom_point(
+    data = goa_hist,
+    mapping = aes(x = NET_HEIGHT_M, y = NET_WIDTH_M),
+    color = "grey",
+    alpha = 0.5,
+    size = rel(.15)
+  ) +
   geom_point(data = dplyr::filter(new_spread, PERFORMANCE >= 0),
-             mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD))) +
+             mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD)),
+             alpha = 0.5) +
   geom_text_repel(data = dplyr::filter(new_spread, PERFORMANCE >= 0),
              mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD), label = HAUL)) +
   facet_wrap(~VESSEL) +
