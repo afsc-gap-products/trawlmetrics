@@ -54,7 +54,6 @@ total_catch <-
   gp_catch |>
   dplyr::group_by(HAULJOIN) |>
   dplyr::summarise(TOTAL_WEIGHT_KG = sum(WEIGHT_KG, na.rm = TRUE),
-                   TOTAL_COUNT = sum(COUNT, na.rm = TRUE),
                    .groups = 'keep') |>
   dplyr::ungroup()
 
@@ -94,8 +93,7 @@ bts_geom <-
     DISTANCE_FISHED_KM, 
     DURATION_HR, 
     DEPTH_M, 
-    TOTAL_WEIGHT_KG,
-    TOTAL_COUNT
+    TOTAL_WEIGHT_KG
   ) |>
   unique()
 
