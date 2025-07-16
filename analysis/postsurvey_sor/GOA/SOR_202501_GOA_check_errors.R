@@ -5,6 +5,7 @@
 library(trawlmetrics)
 library(mgcv)
 library(ggthemes)
+library(ggrepel)
 
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
@@ -80,9 +81,15 @@ akp_spread <-
                 trt = ifelse(haul > 93, "middle_bail_middle_bridle", trt),
                 trt = ifelse(haul > 109, "middle_bail_top_bridle", trt))
 
+oex_spread <- 
+  readRDS(file = 
+            here::here("output", "GOA", "202501", "148_176", "SPREAD_AFTER_SOR_GOA_202501_148_176.rds")
+  ) |>
+  dplyr::filter(vessel == 148) 
+
 akp_height <- 
   readRDS(file = here::here("output", "GOA", "202501", "148_176", "HEIGHT_GOA_202501_148_176.rds")) |>
-  dplyr::filter(net_height_pings >= min_height_pings,
+  dplyr::filter(net_height_pings >= 50,
                 vessel == 176)
 
 akp_height_spread <-
@@ -96,7 +103,10 @@ ggplot() +
     mapping = aes(x = haul, y = mean_spread, color = factor(net_number), shape = trt)
   ) +
   scale_color_colorblind(name = "Net Number") +
-  scale_shape(name = "Bail/Spread")
+  scale_shape(name = "Bail/Spread") +
+  scale_y_continuous(name = "Measured spread (m)") +
+  scale_x_continuous(name = "AKP Haul") +
+  theme_bw()
 
 ggplot() +
   geom_vline(xintercept = c(93.5, 109.5), linetype = 2) +
@@ -113,18 +123,35 @@ ggplot() +
 ggplot() +
   geom_point(data = akp_height_spread,
              mapping = aes(x = bottom_depth, y = scope_ratio)) +
+  geom_text_repel(data = akp_height_spread,
+             mapping = aes(x = bottom_depth, y = scope_ratio, label = haul)) +
+  scale_y_continuous(name = "Scope:depth") +
+  scale_x_continuous(name = "Bottom depth (m)") +
   theme_bw()
 
 
-# Base model for estimating spread, except no net number or vessel effect
-m0 <- mgcv::gam(formula = mean_spread ~ s(scope_ratio) + s(total_weight) + s(bottom_depth) + s(speed) + 0 , data = akp_height_spread)
+akp_height_spread |>
+  dplyr::filter(bottom_depth > 100) |>
+  dplyr::arrange(-scope_ratio)
 
-# Including treatment
+
+# Base model for estimating spread, except no net number, vessel effect, or net height
+m0 <- mgcv::gam(formula = mean_spread ~ s(scope_ratio) + s(total_weight) + s(bottom_depth) + s(speed), data = akp_height_spread)
+
+# Including treatment - model that will be used to predict 
 m1 <- mgcv::gam(formula = mean_spread ~ s(scope_ratio) + s(total_weight) + s(bottom_depth) + s(speed) + trt + 0 , data = akp_height_spread)
 
-summary(m1)
+# Including treatment and net height -- effectively the model that will be used for predicting spread (sans vessel effects)
+m2 <- mgcv::gam(formula = mean_spread ~ s(scope_ratio) + s(total_weight) + s(bottom_depth) + s(speed) + s(edit_net_height) + trt + 0 , data = akp_height_spread)
 
-# Check levels
+
+summary(m0)
+summary(m1)
+plot(m1)
+summary(m2) # Models are prescribed-- there is no model selection so insignificant variables are retained
+plot(m2)
+
+# Estimate difference in spread across depth, speed, depth, and scope ratio conditions
 spread_fit <- 
   expand.grid(
   bottom_depth = c(50, 75, 100, 200, 300, 400),
@@ -143,6 +170,7 @@ spread_fit <-
 
 spread_fit$spread_fit <- predict(m1, newdata = spread_fit)
 
+# Plot m1 fits
 ggplot(data = 
          spread_fit,
        mapping = aes(x = bottom_depth, y = spread_fit, color = trt)) +
@@ -170,7 +198,7 @@ ggplot(data =
 
 ggplot(data = 
          spread_fit_wide,
-       mapping = aes(x = bottom_depth, y = middle_bail_top_bridle - first_bail_middle_bridle)) +
+       mapping = aes(x = bottom_depth, y = middle_bail_top_bridle - inner_bail_middle_bridle)) +
   geom_point() +
   geom_path() +
   facet_wrap(~speed_kn) +
@@ -199,15 +227,15 @@ ggplot() +
       spread_fit_wide,
     mapping = aes(
       x = bottom_depth, 
-      y = middle_bail_top_bridle - first_bail_middle_bridle,
-      color = "Correct - FBMB (m)")
+      y = middle_bail_top_bridle - inner_bail_middle_bridle,
+      color = "Correct - IBMB (m)")
   ) +
   geom_path(
     data = 
       spread_fit_wide,
     mapping = aes(
       x = bottom_depth, 
-      y = middle_bail_top_bridle - first_bail_middle_bridle, ,
+      y = middle_bail_top_bridle - inner_bail_middle_bridle, ,
       color = "Correct - IBMB (m)")
   ) +
   geom_point(
@@ -215,7 +243,7 @@ ggplot() +
       spread_fit_wide,
     mapping = aes(
       x = bottom_depth, 
-      y = middle_bail_middle_bridle - first_bail_middle_bridle,
+      y = middle_bail_middle_bridle - inner_bail_middle_bridle,
       color = "MBMB - IBMB (m)")
   ) +
   geom_path(
@@ -223,24 +251,68 @@ ggplot() +
       spread_fit_wide,
     mapping = aes(
       x = bottom_depth, 
-      y = middle_bail_middle_bridle - first_bail_middle_bridle, ,
+      y = middle_bail_middle_bridle - inner_bail_middle_bridle, ,
       color = "MBMB - IBMB (m)")
   ) +
   facet_wrap(~speed_kn) +
   scale_x_continuous(name = "Bottom depth (m)") +
   scale_y_continuous(name = "Difference (m)") +
-  scale_color_tableau()
+  scale_color_tableau(name = "Comparison") +
+  theme_bw()
+
+# Fill missing spreads
+
+akp_corr_spread <- 
+  akp_spread |>
+  dplyr::select(-trt) |>
+  dplyr::mutate(net_number = ifelse(haul < 96, NA, net_number),
+                mean_spread = ifelse(haul < 110, NA, mean_spread),
+                n_pings = ifelse(haul < 110, 0, n_pings),
+                )
+
+dplyr::bind_rows(akp_corr_spread, oex_spread) |>
+  saveRDS(
+    here::here("output", region, cruise, vessel_comb, 
+               paste0("SPREAD_AFTER_SOR_CORR_", region, "_", cruise, "_", vessel_comb, ".rds")
+    )
+  )
+
+# Remove spread values from hauls 1-109
+for(ii in 1:109) {
+  
+  sor_path <- here::here("output", region, cruise, vessel_comb,
+                         paste0("PING_FILES_", survey),
+                         paste0("176_202501_",
+                                gsub(pattern = " ", replacement = "0", x = format(ii, width = 4)), "_sor.rds"))
+
+  if(file.exists(sor_path)) {
+    sor_fix <- readRDS(sor_path)
+    
+    sor_fix$spread <- NULL
+    
+    sor_fix$haul$net_number <- NA
+    
+    sor_fix$sor_ping_ranks <- NULL
+    sor_fix$sor_results <- NULL
+    sor_fix$sor_rmse <- NULL
+    
+    saveRDS(sor_fix,
+            sor_path)
+  }
+
+}
+
 
 # Fill in missing height and spread data
 # Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
 sor_fill_missing(height_paths = here::here("output", region, cruise, vessel_comb, 
                                            paste0("HEIGHT_", region, "_", cruise, "_", vessel_comb, ".rds")),
                  spread_paths = here::here("output", region, cruise, vessel_comb, 
-                                           paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", vessel_comb, ".rds")),
+                                           paste0("SPREAD_AFTER_SOR_CORR_", region, "_", cruise, "_", vessel_comb, ".rds")),
                  haul_path = here::here("output", region, cruise, vessel_comb, 
                                         paste0("edit_haul_", cruise, "_", vessel_comb, ".rds")),
                  rds_dir = here::here("output", region, cruise, vessel_comb, 
-                                      paste0("PING_FILES_", region, "_", year)),
+                                      paste0("PING_FILES_", survey)),
                  fill_method = fill_method,
                  convert_marport_to_netmind = convert_marport_to_netmind,
                  min_height_pings = min_height_pings)
@@ -248,13 +320,54 @@ sor_fill_missing(height_paths = here::here("output", region, cruise, vessel_comb
 # Update tables ------------------------------------------------------------------------------------
 # Add updated data to Oracle and write output to .csv
 sor_save_results(final_dir = here::here("output", region, cruise, vessel_comb, 
-                                        paste0("PING_FILES_", region, "_", year)), 
+                                        paste0("PING_FILES_", survey)), 
                  create_user = create_user, 
                  survey = c(survey, survey), 
                  cruise_idnum = cruise_idnum,
                  channel = channel,
                  delete_existing = delete_existing
 )
+
+# Check new spread values
+new_spread <- read.csv(file = here::here("output", "race_data_edit_hauls_table_GOA_2025_check_errors.csv")) |>
+  dplyr::inner_join(
+    readRDS(
+      here::here("output", region, cruise, vessel_comb, 
+                 paste0("SPREAD_AFTER_SOR_CORR_", region, "_", cruise, "_", vessel_comb, ".rds")
+      )
+    ) |>
+    dplyr::select(VESSEL = vessel, CRUISE = cruise, HAUL = haul, PERFORMANCE = performance)
+  )
+
+# Before corrections
+before_corrections <- readRDS(file = 
+                                here::here("output", "GOA", "202501", "148_176", "SPREAD_AFTER_SOR_GOA_202501_148_176.rds")
+) |>
+  dplyr::inner_join(
+    readRDS(file = here::here("output", "GOA", "202501", "148_176", "HEIGHT_GOA_202501_148_176.rds"))
+  )
+
+ggplot() +
+  geom_point(data = dplyr::filter(before_corrections, performance >= 0),
+             mapping = aes(x = edit_net_height, y = mean_spread)) +
+  # geom_text_repel(data = dplyr::filter(before_corrections, PERFORMANCE >= 0),
+  #                 mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD), label = HAUL)) +
+  facet_wrap(~vessel) +
+  scale_x_continuous(name = "EDIT_NET_HEIGHT", limits = c(0, 10)) +
+  scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 22)) +
+  theme_bw()
+
+# After corrections
+ggplot() +
+  geom_point(data = dplyr::filter(new_spread, PERFORMANCE >= 0),
+             mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD))) +
+  geom_text_repel(data = dplyr::filter(new_spread, PERFORMANCE >= 0),
+             mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD), label = HAUL)) +
+  facet_wrap(~VESSEL) +
+  scale_x_continuous(limits = c(0, 10)) +
+  scale_y_continuous(limits = c(10, 22)) +
+  scale_color_fivethirtyeight(name = "NET_SPREAD_METHOD") +
+  theme_bw()
 
 
 # Compare with final values ------------------------------------------------------------------------
