@@ -45,7 +45,7 @@ sor_fill_missing <- function(height_paths,
   hs_df <- dplyr::inner_join(height_df, 
                              spread_df,
                              by = c("haul", "haul_id", "edit_wire_out", 
-                                    "cruise", "vessel", "invscope")) |>
+                                    "cruise", "cruise_id", "vessel", "invscope")) |>
     dplyr::filter(!is.na(edit_net_height), 
                   !is.na(mean_spread), 
                   net_height_pings >= min_height_pings,

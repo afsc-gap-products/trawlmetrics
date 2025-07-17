@@ -1,3 +1,10 @@
+trawlmetrics 0.0.10 (July 15, 2025)
+----------------------------------------------------------------
+
+- sor_setup_directory: Improve handling of hauls without key 
+  event data.
+
+
 trawlmetrics 0.0.9 (March 25, 2025)
 ----------------------------------------------------------------
 
