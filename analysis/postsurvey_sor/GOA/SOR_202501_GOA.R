@@ -165,7 +165,7 @@ plot(m2)
 spread_fit <- 
   expand.grid(
   bottom_depth = c(50, 75, 100, 200, 300, 400),
-  speed = c(2.8, 3, 3.2)/1.852,
+  speed = c(2.8, 3, 3.2)*1.852,
   total_weight = 700,
   trt = unique(akp_height_spread$trt)
 ) |>
@@ -174,7 +174,7 @@ spread_fit <-
                scope_ratio = c(2.75, 2, 1.8, 1.5, 1.3, 1.3))
   ) |>
   dplyr::inner_join(
-    data.frame(speed = c(2.8, 3, 3.2)/1.852,
+    data.frame(speed = c(2.8, 3, 3.2)*1.852,
                speed_kn = c(2.8, 3, 3.2))
   )
 
@@ -188,7 +188,8 @@ ggplot(data =
   geom_path() +
   facet_wrap(~speed_kn) +
   scale_x_continuous(name = "Bottom depth (m)") +
-  scale_y_continuous(name = "Estimated spread (m)")
+  scale_y_continuous(name = "Estimated spread (m)") +
+  theme_bw()
 
 spread_fit_wide <- 
   tidyr::pivot_wider(
