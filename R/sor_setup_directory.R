@@ -75,6 +75,7 @@ sor_setup_directory <- function(channel = NULL,
     channel = channel, 
     query = paste0(" select * from race_data.v_extract_edit_sgp 
                    where cabinet_sensor_flag = 12
+                   and datum_code in (0, 1, 7, 11)
                    and cruise in (", 
                    cruise,
                    ") and region = '", 

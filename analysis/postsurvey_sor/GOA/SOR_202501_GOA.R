@@ -1,6 +1,6 @@
 # Evaluate effect of bridle and bail setting issues on spread
 # Sequential outlier rejection and fill missing spread and height
-# Last update: July 15, 2025
+# Last update: July 30, 2025
 
 library(trawlmetrics)
 library(mgcv)
@@ -11,7 +11,7 @@ channel <- trawlmetrics::get_connected(schema = "AFSC")
 
 # Settings -----------------------------------------------------------------------------------------
 region = "GOA"
-survey = "GOA_2025_check_errors"
+survey = "GOA_2025"
 year = 2025
 cruise = 202501
 haul_types = 3
@@ -77,11 +77,10 @@ sor_plot_results(cruise = cruise,
                  region = region,
                  survey = survey)
 
-
 # Examine Alaska Provider hauls with incorrect bail settings and sensors on the middle bridle ----
-# Hauls 1-93: Main wire bail on the first hole, sensors on the middle bridle.
-# Hauls 94-109: Sensors on the middle bridle.
-# Hauls >= 110: Everything correct
+# Hauls 1-93: Main wire on the first bail, sensors on the middle bridle.
+# Hauls 94-109: Main wire on the middle bail, sensors on the middle bridle.
+# Hauls >= 110: Everything correct (main wire on the middle bail, sensors on the top bridle)
 
 akp_spread <- 
   readRDS(file = 
@@ -340,7 +339,7 @@ sor_save_results(final_dir = here::here("output", region, cruise, vessel_comb,
 )
 
 # Check new spread values
-new_spread <- read.csv(file = here::here("output", "race_data_edit_hauls_table_GOA_2025_check_errors.csv")) |>
+new_spread <- read.csv(file = here::here("output", "race_data_edit_hauls_table_GOA_2025.csv")) |>
   dplyr::inner_join(
     readRDS(
       here::here("output", region, cruise, vessel_comb, 
@@ -395,6 +394,7 @@ ggplot() +
 
 
 # Compare with final values ------------------------------------------------------------------------
+# Run after updating values
 
 comparison_data <- RODBC::sqlQuery(channel = channel, 
                                    query = paste0("
@@ -420,7 +420,9 @@ comparison_data <- RODBC::sqlQuery(channel = channel,
                                     and rbh.haul = rdh.haul
                                     and rbh.vessel in (", vessel1, ", ", vessel2, ")")
 ) |>
-  dplyr::arrange(HAUL)
+  dplyr::mutate(CRUISE = as.numeric(CRUISE),
+                HAUL = as.numeric(HAUL)) |>
+  dplyr::arrange(HAUL) 
 
 edit_data <- read.csv(file = here::here("output", 
                                         paste0("race_data_edit_hauls_table_", survey, ".csv"))) |> 
@@ -430,6 +432,7 @@ edit_data <- read.csv(file = here::here("output",
                 NEW_NET_HEIGHT_METHOD = NET_HEIGHT_METHOD,
                 NEW_NET_SPREAD_PINGS = NET_SPREAD_PINGS,
                 NEW_NET_HEIGHT_PINGS = NET_HEIGHT_PINGS) |>
+  dplyr::mutate(VESSEL = factor(VESSEL)) |>
   dplyr::inner_join(comparison_data) |>
   dplyr::mutate(DIFF_HEIGHT = NET_HEIGHT - EDIT_NET_HEIGHT,
                 DIFF_WIDTH = NET_WIDTH - EDIT_NET_SPREAD,
