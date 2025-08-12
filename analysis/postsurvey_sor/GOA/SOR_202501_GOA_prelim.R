@@ -59,6 +59,7 @@ sor_setup_directory(cruise = cruise,
                     survey = survey,
                     haul_types = haul_types,
                     gear_codes = gear_codes,
+                    datum_codes = c(0:12), # ONLY TO REPLICATE PRELIM ANALYSIS- RETURNS BOTH GOOD AND BAD DATA
                     channel = channel)
 
 # Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
