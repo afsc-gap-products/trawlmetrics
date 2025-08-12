@@ -1,3 +1,10 @@
+trawlmetrics 0.1.01 (August 12), 2025)
+----------------------------------------------------------------
+
+- sor_setup_directory() includes a datum_codes argument that 
+  allows users to specify which DATUM_CODE values should be
+  used in analyses.
+
 trawlmetrics 0.1.00 (July 15, 2025)
 ----------------------------------------------------------------
 
