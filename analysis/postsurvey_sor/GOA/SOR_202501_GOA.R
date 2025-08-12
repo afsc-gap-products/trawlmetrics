@@ -124,7 +124,7 @@ for(ii in 1:109) {
   if(file.exists(sor_path)) {
     sor_fix <- readRDS(sor_path)
     
-    
+    # Removing net number from ping files ensures they are treated as NA for estimation
     if(!(sor_fix$haul$net_number %in% c(23, 20))) {
       sor_fix$haul$net_number <- NA
       saveRDS(sor_fix,
