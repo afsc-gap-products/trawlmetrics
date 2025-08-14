@@ -12,6 +12,7 @@ sor_setup_directory(
   vessel,
   survey,
   haul_types = 3,
+  datum_codes = c(0, 1, 7, 11),
   gear_codes = NULL,
   width_range = NULL
 )
@@ -30,6 +31,8 @@ sor_setup_directory(
 \item{survey}{Survey name prefix to use in file name (e.g. NBS_2022)}
 
 \item{haul_types}{A numeric vector of HAUL_TYPE to use.}
+
+\item{datum_codes}{A numeric vector indicating which datum code observations should be returned. Defaults to codes that are identified as good to be used in analyses (0, 1, 7, 11).}
 
 \item{gear_codes}{A numeric vector of GEAR codes to use.}
 
