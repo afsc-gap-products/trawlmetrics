@@ -9,6 +9,7 @@
 #' @param vessel vessel ID number as a numeric vector (e.g. 162 for Alaska Knight.
 #' @param survey Survey name prefix to use in file name (e.g. NBS_2022)
 #' @param haul_types A numeric vector of HAUL_TYPE to use.
+#' @param datum_codes A numeric vector indicating which datum code observations should be returned. Defaults to codes that are identified as good to be used in analyses (0, 1, 7, 11).
 #' @param gear_codes A numeric vector of GEAR codes to use.
 #' @param width_range Gate filter for net width values as a 2L numeric vector. If not provided, Defaults to survey standards if not provided c(8,22) for GOA and AI, c(10, 22) for EBS/NBS
 #' @import RODBC getPass
@@ -21,6 +22,7 @@ sor_setup_directory <- function(channel = NULL,
                                 vessel, 
                                 survey, 
                                 haul_types = 3,
+                                datum_codes = c(0, 1, 7, 11),
                                 gear_codes = NULL,
                                 width_range = NULL) {
   
@@ -75,8 +77,8 @@ sor_setup_directory <- function(channel = NULL,
     channel = channel, 
     query = paste0(" select * from race_data.v_extract_edit_sgp 
                    where cabinet_sensor_flag = 12
-                   and datum_code in (0, 1, 7, 11)
-                   and cruise in (", 
+                   and datum_code in (", paste(datum_codes, sep = ","),
+                   ") and cruise in (", 
                    cruise,
                    ") and region = '", 
                    survey_region, 

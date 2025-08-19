@@ -1,11 +1,10 @@
-# Evaluate effect of bridle and bail setting issues on spread
-# Sequential outlier rejection and fill missing spread and height
-# Last update: July 30, 2025
+# Sequential outlier rejection and fill missing spread and height data for 2025 GOA survey
+# Last update: August 12, 2025
 
 library(trawlmetrics)
 library(mgcv)
 library(ggthemes)
-library(ggrepel)
+library(cowplot)
 
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
@@ -21,8 +20,8 @@ convert_marport_to_netmind = FALSE
 min_pings_for_sor = 50
 min_height_pings = 50
 fill_method = "goa" # One method for the GOA and AI; see ?sor_fill_missing
-create_user = "ROHANS"
-delete_existing = FALSE
+create_user = "SIPLEM"
+delete_existing = FALSE # Change to true to update Oracle 
 
 cruise_idnum1 = 776
 vessel1 = 148
@@ -34,7 +33,119 @@ vessel <- c(vessel1, vessel2)
 cruise_idnum <- c(cruise_idnum1, cruise_idnum2)
 vessel_comb <- paste(vessel, collapse = "_")
 
-# Load historical GOA haul data
+# Process 2025 GOA Ocean Explorer and Alaska Provider -----------------------------------------------
+
+# Retrieve haul and net mensuration data from race_data then write spread and height data from 
+# individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
+# - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
+# - Hauls: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_pings.rds
+sor_setup_directory(
+  cruise = cruise,
+  cruise_idnum = cruise_idnum,
+  vessel = vessel,
+  region = region,
+  survey = survey,
+  haul_types = haul_types,
+  gear_codes = gear_codes,
+  channel = channel
+)
+
+# Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
+# Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
+sor_run(
+  cruise = cruise,
+  vessel = vessel,
+  region = region,
+  survey = survey,
+  min_pings_for_sor = min_pings_for_sor,
+  overwrite = TRUE
+)
+
+# Plot results of sequential outlier rejection for visual inspection.
+# Plots: [subdirectory]/ping_files_{survey}/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
+sor_plot_results(
+  cruise = cruise,
+  vessel = vessel,
+  region = region,
+  survey = survey
+)
+
+# Change net numbers for haul < 110 to NA unless a net was used later and had enough good hauls
+# for spread estimation
+haul_data <- 
+  readRDS(here::here("output", region, cruise, vessel_comb, 
+                     paste0("edit_haul_", cruise, "_", vessel_comb, ".rds")))
+
+haul_data |>
+  dplyr::filter(vessel == 176) |>
+  dplyr::group_by(vessel, cruise, net_number) |>
+  dplyr::summarise(min_haul = min(haul),
+                   max_haul = max(haul),
+                   n_good = sum(haul > 109 & performance >= 0)) |>
+  dplyr::filter(max_haul > 109, min_haul < 110) |>
+  dplyr::arrange(net_number)
+
+# Net 20: 26 hauls after haul 109; use as a factor
+# Net 23: only 4 good hauls at the end of the survey. Treat as NA (i.e., do not use as a factor when estimating spread)
+
+dplyr::filter(haul_data, net_number == 23) |>
+  dplyr::arrange(haul)
+
+# Change net numbers for hauls 1-109 (only for estimation-- not in the data)
+for(ii in 1:109) {
+  
+  sor_path <- here::here("output", region, cruise, vessel_comb,
+                         paste0("PING_FILES_", survey),
+                         paste0("176_202501_",
+                                gsub(pattern = " ", replacement = "0", x = format(ii, width = 4)), "_sor.rds"))
+  
+  if(file.exists(sor_path)) {
+    sor_fix <- readRDS(sor_path)
+    
+    # Removing net number from ping files ensures they are treated as NA for estimation
+      if(!(sor_fix$haul$net_number == 20)) {
+      sor_fix$haul$net_number <- NA
+      saveRDS(sor_fix,
+              sor_path)
+    }
+
+  }
+  
+}
+
+# Fill in missing height and spread data
+# Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
+sor_fill_missing(
+  height_paths = here::here("output", region, cruise, vessel_comb, 
+                            paste0("HEIGHT_", region, "_", cruise, "_", vessel_comb, ".rds")),
+  spread_paths = here::here("output", region, cruise, vessel_comb, 
+                            paste0("SPREAD_AFTER_SOR_", region, "_", cruise, "_", vessel_comb, ".rds")),
+  haul_path = here::here("output", region, cruise, vessel_comb, 
+                         paste0("edit_haul_", cruise, "_", vessel_comb, ".rds")),
+  rds_dir = here::here("output", region, cruise, vessel_comb, 
+                       paste0("PING_FILES_", survey)),
+  fill_method = fill_method,
+  convert_marport_to_netmind = convert_marport_to_netmind,
+  min_height_pings = min_height_pings
+)
+
+
+# Update tables ------------------------------------------------------------------------------------
+# Add updated data to Oracle and write output to .csv
+sor_save_results(
+  final_dir = here::here("output", region, cruise, vessel_comb, 
+                         paste0("PING_FILES_", survey)), 
+  create_user = create_user, 
+  survey = c(survey, survey), 
+  cruise_idnum = cruise_idnum,
+  channel = channel,
+  delete_existing = delete_existing
+)
+
+
+# Compare spread before and after corrections ------------------------------------------------------
+
+# Load historical GOA haul data and calculate 95% IQR
 
 goa_hist <- bts_geom |>
   dplyr::filter(SURVEY_DEFINITION_ID == 47, NET_MEASURED == TRUE) |>
@@ -46,404 +157,101 @@ goa_hist <-
     dplyr::mutate(goa_hist, VESSEL = 148)
   )
 
-# Process 2025 GOA Ocean Explorer and Alaska Provider -----------------------------------------------
+spread_range <- quantile(goa_hist$NET_WIDTH_M, probs = c(0.025, 0.975))
 
-# Retrieve haul and net mensuration data from race_data then write spread and height data from 
-# individual hauls to the [subdirectory]: /output/{region}/{cruise}/{vessel}.
-# - Height: [subdirectory]/ping_files_{survey}/HEIGHT_{region}_{cruise}_{vessel}.rds
-# - Hauls: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_pings.rds
-sor_setup_directory(cruise = cruise,
-                    cruise_idnum = cruise_idnum,
-                    vessel = vessel,
-                    region = region,
-                    survey = survey,
-                    haul_types = haul_types,
-                    gear_codes = gear_codes,
-                    channel = channel)
+# Load haul data that had been retrieved from edit tables
 
-# Run sequential outlier rejection on rds files from each haul and write outputs to .rds files.
-# Hauls w/ SOR: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_sor.rds
-sor_run(cruise = cruise,
-        vessel = vessel,
-        region = region,
-        survey = survey,
-        min_pings_for_sor = min_pings_for_sor,
-        overwrite = TRUE)
-
-# Plot results of sequential outlier rejection for visual inspection.
-# Plots: [subdirectory]/ping_files_{survey}/SOR_graphics_{survey}/SOR_{cruise}_{vessel}_{haul}.png
-sor_plot_results(cruise = cruise,
-                 vessel = vessel,
-                 region = region,
-                 survey = survey)
-
-# Examine Alaska Provider hauls with incorrect bail settings and sensors on the middle bridle ----
-# Hauls 1-93: Main wire on the first bail, sensors on the middle bridle.
-# Hauls 94-109: Main wire on the middle bail, sensors on the middle bridle.
-# Hauls >= 110: Everything correct (main wire on the middle bail, sensors on the top bridle)
-
-akp_spread <- 
-  readRDS(file = 
-            here::here("output", "GOA", "202501", "148_176", "SPREAD_AFTER_SOR_GOA_202501_148_176.rds")
+hauls <- 
+  readRDS(here::here("output", region, cruise, vessel_comb, 
+                     paste0("edit_haul_", cruise, "_", vessel_comb, ".rds"))
+  ) |> 
+  dplyr::inner_join(
+    readRDS(here::here("output", region, cruise, vessel_comb, 
+                       paste0("HEIGHT_", region, "_", cruise, "_", vessel_comb, ".rds"))) |>
+      dplyr::select(vessel, cruise, haul, edit_net_height)
   ) |>
-  dplyr::filter(vessel == 176) |>
-  dplyr::mutate(trt = "inner_bail_middle_bridle",
-                trt = ifelse(haul > 93, "middle_bail_middle_bridle", trt),
-                trt = ifelse(haul > 109, "middle_bail_top_bridle", trt))
+  dplyr::select(
+    vessel,
+    cruise,
+    haul,
+    net_number,
+    original_spread = edit_net_spread,
+    performance
+  )
 
-oex_spread <- 
-  readRDS(file = 
-            here::here("output", "GOA", "202501", "148_176", "SPREAD_AFTER_SOR_GOA_202501_148_176.rds")
-  ) |>
-  dplyr::filter(vessel == 148) 
+# Load new spread data and merge with haul data
+new_spread <- 
+  read.csv(file = here::here("output", "race_data_edit_hauls_table_GOA_2025.csv"))
 
-akp_height <- 
-  readRDS(file = here::here("output", "GOA", "202501", "148_176", "HEIGHT_GOA_202501_148_176.rds")) |>
-  dplyr::filter(net_height_pings >= 50,
-                vessel == 176)
+names(new_spread) <- tolower(names(new_spread))
 
-akp_height_spread <-
-  dplyr::inner_join(akp_spread, akp_height) |>
-  dplyr::mutate(nn_fac = factor(net_number))
+new_spread <- new_spread |>
+  dplyr::full_join(hauls)
 
-ggplot() +
-  geom_vline(xintercept = c(93.5, 109.5), linetype = 2) +
-  geom_point(
-    data = akp_height_spread,
-    mapping = aes(x = haul, y = mean_spread, color = factor(net_number), shape = trt)
-  ) +
-  scale_color_colorblind(name = "Net Number") +
-  scale_shape(name = "Bail/Spread") +
-  scale_y_continuous(name = "Measured spread (m)") +
-  scale_x_continuous(name = "AKP Haul") +
-  theme_bw()
-
-ggplot() +
-  geom_vline(xintercept = c(93.5, 109.5), linetype = 2) +
-  geom_point(
-    data = akp_height_spread,
-    mapping = aes(x = haul, y = edit_net_height, color = factor(net_number), shape = trt)
-  ) +
-  scale_color_colorblind(name = "Net Number") +
-  scale_shape(name = "Bail/Spread") +
+# Spread before SOR and estimation (i.e., what had been in the race_data)
+p_akp_before <- 
+  ggplot() +
+  geom_hline(mapping = aes(yintercept = spread_range), linetype = 2) +
+  geom_vline(xintercept = 109.5, linetype = 1, color = "red") +
+  geom_point(data = 
+               dplyr::filter(haul_data, vessel == 176, performance >= 0),
+             mapping = aes(x = haul, y = edit_net_spread, color = factor(net_number))) +
+  scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 23)) +
   scale_x_continuous(name = "Haul") +
-  scale_y_continuous(name = "Net Height (m)") +
+  ggtitle(label = "Unedited AKP spread (good hauls)") +
+  scale_color_colorblind(name = "Net number", na.value = "grey70") +
   theme_bw()
 
-ggplot() +
-  geom_point(data = akp_height_spread,
-             mapping = aes(x = bottom_depth, y = scope_ratio)) +
-  geom_text_repel(data = akp_height_spread,
-             mapping = aes(x = bottom_depth, y = scope_ratio, label = haul)) +
-  scale_y_continuous(name = "Scope:depth") +
-  scale_x_continuous(name = "Bottom depth (m)") +
+p_akp_after <- 
+  ggplot() +
+  geom_hline(mapping = aes(yintercept = spread_range), linetype = 2) +
+  geom_vline(xintercept = 109.5, linetype = 1, color = "red") +
+  geom_point(data = 
+               dplyr::filter(new_spread, vessel == 176, performance >= 0),
+             mapping = aes(x = haul, y = edit_net_spread, color = factor(net_number))) +
+  scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 23)) +
+  scale_x_continuous(name = "Haul") +
+  ggtitle(label = "Final AKP spread (good hauls)") +
+  scale_color_colorblind(name = "Net number", na.value = "grey70") +
   theme_bw()
 
-
-akp_height_spread |>
-  dplyr::filter(bottom_depth > 100) |>
-  dplyr::arrange(-scope_ratio)
-
-
-# Base model for estimating spread, except no net number, vessel effect, or net height
-m0 <- mgcv::gam(formula = mean_spread ~ s(scope_ratio) + s(total_weight) + s(bottom_depth) + s(speed), data = akp_height_spread)
-
-# Including treatment - model that will be used to predict 
-m1 <- mgcv::gam(formula = mean_spread ~ s(scope_ratio) + s(total_weight) + s(bottom_depth) + s(speed) + trt + 0 , data = akp_height_spread)
-
-# Including treatment and net height -- effectively the model that will be used for predicting spread (sans vessel effects)
-m2 <- mgcv::gam(formula = mean_spread ~ s(scope_ratio) + s(total_weight) + s(bottom_depth) + s(speed) + s(edit_net_height) + trt + 0 , data = akp_height_spread)
-
-
-summary(m0)
-summary(m1)
-plot(m1)
-summary(m2) # Models are prescribed-- there is no model selection so insignificant variables are retained
-plot(m2)
-
-# Estimate difference in spread across depth, speed, depth, and scope ratio conditions
-spread_fit <- 
-  expand.grid(
-  bottom_depth = c(50, 75, 100, 200, 300, 400),
-  speed = c(2.8, 3, 3.2)*1.852,
-  total_weight = 700,
-  trt = unique(akp_height_spread$trt)
-) |>
-  dplyr::inner_join(
-    data.frame(bottom_depth = c(50, 75, 100, 200, 300, 400),
-               scope_ratio = c(2.75, 2, 1.8, 1.5, 1.3, 1.3))
-  ) |>
-  dplyr::inner_join(
-    data.frame(speed = c(2.8, 3, 3.2)*1.852,
-               speed_kn = c(2.8, 3, 3.2))
-  )
-
-spread_fit$spread_fit <- predict(m1, newdata = spread_fit)
-
-# Plot m1 fits
-ggplot(data = 
-         spread_fit,
-       mapping = aes(x = bottom_depth, y = spread_fit, color = trt)) +
-  geom_point() +
-  geom_path() +
-  facet_wrap(~speed_kn) +
-  scale_x_continuous(name = "Bottom depth (m)") +
-  scale_y_continuous(name = "Estimated spread (m)") +
-  theme_bw()
-
-spread_fit_wide <- 
-  tidyr::pivot_wider(
-  data = spread_fit,
-  values_from = "spread_fit",
-  names_from = "trt"
+cowplot::plot_grid(
+  p_akp_before,
+  p_akp_after,
+  nrow = 2
 )
 
-ggplot(data = 
-         spread_fit_wide,
-       mapping = aes(x = bottom_depth, y = middle_bail_top_bridle - middle_bail_middle_bridle)) +
-  geom_point() +
-  geom_path() +
-  facet_wrap(~speed_kn) +
-  scale_x_continuous(name = "Bottom depth (m)") +
-  scale_y_continuous(name = "Correct - MBMB (m)")
+# Plot OEX spread
 
-ggplot(data = 
-         spread_fit_wide,
-       mapping = aes(x = bottom_depth, y = middle_bail_top_bridle - inner_bail_middle_bridle)) +
-  geom_point() +
-  geom_path() +
-  facet_wrap(~speed_kn) +
-  scale_x_continuous(name = "Bottom depth (m)") +
-  scale_y_continuous(name = "Correct - IBMB (m)")
-
-ggplot() +
-  geom_point(
-    data = 
-      spread_fit_wide,
-    mapping = aes(
-      x = bottom_depth, 
-      y = middle_bail_top_bridle - middle_bail_middle_bridle,
-      color = "Correct - MBMB (m)")
-  ) +
-  geom_path(
-    data = 
-      spread_fit_wide,
-    mapping = aes(
-      x = bottom_depth, 
-      y = middle_bail_top_bridle - middle_bail_middle_bridle, ,
-      color = "Correct - MBMB (m)")
-  ) +
-  geom_point(
-    data = 
-      spread_fit_wide,
-    mapping = aes(
-      x = bottom_depth, 
-      y = middle_bail_top_bridle - inner_bail_middle_bridle,
-      color = "Correct - IBMB (m)")
-  ) +
-  geom_path(
-    data = 
-      spread_fit_wide,
-    mapping = aes(
-      x = bottom_depth, 
-      y = middle_bail_top_bridle - inner_bail_middle_bridle, ,
-      color = "Correct - IBMB (m)")
-  ) +
-  geom_point(
-    data = 
-      spread_fit_wide,
-    mapping = aes(
-      x = bottom_depth, 
-      y = middle_bail_middle_bridle - inner_bail_middle_bridle,
-      color = "MBMB - IBMB (m)")
-  ) +
-  geom_path(
-    data = 
-      spread_fit_wide,
-    mapping = aes(
-      x = bottom_depth, 
-      y = middle_bail_middle_bridle - inner_bail_middle_bridle, ,
-      color = "MBMB - IBMB (m)")
-  ) +
-  facet_wrap(~speed_kn) +
-  scale_x_continuous(name = "Bottom depth (m)") +
-  scale_y_continuous(name = "Difference (m)") +
-  scale_color_tableau(name = "Comparison") +
+p_oex_before <- 
+  ggplot() +
+  geom_hline(mapping = aes(yintercept = spread_range), linetype = 2) +
+  geom_vline(xintercept = 109.5, linetype = 1, color = "red") +
+  geom_point(data = 
+               dplyr::filter(haul_data, vessel == 148, performance >= 0),
+             mapping = aes(x = haul, y = edit_net_spread, color = factor(net_number))) +
+  scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 23)) +
+  scale_x_continuous(name = "Haul") +
+  ggtitle(label = "Unedited OEX spread (good hauls)") +
+  scale_color_colorblind(name = "Net number", na.value = "grey70") +
   theme_bw()
 
-# Fill missing spreads
+p_oex_after <- 
+  ggplot() +
+  geom_hline(mapping = aes(yintercept = spread_range), linetype = 2) +
+  geom_vline(xintercept = 109.5, linetype = 1, color = "red") +
+  geom_point(data = 
+               dplyr::filter(new_spread, vessel == 148, performance >= 0),
+             mapping = aes(x = haul, y = edit_net_spread, color = factor(net_number))) +
+  scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 23)) +
+  scale_x_continuous(name = "Haul") +
+  ggtitle(label = "Final OEX spread (good hauls)") +
+  scale_color_colorblind(name = "Net number", na.value = "grey70") +
+  theme_bw()
 
-akp_corr_spread <- 
-  akp_spread |>
-  dplyr::select(-trt) |>
-  dplyr::mutate(net_number = ifelse(haul < 96, NA, net_number),
-                mean_spread = ifelse(haul < 110, NA, mean_spread),
-                n_pings = ifelse(haul < 110, 0, n_pings),
-                )
-
-dplyr::bind_rows(akp_corr_spread, oex_spread) |>
-  saveRDS(
-    here::here("output", region, cruise, vessel_comb, 
-               paste0("SPREAD_AFTER_SOR_CORR_", region, "_", cruise, "_", vessel_comb, ".rds")
-    )
-  )
-
-# Remove spread values from hauls 1-109
-for(ii in 1:109) {
-  
-  sor_path <- here::here("output", region, cruise, vessel_comb,
-                         paste0("PING_FILES_", survey),
-                         paste0("176_202501_",
-                                gsub(pattern = " ", replacement = "0", x = format(ii, width = 4)), "_sor.rds"))
-
-  if(file.exists(sor_path)) {
-    sor_fix <- readRDS(sor_path)
-    
-    sor_fix$spread <- NULL
-    
-    sor_fix$haul$net_number <- NA
-    
-    sor_fix$sor_ping_ranks <- NULL
-    sor_fix$sor_results <- NULL
-    sor_fix$sor_rmse <- NULL
-    
-    saveRDS(sor_fix,
-            sor_path)
-  }
-
-}
-
-
-# Fill in missing height and spread data
-# Hauls w/ missing data filled: [subdirectory]/ping_files_{survey}/{cruise}_{vessel}_{haul}_final.rds
-sor_fill_missing(height_paths = here::here("output", region, cruise, vessel_comb, 
-                                           paste0("HEIGHT_", region, "_", cruise, "_", vessel_comb, ".rds")),
-                 spread_paths = here::here("output", region, cruise, vessel_comb, 
-                                           paste0("SPREAD_AFTER_SOR_CORR_", region, "_", cruise, "_", vessel_comb, ".rds")),
-                 haul_path = here::here("output", region, cruise, vessel_comb, 
-                                        paste0("edit_haul_", cruise, "_", vessel_comb, ".rds")),
-                 rds_dir = here::here("output", region, cruise, vessel_comb, 
-                                      paste0("PING_FILES_", survey)),
-                 fill_method = fill_method,
-                 convert_marport_to_netmind = convert_marport_to_netmind,
-                 min_height_pings = min_height_pings)
-
-# Update tables ------------------------------------------------------------------------------------
-# Add updated data to Oracle and write output to .csv
-sor_save_results(final_dir = here::here("output", region, cruise, vessel_comb, 
-                                        paste0("PING_FILES_", survey)), 
-                 create_user = create_user, 
-                 survey = c(survey, survey), 
-                 cruise_idnum = cruise_idnum,
-                 channel = channel,
-                 delete_existing = delete_existing
+cowplot::plot_grid(
+  p_oex_before,
+  p_oex_after,
+  nrow = 2
 )
 
-# Check new spread values
-new_spread <- read.csv(file = here::here("output", "race_data_edit_hauls_table_GOA_2025.csv")) |>
-  dplyr::inner_join(
-    readRDS(
-      here::here("output", region, cruise, vessel_comb, 
-                 paste0("SPREAD_AFTER_SOR_CORR_", region, "_", cruise, "_", vessel_comb, ".rds")
-      )
-    ) |>
-    dplyr::select(VESSEL = vessel, CRUISE = cruise, HAUL = haul, PERFORMANCE = performance)
-  )
-
-# Before corrections
-before_corrections <- readRDS(file = 
-                                here::here("output", "GOA", "202501", "148_176", "SPREAD_AFTER_SOR_GOA_202501_148_176.rds")
-) |>
-  dplyr::inner_join(
-    readRDS(file = here::here("output", "GOA", "202501", "148_176", "HEIGHT_GOA_202501_148_176.rds"))
-  )
-
-ggplot() +
-  geom_point(
-    data = goa_hist,
-    mapping = aes(x = NET_HEIGHT_M, y = NET_WIDTH_M),
-    color = "grey",
-    alpha = 0.5,
-    size = rel(.15)
-  ) +
-  geom_point(data = dplyr::filter(before_corrections, performance >= 0),
-             mapping = aes(x = edit_net_height, y = mean_spread), alpha = 0.5) +
-  facet_wrap(~vessel) +
-  scale_x_continuous(name = "EDIT_NET_HEIGHT", limits = c(0, 10)) +
-  scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 22)) +
-  theme_bw()
-
-# After corrections
-ggplot() +
-  geom_point(
-    data = goa_hist,
-    mapping = aes(x = NET_HEIGHT_M, y = NET_WIDTH_M),
-    color = "grey",
-    alpha = 0.5,
-    size = rel(.15)
-  ) +
-  geom_point(data = dplyr::filter(new_spread, PERFORMANCE >= 0),
-             mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD)),
-             alpha = 0.5) +
-  geom_text_repel(data = dplyr::filter(new_spread, PERFORMANCE >= 0),
-             mapping = aes(x = EDIT_NET_HEIGHT, y = EDIT_NET_SPREAD, color = factor(NET_SPREAD_METHOD), label = HAUL)) +
-  facet_wrap(~VESSEL) +
-  scale_x_continuous(limits = c(0, 10)) +
-  scale_y_continuous(limits = c(10, 22)) +
-  scale_color_fivethirtyeight(name = "NET_SPREAD_METHOD") +
-  theme_bw()
-
-
-# Compare with final values ------------------------------------------------------------------------
-# Run after updating values
-
-comparison_data <- RODBC::sqlQuery(channel = channel, 
-                                   query = paste0("
-                                   select 
-                                    rbh.vessel, 
-                                    rbh.cruise, 
-                                    rbh.haul, 
-                                    rbh.net_height, 
-                                    rbh.net_width, 
-                                    rbh.net_measured, 
-                                    rdh.net_spread_method,
-                                    rdh.net_height_method,
-                                    rdh.net_spread_pings,
-                                    rdh.net_height_pings
-                                   from 
-                                    racebase.haul rbh, 
-                                    race_data.hauls rdh, 
-                                    race_data.cruises rdc
-                                   where rbh.cruise = ", cruise, 
-                                                  "and rdh.cruise_id = rdc.cruise_id
-                                    and rbh.cruise = rdc.cruise
-                                    and rdc.vessel_id = rbh.vessel
-                                    and rbh.haul = rdh.haul
-                                    and rbh.vessel in (", vessel1, ", ", vessel2, ")")
-) |>
-  dplyr::mutate(CRUISE = as.numeric(CRUISE),
-                HAUL = as.numeric(HAUL)) |>
-  dplyr::arrange(HAUL) 
-
-edit_data <- read.csv(file = here::here("output", 
-                                        paste0("race_data_edit_hauls_table_", survey, ".csv"))) |> 
-  dplyr::select(c("VESSEL", "CRUISE", "HAUL", "EDIT_NET_HEIGHT", "EDIT_NET_SPREAD",
-                  "NET_SPREAD_METHOD", "NET_HEIGHT_METHOD", "NET_SPREAD_PINGS", "NET_HEIGHT_PINGS")) |>
-  dplyr::rename(NEW_NET_SPREAD_METHOD = NET_SPREAD_METHOD,
-                NEW_NET_HEIGHT_METHOD = NET_HEIGHT_METHOD,
-                NEW_NET_SPREAD_PINGS = NET_SPREAD_PINGS,
-                NEW_NET_HEIGHT_PINGS = NET_HEIGHT_PINGS) |>
-  dplyr::mutate(VESSEL = factor(VESSEL)) |>
-  dplyr::inner_join(comparison_data) |>
-  dplyr::mutate(DIFF_HEIGHT = NET_HEIGHT - EDIT_NET_HEIGHT,
-                DIFF_WIDTH = NET_WIDTH - EDIT_NET_SPREAD,
-                DIFF_WIDTH_PCT = (NET_WIDTH - EDIT_NET_SPREAD)/NET_WIDTH*100,
-                DIFF_HEIGHT_PCT = (NET_HEIGHT - EDIT_NET_HEIGHT)/NET_HEIGHT*100)
-
-write.csv(edit_data, file = here::here("output", paste0("compare_", survey, ".csv")))
-
-edit_data |> 
-  dplyr::arrange(-abs(DIFF_WIDTH_PCT))
-
-edit_data |> 
-  dplyr::arrange(-abs(DIFF_HEIGHT_PCT))
