@@ -20,7 +20,7 @@ convert_marport_to_netmind = FALSE
 min_pings_for_sor = 50
 min_height_pings = 50
 fill_method = "goa" # One method for the GOA and AI; see ?sor_fill_missing
-create_user = "ROHANS"
+create_user = "SIPLEM"
 delete_existing = FALSE # Change to true to update Oracle 
 
 cruise_idnum1 = 776
@@ -228,7 +228,7 @@ p_oex_before <-
   geom_hline(mapping = aes(yintercept = spread_range), linetype = 2) +
   geom_vline(xintercept = 109.5, linetype = 1, color = "red") +
   geom_point(data = 
-               dplyr::filter(haul_data, vessel == 176, performance >= 0),
+               dplyr::filter(haul_data, vessel == 148, performance >= 0),
              mapping = aes(x = haul, y = edit_net_spread, color = factor(net_number))) +
   scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 23)) +
   scale_x_continuous(name = "Haul") +
@@ -241,7 +241,7 @@ p_oex_after <-
   geom_hline(mapping = aes(yintercept = spread_range), linetype = 2) +
   geom_vline(xintercept = 109.5, linetype = 1, color = "red") +
   geom_point(data = 
-               dplyr::filter(new_spread, vessel == 176, performance >= 0),
+               dplyr::filter(new_spread, vessel == 148, performance >= 0),
              mapping = aes(x = haul, y = edit_net_spread, color = factor(net_number))) +
   scale_y_continuous(name = "EDIT_NET_SPREAD", limits = c(10, 23)) +
   scale_x_continuous(name = "Haul") +
@@ -254,3 +254,4 @@ cowplot::plot_grid(
   p_oex_after,
   nrow = 2
 )
+
