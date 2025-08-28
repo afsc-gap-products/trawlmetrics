@@ -22,6 +22,16 @@ trawlmetrics_data <-
                    save_rds = FALSE
   ) 
 
+trawlmetrics_data[["plot_data"]] |>
+  dplyr::select(YEAR, VESSEL, NET_NUMBER, MEAN_NET_HEIGHT, Q025_NET_HEIGHT, Q975_NET_HEIGHT, Q25_NET_HEIGHT, Q75_NET_HEIGHT,
+                MEAN_NET_WIDTH, Q025_NET_WIDTH, Q975_NET_WIDTH, Q25_NET_WIDTH, Q75_NET_WIDTH, N_HAULS) |>
+  write.csv(here::here("output", paste0("GOA", set_year, "_haul_data.csv")), row.names = FALSE)
+
+trawlmetrics_data[["trawl_data"]] |>
+  dplyr::filter(YEAR == set_year, PERFORMANCE >= 0) |>
+  dplyr::select(VESSEL, CRUISE, HAUL, YEAR, HAUL, NET_NUMBER, NET_WIDTH, NET_HEIGHT) |>
+  write.csv(here::here("output", paste0("GOA", set_year, "_haul_summary.csv")), row.names = FALSE)
+
 ```
 
 ```{r}
@@ -102,7 +112,7 @@ dev.off()
 
 height_spread_ts <- 
   trawlmetrics_data[["trawl_data"]] |>
-  dplyr::filter(YEAR == set_year) |>
+  dplyr::filter(YEAR == set_year, PERFORMANCE >= 0) |>
   dplyr::select(VESSEL, CRUISE, HAUL, YEAR, HAUL, NET_NUMBER, NET_WIDTH, NET_HEIGHT) |>
   tidyr::pivot_longer(cols = c(NET_WIDTH, NET_HEIGHT)) |>
   dplyr::mutate(name = ifelse(name == "NET_WIDTH", "Spread (m)", "Height (m)"))
@@ -143,14 +153,14 @@ dev.off()
 ragg::agg_png(file = here::here("plots", "goa_spread_vs_height.png"), width = 7, height = 7, res = 300, units = "in")
 print(
 ggplot() +
-  geom_point(data = dplyr::filter(trawlmetrics_data[["trawl_data"]], YEAR < set_year),
+  geom_point(data = dplyr::filter(trawlmetrics_data[["trawl_data"]], YEAR < set_year, PERFORMANCE >= 0),
              mapping = aes(
                y = NET_HEIGHT, 
                x = NET_WIDTH, 
                color = paste0("2005-", set_year - 1)),
              size = rel(0.5)
   ) +
-  geom_point(data = dplyr::filter(trawlmetrics_data[["trawl_data"]], YEAR == set_year),
+  geom_point(data = dplyr::filter(trawlmetrics_data[["trawl_data"]], YEAR == set_year, PERFORMANCE >= 0),
              mapping = aes(
                y = NET_HEIGHT, 
                x = NET_WIDTH, 
@@ -167,11 +177,11 @@ ggplot() +
 dev.off()
 ```
 
-[![Figure 1. Distribution of net height and spread for all nets used during the survey (numbered nets) and for all nets with measurement data since 2005. Circles show the average, box shows 25-75% range, thin line shows full range. Labels along the vertical axis show the number of hauls for each net. Colors show whether the average for a net fell within the 25-75% range for the full 2005-present data set.](./plots/goa_trawl_height_width.png)](%60r%20paste0(%22Trawl%20height%20and%20width%20from%20the%20%22,%20year,%20%22%20%22,%20paste(survey,%20sep%20=%20%22%20and%20%22),%20%22survey(s).%22)%20%60)
+[![Figure 1. Distribution of net height and spread for all nets used during the survey (numbered nets) and for all nets with measurement data since 2005 from good performance hauls. Circles show the average, box shows 25-75% range, thin line shows full range. Labels along the vertical axis show the number of hauls for each net. Colors show whether the average for a net fell within the 25-75% range for the full 2005-present data set.](./plots/goa_trawl_height_width.png)](%60r%20paste0(%22Trawl%20height%20and%20width%20from%20the%20%22,%20year,%20%22%20%22,%20paste(survey,%20sep%20=%20%22%20and%20%22),%20%22survey(s).%22)%20%60)
 
-[![Figure 2. Net height and spread in 2025, by haul. Horizontal lines denote the mean (solid line) and 95% range (dashed lines) for hauls from 2005-2025.](./plots/goa_trawl_height_width_ts.png)](%60r%20paste0(%22Trawl%20height%20and%20width%20from%20the%20%22,%20year,%20%22%20%22,%20paste(survey,%20sep%20=%20%22%20and%20%22),%20%22survey(s).%22)%20%60)
+[![Figure 2. Net height and spread for good performance hauls with net measurements in 2025, by haul. Horizontal lines denote the mean (solid line) and 95% range (dashed lines) for hauls from 2005-2025.](./plots/goa_trawl_height_width_ts.png)](%60r%20paste0(%22Trawl%20height%20and%20width%20from%20the%20%22,%20year,%20%22%20%22,%20paste(survey,%20sep%20=%20%22%20and%20%22),%20%22survey(s).%22)%20%60)
 
-![Figure 3. Net spread versus net height from 2005-2025.](./plots/goa_spread_vs_height.png)
+![Figure 3. Net spread versus net height for good performance hauls with net measurements from 2005-2025.](./plots/goa_spread_vs_height.png)
 
 ```{r setup_tables}
 #| include: false

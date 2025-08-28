@@ -14,7 +14,8 @@ get_trawlmetrics <- function(survey,
                              select_haul_types = c(3, 13, 20), 
                              select_gear_code = NULL,
                              save_rds = FALSE, 
-                             channel = NULL) {
+                             channel = NULL
+                             ) {
   
   survey <- toupper(survey)
   
@@ -32,28 +33,30 @@ get_trawlmetrics <- function(survey,
   
   trawl_data <- RODBC::sqlQuery(channel = channel,
                                 query =
-                                  paste("select a.hauljoin, d.haul_id, a.vessel, a.cruise, a.haul, 
-                                  a.net_measured, a.net_height, d.net_height_standard_deviation,
-                                  d.net_height_pings, d.net_height_method, a.net_width, 
-                                  d.net_spread_standard_deviation, d.net_spread_pings, 
-                                  d.net_spread_method, a.wire_length, 
-                                  a.distance_fished, a.duration, a.bottom_depth, a.performance, 
-                                  a.gear, a.accessories, a.stationid, a.start_time, d.net_number, 
-                                  d.footrope_number, d.autotrawl_method, d.starboard_door_number, 
-                                  d.port_door_number, d.haul_type, e.description gear_description, 
-                                  f.description performance_description 
+                                  paste("select h.hauljoin, rdh.haul_id, h.vessel, h.cruise, h.haul, 
+                                  h.net_measured, h.net_height, rdh.net_height_standard_deviation,
+                                  rdh.net_height_pings, rdh.net_height_method, h.net_width, 
+                                  rdh.net_spread_standard_deviation, rdh.net_spread_pings, 
+                                  rdh.net_spread_method, h.wire_length, 
+                                  h.distance_fished, h.duration, h.bottom_depth, h.performance, 
+                                  h.gear, h.accessories, h.stationid, h.start_time, rdh.net_number, 
+                                  rdh.footrope_number, rdh.autotrawl_method, rdh.starboard_door_number, 
+                                  rdh.port_door_number, rdh.haul_type, gc.description gear_description, 
+                                  p.description performance_description 
                                   from 
-                                  racebase.haul a, race_data.cruises b, race_data.surveys c, 
-                                  race_data.hauls d, race_data.gear_codes e, racebase.performance f 
-                                        where c.survey_definition_id in (", 
+                                  racebase.haul h, race_data.cruises c, race_data.surveys s, 
+                                  race_data.hauls rdh, race_data.gear_codes gc, racebase.performance p 
+                                        where s.survey_definition_id in (", 
                                         paste(survey_id, collapse = ","), ")",
-                                        "and a.gear in (", paste(select_gear_code, collapse = ","), ")",
-                                        "and b.survey_id = c.survey_id 
-                                        and a.cruisejoin = b.racebase_cruisejoin 
-                                        and d.cruise_id = b.cruise_id 
-                                        and a.haul = d.haul 
-                                        and e.gear_code = a.gear 
-                                        and a.performance = f.performance"))
+                                        "and h.gear in (", paste(select_gear_code, collapse = ","), ")",
+                                        "and s.survey_id = c.survey_id 
+                                        and h.cruise = c.cruise
+                                        and h.vessel = c.vessel_id
+                                        and rdh.cruise_id = c.cruise_id 
+                                        and h.haul = rdh.haul 
+                                        and gc.gear_code = h.gear 
+                                        and h.performance = p.performance"))
+
   
   if(is(trawl_data, "character")) {
     stop("get_trawlmetrics: Trawl data query failed.")
@@ -115,7 +118,7 @@ get_trawlmetrics <- function(survey,
   
   # Summarize height and width for all nets and all years
   trawlmetrics_average <- trawl_data |>
-    dplyr::filter(NET_MEASURED == "Y") |>
+    dplyr::filter(NET_MEASURED == "Y", PERFORMANCE >= 0) |>
     dplyr::summarise(MEAN_NET_HEIGHT = mean(NET_HEIGHT, na.rm = TRUE),
                      MIN_NET_HEIGHT = min(NET_HEIGHT, na.rm = TRUE),
                      MAX_NET_HEIGHT = max(NET_HEIGHT, na.rm = TRUE),
