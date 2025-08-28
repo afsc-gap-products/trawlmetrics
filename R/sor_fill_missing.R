@@ -61,12 +61,14 @@ sor_fill_missing <- function(height_paths,
   
   if(fill_method == "ebs") {
     
-    models <- list(spread = glm(mean_spread ~ invscope + 
-                                 edit_net_height + 
-                                 invscope*edit_net_height, 
-                               data = hs_df, 
-                               family = "gaussian"),
-                   height = scope_height_df)
+    models <- list(
+      spread = glm(mean_spread ~ invscope + 
+                     edit_net_height + 
+                     invscope*edit_net_height, 
+                   data = hs_df, 
+                   family = "gaussian"),
+      height = scope_height_df
+    )
   }
   
   if(fill_method == "goa") {
@@ -74,21 +76,27 @@ sor_fill_missing <- function(height_paths,
     haul_df <- readRDS(file = haul_path)
     
     hs_df <- suppressMessages(
-      dplyr::inner_join(hs_df, 
-                        haul_df,
-                        by = names(hs_df)[which(names(hs_df) %in% names(haul_df))])
+      dplyr::inner_join(
+        hs_df, 
+        haul_df,
+        by = names(hs_df)[which(names(hs_df) %in% names(haul_df))]
+      )
     )
     
     height_df <- suppressMessages(
-      dplyr::full_join(height_df, 
-                       hs_df) |>
+      dplyr::full_join(
+        height_df, 
+        hs_df
+      ) |>
         dplyr::full_join(spread_df)
     )
     
-    spread_df <- dplyr::full_join(hs_df, 
-                                  spread_df,
-                                  by = c("haul", "cruise", "vessel",
-                                         "n_pings", "mean_spread", "sd_spread"))
+    spread_df <- dplyr::full_join(
+      hs_df, 
+      spread_df,
+      by = c("haul", "cruise", "vessel",
+             "n_pings", "mean_spread", "sd_spread")
+    )
     
     n_vessels <- length(unique(hs_df$vessel))
     
@@ -448,35 +456,39 @@ sor_fill_missing <- function(height_paths,
       
       final_height <- data.frame(
         edit_net_height = 
-          .fill_missing_models(models = models, 
-                               fill_method = fill_method, 
-                               type = "height", 
-                               edit_wire_out_FM = sel_dat$haul$edit_wire_out,
-                               edit_net_height = sel_dat$height$edit_net_height,
-                               edit_net_spread = sel_dat$haul$edit_net_spread,
-                               est_spread = est_spread,
-                               est_height = est_height,
-                               mean_spread = switch(as.character(est_spread), 
-                                             "TRUE" = NA, 
-                                             "FALSE" = sel_dat$sor_results$mean_spread),
-                               net_number = sel_dat$haul$net_number, 
-                               speed = sel_dat$haul$speed,
-                               total_weight = sel_dat$haul$total_weight,
-                               scope_ratio = sel_dat$haul$scope_ratio,
-                               bottom_depth = sel_dat$haul$bottom_depth,
-                               invscope = sel_dat$haul$invscope,
-                               performance = sel_dat$haul$performance,
-                               vessel = sel_dat$haul$vessel),
+          .fill_missing_models(
+            models = models, 
+            fill_method = fill_method, 
+            type = "height", 
+            edit_wire_out_FM = sel_dat$haul$edit_wire_out,
+            edit_net_height = sel_dat$height$edit_net_height,
+            edit_net_spread = sel_dat$haul$edit_net_spread,
+            est_spread = est_spread,
+            est_height = est_height,
+            mean_spread = switch(as.character(est_spread), 
+                                 "TRUE" = NA, 
+                                 "FALSE" = sel_dat$sor_results$mean_spread),
+            net_number = sel_dat$haul$net_number, 
+            speed = sel_dat$haul$speed,
+            total_weight = sel_dat$haul$total_weight,
+            scope_ratio = sel_dat$haul$scope_ratio,
+            bottom_depth = sel_dat$haul$bottom_depth,
+            invscope = sel_dat$haul$invscope,
+            performance = sel_dat$haul$performance,
+            vessel = sel_dat$haul$vessel
+          ),
         net_height_method = 4,
         net_height_pings = sel_dat[['height']]$net_height_pings,
         net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
       
     } else {
       
-      final_height <- data.frame(edit_net_height = sel_dat[['height']]$edit_net_height,
-                                 net_height_method = 6,
-                                 net_height_pings = sel_dat[['height']]$net_height_pings,
-                                 net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation)
+      final_height <- data.frame(
+        edit_net_height = sel_dat[['height']]$edit_net_height,
+        net_height_method = 6,
+        net_height_pings = sel_dat[['height']]$net_height_pings,
+        net_height_standard_deviation = sel_dat[['height']]$net_height_standard_deviation
+      )
       
     }
     
@@ -484,37 +496,42 @@ sor_fill_missing <- function(height_paths,
     # Fill spread
     if(est_spread) {
       
-      final_spread <- data.frame(edit_net_spread = 
-                                   .fill_missing_models(models = models, 
-                                                        fill_method = fill_method, 
-                                                        type = "spread", 
-                                                        edit_wire_out_FM = sel_dat$haul$edit_wire_out,
-                                                        edit_net_height = final_height$edit_net_height,
-                                                        edit_net_spread = sel_dat$haul$edit_net_spread,
-                                                        est_spread = est_spread,
-                                                        est_height = est_height,
-                                                        mean_spread = NA,
-                                                        net_number = sel_dat$haul$net_number, 
-                                                        speed = sel_dat$haul$speed,
-                                                        total_weight = sel_dat$haul$total_weight,
-                                                        scope_ratio = sel_dat$haul$scope_ratio,
-                                                        bottom_depth = sel_dat$haul$bottom_depth,
-                                                        invscope = sel_dat$haul$invscope,
-                                                        performance = sel_dat$haul$performance,
-                                                        vessel = sel_dat$haul$vessel),
-                                 net_spread_pings = 0,
-                                 net_spread_method = 4,
-                                 net_spread_standard_deviation = 0)
+      final_spread <- data.frame(
+        edit_net_spread = 
+          .fill_missing_models(
+            models = models, 
+            fill_method = fill_method, 
+            type = "spread", 
+            edit_wire_out_FM = sel_dat$haul$edit_wire_out,
+            edit_net_height = final_height$edit_net_height,
+            edit_net_spread = sel_dat$haul$edit_net_spread,
+            est_spread = est_spread,
+            est_height = est_height,
+            mean_spread = NA,
+            net_number = sel_dat$haul$net_number, 
+            speed = sel_dat$haul$speed,
+            total_weight = sel_dat$haul$total_weight,
+            scope_ratio = sel_dat$haul$scope_ratio,
+            bottom_depth = sel_dat$haul$bottom_depth,
+            invscope = sel_dat$haul$invscope,
+            performance = sel_dat$haul$performance,
+            vessel = sel_dat$haul$vessel
+          ),
+        net_spread_pings = 0,
+        net_spread_method = 4,
+        net_spread_standard_deviation = 0
+      )
       
     } else {
       
-      final_spread <- data.frame(edit_net_spread = sel_dat[['sor_results']]$mean_spread,
-                                 net_spread_pings = sel_dat[['sor_results']]$n_pings,
-                                 net_spread_method = switch(fill_method, 
-                                                            'ebs' = 7,
-                                                            'goa' = 8)
-                                 ,
-                                 net_spread_standard_deviation = sel_dat[['sor_results']]$sd_spread)
+      final_spread <- data.frame(
+        edit_net_spread = sel_dat[['sor_results']]$mean_spread,
+        net_spread_pings = sel_dat[['sor_results']]$n_pings,
+        net_spread_method = switch(fill_method, 
+                                   'ebs' = 7,
+                                   'goa' = 8),
+        net_spread_standard_deviation = sel_dat[['sor_results']]$sd_spread
+      )
       
       
     }
@@ -526,15 +543,21 @@ sor_fill_missing <- function(height_paths,
       
     }
     
-    final_cruise <- data.frame(cruise_id = sel_dat[['haul']]$cruise_id,
-                               haul_id = sel_dat[['height']]$haul_id,
-                               cruise = sel_dat[['haul']]$cruise,
-                               vessel = sel_dat[['haul']]$vessel,
-                               haul = sel_dat[['haul']]$haul)
+    final_cruise <- 
+      data.frame(
+        cruise_id = sel_dat[['haul']]$cruise_id,
+        haul_id = sel_dat[['height']]$haul_id,
+        cruise = sel_dat[['haul']]$cruise,
+        vessel = sel_dat[['haul']]$vessel,
+        haul = sel_dat[['haul']]$haul
+      )
     
-    sel_dat$final <- dplyr::bind_cols(final_cruise,
-                                      final_spread,
-                                      final_height)
+    sel_dat$final <- 
+      dplyr::bind_cols(
+        final_cruise,
+        final_spread,
+        final_height
+      )
     
     saveRDS(object = sel_dat,
             file = gsub(x = rds_paths[mm], pattern = "sor.rds", replacement = "final.rds"))

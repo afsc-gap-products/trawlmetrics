@@ -3,7 +3,8 @@ format: docx
 editor: visual
 ---
 
-# Trawl Performance Summary: 2024 Eastern Bering Sea Shelf Survey
+# Trawl Performance Summary: 2025 EBS Shelf and NBS Surveys
+
 
 ```{r setup}
 #| include: false
@@ -11,9 +12,12 @@ editor: visual
 library(trawlmetrics)
 library(flextable)
 library(ragg)
+library(ggthemes)
 
-trawlmetrics_data <- get_trawlmetrics(survey = c("EBS"), 
-                            year = 2024, 
+set_year <- 2025
+
+trawlmetrics_data <- get_trawlmetrics(survey = c("EBS", "NBS"), 
+                            year = set_year, 
                             select_haul_types = c(3, 13, 20), 
                             select_gear_code = c(44),
                             save_rds = FALSE) 
@@ -25,7 +29,7 @@ dir.create(path = here::here("plots"), showWarnings = FALSE)
 ```{r}
 #| include: false
 
-ragg::agg_png(file = here::here("plots", "ebs_trawl_height_width.png"), width = 7, height = 9, res = 600, units = "in")
+ragg::agg_png(file = here::here("plots", "ebs_trawl_height_width.png"), width = 7, height = 9, res = 300, units = "in")
 print(
 cowplot::plot_grid(
 ggplot() +
@@ -97,9 +101,79 @@ ggplot() +
 nrow = 2)
 )
 dev.off()
+
+height_spread_ts <- 
+  trawlmetrics_data[["trawl_data"]] |>
+  dplyr::filter(YEAR == set_year) |>
+  dplyr::select(VESSEL, CRUISE, HAUL, YEAR, HAUL, NET_NUMBER, NET_WIDTH, NET_HEIGHT) |>
+  tidyr::pivot_longer(cols = c(NET_WIDTH, NET_HEIGHT)) |>
+  dplyr::mutate(name = ifelse(name == "NET_WIDTH", "Spread (m)", "Height (m)"))
+
+
+height_spread_avg_ts <-
+  trawlmetrics_data[["trawlmetrics_average"]] |>
+  dplyr::select(MEAN_NET_HEIGHT, Q025_NET_HEIGHT, Q975_NET_HEIGHT, MEAN_NET_WIDTH, Q025_NET_WIDTH, Q975_NET_WIDTH) |>
+  tidyr::pivot_longer(cols = 1:6)
+
+height_spread_avg_ts$name = c(rep("Height (m)", 3), rep("Spread (m)", 3))
+height_spread_avg_ts$level = rep(c("Mean", "q025", "q975"), 2)
+
+ragg::agg_png(file = here::here("plots", "ebs_trawl_height_width_ts.png"), width = 7, height = 7, res = 300, units = "in")
+print(
+ggplot() +
+  geom_hline(
+    data = dplyr::filter(height_spread_avg_ts, level == "Mean"),
+    mapping = aes(yintercept = value),
+    linetype = 1) +
+  geom_hline(
+    data = dplyr::filter(height_spread_avg_ts, level != "Mean"),
+    mapping = aes(yintercept = value),
+    linetype = 2) +
+  geom_point(
+    data = height_spread_ts,
+    mapping = aes(x = HAUL, y = value, color = factor(NET_NUMBER))
+             ) +
+  scale_color_tableau(name = "Net #", palette = "Tableau 20") +
+  scale_y_continuous(name = "Meters") +
+  scale_x_continuous(name = "Haul") +
+  facet_grid(name~paste0("Vessel ", VESSEL), scales = "free") +
+  trawlmetrics::theme_pngs()
+)
+dev.off()
+
+
+ragg::agg_png(file = here::here("plots", "ebs_spread_vs_height.png"), width = 7, height = 7, res = 300, units = "in")
+print(
+ggplot() +
+  geom_point(data = dplyr::filter(trawlmetrics_data[["trawl_data"]], YEAR < set_year),
+             mapping = aes(
+               y = NET_HEIGHT, 
+               x = NET_WIDTH, 
+               color = paste0("2005-", set_year - 1)),
+             size = rel(0.5)
+  ) +
+  geom_point(data = dplyr::filter(trawlmetrics_data[["trawl_data"]], YEAR == set_year),
+             mapping = aes(
+               y = NET_HEIGHT, 
+               x = NET_WIDTH, 
+               color = as.character(YEAR)
+               ),
+             alpha = 0.5
+  ) +
+  scale_color_manual(values = c("grey70", "blue4")) +
+  scale_x_continuous(name = "Net spread (m)") +
+  scale_y_continuous(name = "Net height (m)") +
+  trawlmetrics::theme_pngs() +
+  theme(legend.title = element_blank())
+)
+dev.off()
 ```
 
 [![Figure 1. Distribution of net height and spread for all nets used during the survey (numbered nets) and for all nets with measurement data since 2005. Circles show the average, box shows 25-75% range, thin line shows full range. Labels along the vertical axis show the number of hauls for each net. Colors show whether the average for a net fell within the 25-75% range for the full 2005-present data set.](./plots/ebs_trawl_height_width.png)](%60r%20paste0(%22Trawl%20height%20and%20width%20from%20the%20%22,%20year,%20%22%20%22,%20paste(survey,%20sep%20=%20%22%20and%20%22),%20%22survey(s).%22)%20%60)
+
+[![Figure 2. Net height and spread in 2025, by haul. Horizontal lines denote the mean (solid line) and 95% range (dashed lines) for hauls from 2005-2025.](./plots/ebs_trawl_height_width_ts.png)](%60r%20paste0(%22Trawl%20height%20and%20width%20from%20the%20%22,%20year,%20%22%20%22,%20paste(survey,%20sep%20=%20%22%20and%20%22),%20%22survey(s).%22)%20%60)
+
+![Figure 3. Net spread versus net height from 2005-2025.](./plots/ebs_spread_vs_height.png)
 
 ```{r setup_tables}
 #| include: false
