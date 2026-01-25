@@ -5,7 +5,6 @@ editor: visual
 
 # Trawl Performance Summary: 2025 EBS Shelf and NBS Surveys
 
-
 ```{r setup}
 #| include: false
 
@@ -21,6 +20,16 @@ trawlmetrics_data <- get_trawlmetrics(survey = c("EBS", "NBS"),
                             select_haul_types = c(3, 13, 20), 
                             select_gear_code = c(44),
                             save_rds = FALSE) 
+
+trawlmetrics_data[["plot_data"]] |>
+  dplyr::select(YEAR, VESSEL, NET_NUMBER, MEAN_NET_HEIGHT, Q025_NET_HEIGHT, Q975_NET_HEIGHT, Q25_NET_HEIGHT, Q75_NET_HEIGHT,
+                MEAN_NET_WIDTH, Q025_NET_WIDTH, Q975_NET_WIDTH, Q25_NET_WIDTH, Q75_NET_WIDTH, N_HAULS) |>
+  write.csv(here::here("output", paste0("GOA", set_year, "_haul_data.csv")), row.names = FALSE)
+
+trawlmetrics_data[["trawl_data"]] |>
+  dplyr::filter(YEAR == set_year, PERFORMANCE >= 0) |>
+  dplyr::select(VESSEL, CRUISE, HAUL, YEAR, HAUL, NET_NUMBER, NET_WIDTH, NET_HEIGHT) |>
+  write.csv(here::here("output", paste0("GOA", set_year, "_haul_summary.csv")), row.names = FALSE)
 
 dir.create(path = here::here("plots"), showWarnings = FALSE)
 
