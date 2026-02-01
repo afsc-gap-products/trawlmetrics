@@ -1,0 +1,23 @@
+rig,trawl,bridles,footrope,bridle_length_m,sweep_length_m,top_setback,middle_setback,bottom_setback,Comment
+A,PNE,1.2a,EBS,3.43,3.43,,,,"Rig A; Rigging prior to adjusting setback; height coming in low; 1 link middle (2.5""); 20"" bottom setback"
+B,PNE,1.2b,EBS,3.43,3.43,,,,"Rig B; 20"" setback in the top, 10"" in the middle, 20"" bottom"
+C,PNE,1.2b,EBS,3.43,0.75,,,,"Rig C; 20"" setback in the top, 10"" in the middle, 20"" bottom; truncated bridles (sweeps 75 cm)"
+D,RACE,1,GOA,3.43,0.5,,,,Rig D; truncated bridle (sweeps 50 cm); unusual behavior because of the extremely truncated bridles
+E,RACE,1,GOA,3.43,0.75,,,,Rig E; 75 cm sweeps
+F,RACE,1,GOA,3.43,3.43,,,,Rig F; Option 1 with full length bridles
+G,RACE,1,GOA,3.43,1.5,,,,Rig G; Option 1 with 1.5 m sweep
+H,RACE,1.2b,EBS,3.43,1.5,,,,"Rig H; 20"" setback in the top, 10"" in the middle; bottom +5 links; 1.5 m sweep"
+I,RACE,1.2b,EBS,6.86,0,,,,"Rig I; 20"" setback in the top, 10"" in the middle; bottom +5 links; full length sweep; Evaluating whether lifting occurs with full length bridles; bridles all the way down"
+J,PNE,Standard,GOA,6.86,0,,,,"Rig J; 180' bridles, standard setback 18"" top, 6"" top; 0"" footrope; middle bridle touching the bottom similar to the current PNE; no added weight on the bridles"
+K,RACE,Standard,EBS,6.86,0,,,,"Rig K; 180' bridles; top: +13 links (32.5""), middle: +0; bottom: +8 links (20"")"
+K,RACE,Standard,EBS,6.86,0,,,,"Rig K; 180' bridles; top: +13 links (32.5""), middle: +0; bottom: +8 links (20"")"
+L,RACE,Standard,EBS,3.2,0,,,,"Rig L; standard truncated to 3.2 m scale: +13 links (32.5""), middle: +0; bottom: +8 links (20""); no added weight on the bridles"
+L,PNE,Standard,GOA,3.2,0,,,,"Rig L; standard truncated to 3.2 m scale: +13 links (32.5""), middle: +0; bottom: +8 links (20""); no added weight on the bridles"
+M,PNE,1.2b,GOA,3.43,3.43,,,,"Rig M; 20"" setback in the top, 10"" in the middle, 20"" bottom; additional weight on the bridles; 10 additional floats (each side: 2 wing tip, 2 wing at the seam; 1 center); 3 more brass weights on each bridle"
+N,PNE,1.2b,GOA,3.43,3.43,,,,"Rig N; 32.5"" setback in the top (13 links), 15"" in the middle (6 links), 20"" bottom (8 links); additional weight on the bridles; 10 additional floats (each side: 2 wing tip, 2 wing at the seam; 1 center); 3 more brass weights on each bridle"
+O,PNE,2,GOA,3.43,3.43,,,,"Rig O; 32.5"" setback in the top (13 links), 15"" in the middle (6 links), 20"" bottom (8 links); additional weight on the bridles; 10 additional floats (each side: 2 wing tip, 2 wing at the seam; 1 center); 3 more brass weights on each bridle"
+P,PNE,2,GOA,3.43,3.43,,,,"Rig P; 20"" setback in the top, 10"" in the middle, 20"" bottom; additional weight on the bridles; 10 additional floats (each side: 2 wing tip, 2 wing at the seam; 1 center); 3 more brass weights on each bridle"
+Q,RACE,2,EBS,3.43,3.43,,,,"Rig Q; 20"" setback in the top, 10"" in the middle, 20"" bottom; 10 additional floats (each side: 2 wing tip, 2 wing at the seam; 1 center); 3 more brass weights on each bridle; added chain to the footrope to match GOA weight"
+R,RACE,2,EBS,3.43,3.43,,,,"Rig R; Video has the wrong info on the splash screen; 32.5"" setback in the top (13 links), 15"" in the middle (6 links), 20"" bottom (8 links); 10 additional floats (each side: 2 wing tip, 2 wing middle; 1 center); 3 more brass weights on each bridle; added chain to the footrope to match GOA weight"
+S,RACE,1,EBS,3.43,3.43,,,,"Rig S; 10 additional floats (each side: 2 wing tip, 2 wing middle; 1 center); 3 more brass weights on each bridle; added chain to the footrope to match GOA weight"
+T,RACE,1,EBS,3.43,3.43,,,,"Rig T; 10 additional floats (each side: 2 wing tip, 2 ribline wing; 1 center); 3 more brass weights on each bridle; added chain to the footrope to match GOA weight"

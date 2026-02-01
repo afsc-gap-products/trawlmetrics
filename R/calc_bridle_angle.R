@@ -12,25 +12,14 @@
 #' \deqn{angle = \arcsin\left(\frac{0.5 \times (door\_spread - wing\_spread)}{total\_bridle\_length}\right)}
 #'
 #' @param door_spread_m Numeric. The distance between the trawl doors (meters).
-#' @param wing_spread_m Numeric. The distance between the wing ends of the net (meters).
-#' @param total_bridle_length_m Numeric. The total length of the bridle cable (meters).
+#' @param wing_spread_m Numeric. The distance between the wing tips of the net (meters).
+#' @param total_bridle_length_m Numeric. The total length of the bridles, sweeps, bridle extension, etc. (meters).
 #'
 #' @return A numeric value representing the bridle angle in degrees.
 #' @export
 #'
 #' @examples
 #' calc_bridle_angle(door_spread_m = 50, wing_spread_m = 20, total_bridle_length_m = 100)
-calc_bridle_angle <- function(door_spread_m, wing_spread_m, total_bridle_length_m) {
-  
-  x <- 0.5 * (door_spread_m - wing_spread_m)
-  
-  angle_rad <- sin(x / total_bridle_length_m)
-  
-  angle_deg <- angle_rad * 180 / pi
-  
-  return(angle_deg)
-}
-
 
 calc_bridle_angle <- function(door_spread_m, wing_spread_m, total_bridle_length_m) {
   
