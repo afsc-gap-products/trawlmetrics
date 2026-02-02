@@ -24,6 +24,7 @@ A data frame
      \item{pulling_point_elevation_mm}{Elevation of the pulling point on the trawl mast in meters.}
      \item{bridle_u_length_m}{Upper bridle length in meters.}
      \item{bridle_l_length_m}{Lower bridle length in meters.}
+     \item{bridle_length_m}{Bridle length in meters.}
      \item{sweep_length_m}{Sweep length in meters.}
      \item{u_bridle_extension_m}{Upper bridle extension length in meters.}
      \item{towing_speed_kn}{Towing speed in knots.}
@@ -45,6 +46,7 @@ A data frame
      \item{mouth_drag_kgf_m2}{Mouth drag in kilogram-force per square meter.}
      \item{bridle_angle_deg}{Bridle angle of attack in degrees.}
      \item{year}{Year in which trials were conducted}
+     \item{Comment}{Comments about the treatment}
 }
 }
 \source{
