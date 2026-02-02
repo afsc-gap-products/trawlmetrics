@@ -1,5 +1,13 @@
-trawlmetrics 0.1.02 (In progress)
+trawlmetrics 0.1.02
 ----------------------------------------------------------------
+
+NEW DATA
+- Added 2026 flume tank data to the package (flume_tank dataset).
+- Created new flume_tank_rigging data set containing rigging 
+  information for 2026 experiments.
+
+
+FUNCTIONALITY CHANGES
 
 - Change get_trawlmetrics() query to avoid using 
   RACEBASE_CRUISEJOIN.

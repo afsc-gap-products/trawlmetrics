@@ -10,6 +10,7 @@ A data frame
      \item{trial}{Trial number.}
      \item{trawl}{Trawl model (e.g., "83-112", "PNE", "RACE").}
      \item{bridles}{Type of bridles used (e.g., "standard", "bridle 1", "bridle 2").}
+     \item{rig}{Rigging information for 2026 trials. Details are in the data set flume_tanke_rigging}
      \item{bridle_length}{Bridle length as character vector.}
      \item{footrope}{Footrope used on the trawl.}
      \item{benthic_bag}{Was a model benthic bag attached to the footrope?}
@@ -43,6 +44,7 @@ A data frame
      \item{mouth_area_m2}{Mouth opening area in square meters.}
      \item{mouth_drag_kgf_m2}{Mouth drag in kilogram-force per square meter.}
      \item{bridle_angle_deg}{Bridle angle of attack in degrees.}
+     \item{year}{Year in which trials were conducted}
 }
 }
 \source{
@@ -52,6 +54,6 @@ A data frame
 flume_tank
 }
 \description{
-Net measurement data from flume tank experiments conducted at the Centre for Sustainable Aquatic Resources (CSAR), Marine Institute, Memorial University of Newfoundland, St. John's, Newfoundland and Labrador from January 13-17, 2025. CURRENTLY EXAMPLE DATA.
+Net measurement data from flume tank experiments conducted at the Centre for Sustainable Aquatic Resources (CSAR), Marine Institute, Memorial University of Newfoundland, St. John's, Newfoundland and Labrador from January 13-17, 2025 and January 27-30, 2026.
 }
 \keyword{datasets}
