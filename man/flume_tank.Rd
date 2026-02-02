@@ -24,11 +24,10 @@ A data frame
      \item{pulling_point_elevation_mm}{Elevation of the pulling point on the trawl mast in meters.}
      \item{bridle_u_length_m}{Upper bridle length in meters.}
      \item{bridle_l_length_m}{Lower bridle length in meters.}
-     \item{bridle_length_m}{Bridle length in meters.}
      \item{sweep_length_m}{Sweep length in meters.}
      \item{u_bridle_extension_m}{Upper bridle extension length in meters.}
      \item{towing_speed_kn}{Towing speed in knots.}
-     \item{door_m}{Door spread in meters.}
+     \item{door_spread_m}{Door spread in meters.}
      \item{spread_treatment}{Upper wing tip spread treatment.}
      \item{spread_u_wing_m}{Upper wing spread in meters.}
      \item{spread_m_wing_m}{Middle wing spread in meters.}
@@ -37,6 +36,7 @@ A data frame
      \item{opening_wing_m}{Wing opening height in meters.}
      \item{opening_headline_m}{Headline opening height in meters.}
      \item{upper_wingend_height_m}{Upper wing tip end distance from bottom in meters.}
+     \item{middle_wingend_height_m}{Middle wing tip end distance from bottom in meters.}
      \item{lower_wingend_height_m}{Lower wing tip end distance from bottom in meters. NA = 0}
      \item{fishing_line_height_m}{Distance between the fishing line and bottom, in meters.}
      \item{bridle_tension_port_t}{Port bridle/sweep tension in metric tons.}
@@ -45,7 +45,7 @@ A data frame
      \item{mouth_area_m2}{Mouth opening area in square meters.}
      \item{mouth_drag_kgf_m2}{Mouth drag in kilogram-force per square meter.}
      \item{bridle_angle_deg}{Bridle angle of attack in degrees.}
-     \item{year}{Year in which trials were conducted}
+     \item{year}{Year the trials were conducted}
      \item{Comment}{Comments about the treatment}
 }
 }

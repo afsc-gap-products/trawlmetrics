@@ -12,6 +12,7 @@ flume_2025 <- trawlmetrics::flume_tank |>
   dplyr::filter(!is.na(bridles), 
                 pulling_point_elevation_mm < 300,
                 additional_floatation_kg == 0, 
+                year == 2025,
                 is.na(bcs_unit),
                 trial > 0,
                 catch == "empty",
@@ -26,15 +27,14 @@ flume_2025 <- trawlmetrics::flume_tank |>
   dplyr::filter(spread_treatment > 12.5)
 
 
-
-# Trials < 89 are standard 
-
 flume_2026 <- 
-  read.csv(file = here::here("analysis", "flume_tank_2026", "data", "flume_tank_data_2026_all.csv")) |>
-  dplyr::mutate(
-    bridles = paste0("2026-", bridles),
-    trawl = paste0("New ", trawl)
-  ) |> 
+  trawlmetrics::flume_tank |>
+  dplyr::filter(year == 2026) |>
+  # read.csv(file = here::here("analysis", "flume_tank_2026", "data", "flume_tank_data_2026_all.csv")) |>
+  # dplyr::mutate(
+  #   bridles = paste0("2026-", bridles),
+  #   trawl = paste0("New ", trawl)
+  # ) |> 
   dplyr::filter(trial > 0 & trial < 89)
 
 ggplot() +
@@ -133,7 +133,7 @@ ggplot() +
   # geom_vline(xintercept = 3, color = "grey40", linetype = 2) + 
   # geom_hline(yintercept = 5, color = "grey40", linetype = 2) +
   # geom_hline(yintercept = 6, color = "grey40", linetype = 2) +
-  scale_color_tableau(name = "Gear") +
+  scale_color_tableau(name = "Gear", palette = "Tableau 20") +
   scale_shape(name = "Gear") +
   scale_x_continuous(name = "Speed (kn)") +
   scale_y_continuous(name = "Spread:Height Ratio") +

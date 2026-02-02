@@ -16,6 +16,7 @@ A data frame
      \item{top_setback_links}{Number of links used for the top wing tip setback; each 2.5"}
      \item{middle_setback_links}{Number of links used for the middle wing tip setback; each 2.5"}
      \item{bottom_setback_links}{Number of links used for the bottom footrope setback; each 2.5"}
+     \item{year}{Year the trials were conducted}
      \item{Comment}{comments}
 }
 }
