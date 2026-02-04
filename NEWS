@@ -1,7 +1,16 @@
+trawlmetrics 0.1.03
+----------------------------------------------------------------
+
+NEW DATA
+
+- Added 2026 trial 92 data to flume_tank.
+
+
 trawlmetrics 0.1.02
 ----------------------------------------------------------------
 
 NEW DATA
+
 - Added 2026 flume tank data to the package (flume_tank dataset).
 - Created new flume_tank_rigging data set containing rigging 
   information for 2026 experiments.
