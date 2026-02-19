@@ -36,7 +36,8 @@ flume_2025 <-
     benthic_bag == FALSE
   ) |>
   dplyr::mutate(
-    bridles = ifelse(bridles == "2-weighted", 2, bridles)
+    bridles = ifelse(bridles == "2-weighted", 2, bridles),
+    footrope = ifelse(footrope %in% c("PNE", "83-112"), footrope, ifelse(footrope == "EBS_v2", "EBS", "GOA"))
                 )
 
 projected_spread <- 

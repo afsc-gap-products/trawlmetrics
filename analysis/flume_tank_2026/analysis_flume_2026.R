@@ -18,12 +18,12 @@ flume_2025 <- trawlmetrics::flume_tank |>
                 trial > 0,
                 catch == "empty",
                 bridles != "2-weighted",
-                trawl != "83-112",
-                footrope %in% c("EBS_v2", "GOA/AI_v6", "PNE")) |>
+                # trawl != "83-112",
+                footrope %in% c("EBS_v2", "GOA/AI_v6", "PNE", "83-112")) |>
   dplyr::mutate(type = "Flume tank",
                 fac_trial = factor(trial),
-                type = paste0("Flume ", trawl, ", ", bridles)) |>
-  dplyr::filter(spread_treatment > 12.5)
+                type = paste0("Flume ", trawl, ", ", bridles),
+                footrope = ifelse(footrope %in% c("PNE", "83-112"), footrope, ifelse(footrope == "EBS_v2", "EBS", "GOA")))
 
 
 flume_2026 <- 
@@ -36,6 +36,10 @@ flume_2026 <-
   # ) |> 
   dplyr::filter(trial > 0 & trial < 89)
 
+trawl_data_all <- dplyr::bind_rows(flume_2026, flume_2025)
+trawl_data_no83112 <- dplyr::bind_rows(flume_2026, flume_2025) |>
+  dplyr::filter(trawl != "83-112")
+
 projected_spread <- 
   xlsx::read.xlsx(
     file = here::here("analysis", "flume_tank_2026", "data", "projected_height_spread.xlsx"),
@@ -45,16 +49,18 @@ projected_spread <-
     trawl %in% unique(c(flume_2025$trawl, flume_2026$trawl))
   )
 
+projected_spread_no83112 <- dplyr::filter(projected_spread, trawl != "83-112")
+
 ggplot(
-  data = dplyr::bind_rows(flume_2026, flume_2025),
+  data = trawl_data_no83112,
            mapping = aes(x = spread_u_wing_m, y = opening_headline_m, color = factor(towing_speed_kn))
   ) +
   geom_polygon(
     data = data.frame(x = c(15, 20, 20, 15, 15), y = c(5, 5, 6, 6, 5)),
     mapping = aes(x = x, y = y), color = "red", fill = NA) +
-  geom_hline(data = projected_spread,
+  geom_hline(data = projected_spread_no83112,
              mapping = aes(yintercept = opening_headline_m), color = "grey40", linetype = 2) + 
-  geom_vline(data = projected_spread,
+  geom_vline(data = projected_spread_no83112,
              mapping = aes(xintercept = spread_u_wing_m), color = "grey40", linetype = 2) + 
   geom_point(mapping = aes(shape = footrope)) +
   geom_smooth(se = FALSE, method = 'lm') +
@@ -66,15 +72,15 @@ ggplot(
   theme_bw()
 
 ggplot(
-  data = dplyr::bind_rows(flume_2026, flume_2025),
+  data = trawl_data_no83112,
   mapping = aes(x = spread_u_wing_m, y = spread_u_wing_m/opening_headline_m, color = factor(towing_speed_kn))
 ) +
   # geom_polygon(
   #   data = data.frame(x = c(15, 20, 20, 15, 15), y = c(5, 5, 6, 6, 5)),
   #   mapping = aes(x = x, y = y), color = "red", fill = NA) +
-  geom_hline(data = projected_spread,
+  geom_hline(data = projected_spread_no83112,
              mapping = aes(yintercept = spread_u_wing_m/opening_headline_m), color = "grey40", linetype = 2) + 
-  geom_vline(data = projected_spread,
+  geom_vline(data = projected_spread_no83112,
              mapping = aes(xintercept = spread_u_wing_m), color = "grey40", linetype = 2) + 
   geom_point(mapping = aes(shape = footrope)) +
   geom_smooth(se = FALSE, method = 'lm') +
@@ -125,11 +131,11 @@ ggplot() +
 
 ggplot() +
   geom_path(
-    data = dplyr::bind_rows(flume_2025, flume_2026),
+    data = trawl_data_no83112,
     mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = paste0(trawl, " (", footrope, ", ", bridles, ")"))
   ) +
   geom_point(
-    data = dplyr::bind_rows(flume_2025, flume_2026),
+    data = trawl_data_no83112,
     mapping = 
       aes(
         x = towing_speed_kn, 
@@ -204,15 +210,18 @@ ggplot() +
 
 
 ggplot(
-  data = dplyr::bind_rows(flume_2025, flume_2026),
+  data = trawl_data_all,
   mapping = 
     aes(
       x = spread_u_wing_m, 
       y = bridle_angle_deg, 
-      color = paste0(trawl, " (", footrope, ", ", bridles, ")"))
+      color = trawl,
+      shape = trawl)
+      # color = paste0(trawl, " (", footrope, ", ", bridles, ")"))
 ) +
-  geom_smooth(se = FALSE, method = 'lm') +
-  geom_point() +
+  # geom_smooth(se = FALSE, method = 'lm') +
+  geom_smooth(se = FALSE, method = 'gam', formula = y ~ s(x, bs = "cs", k = 4)) +
+  geom_point(size = 2.5) +
   geom_hline(yintercept = 18, color = "grey40", linetype = 2) +
   geom_hline(yintercept = 21, color = "grey40", linetype = 2) +
   scale_color_tableau(name = "Gear", palette = "Tableau 20") +
@@ -220,11 +229,16 @@ ggplot(
   scale_x_continuous(name = "Upper wing spread (m)") +
   scale_y_continuous(name = "Bridle angle of attack (degrees)") +
   theme_bw() +
-  theme(legend.position = "inside",
-        legend.position.inside = c(0.85, 0.2))
+  theme(
+    legend.position = "right", 
+    axis.text = element_text(size = 16), 
+    axis.title = element_text(size = 18),
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 14)
+  )
 
 ggplot(
-  data = dplyr::bind_rows(flume_2025, flume_2026),
+  data = trawl_data_no83112,
   mapping = 
     aes(
       x = spread_u_wing_m, 
@@ -232,7 +246,7 @@ ggplot(
       color = footrope)
 ) +
   geom_vline(
-    data = projected_spread,
+    data = projected_spread_no83112,
     mapping = aes(xintercept = spread_u_wing_m), 
     linetype = 2,
     color = "grey40"
@@ -243,18 +257,18 @@ ggplot(
   geom_smooth(se = FALSE, method = 'lm') +
   geom_point() +
   scale_color_colorblind(name = "Footrope") +
-  facet_grid(trawl~bridles) +
+  facet_grid(bridles~trawl) +
   scale_x_continuous(name = "Upper wing spread (m)") +
   scale_y_continuous(name = "Bridle angle of attack (degrees)") +
   theme_bw()
 
 ggplot() +
   geom_path(
-    data = dplyr::bind_rows(flume_2025, flume_2026),
+    data = trawl_data_no83112,
     mapping = aes(x = towing_speed_kn, y = bridle_angle_deg, color = paste0(trawl, " (", footrope, ", ", bridles, ")"))
   ) +
   geom_text(
-    data = dplyr::bind_rows(flume_2025, flume_2026),
+    data = trawl_data_no83112,
     mapping = 
       aes(
         x = towing_speed_kn, 
@@ -273,3 +287,61 @@ ggplot() +
   theme_bw() +
   theme(legend.position = "inside",
         legend.position.inside = c(0.85, 0.2))
+
+# Upper versus lower wing tip spread
+
+ggplot(data = dplyr::filter(trawl_data_all, !(trial == 13 & year == 2026)),
+       mapping = 
+         aes(
+           x = spread_u_wing_m, 
+           y = spread_l_wing_m, 
+           color = trawl,
+           shape = trawl)) +
+  geom_point() +
+  geom_smooth(
+    method = 'lm'
+  ) +
+  geom_abline(slope = 1, interecept = 0, linetype = 2) +
+  facet_wrap(~trawl) +
+  scale_color_tableau(name = "Gear", palette = "Tableau 20") +
+  scale_shape(name = "Gear") +
+  scale_x_continuous(name = "Upper wing tip spread (m)", limits = c(12,24), breaks = seq(12, 24, 4)) +
+  scale_y_continuous(name = "Lower wing tip spread (m)", limits = c(12,24), breaks = seq(12, 24, 4)) +
+  theme_bw() +
+  theme(
+    legend.position = "none", 
+    axis.text = element_text(size = 16), 
+    axis.title = element_text(size = 18),
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 14),
+    strip.text = element_text(size = 14)
+  )
+
+
+ggplot(data = dplyr::filter(trawl_data_all, !(trial == 13 & year == 2026)),
+       mapping = 
+         aes(
+           x = spread_u_wing_m, 
+           y = spread_u_wing_m/spread_l_wing_m, 
+           color = trawl,
+           shape = trawl)) +
+  geom_point() +
+  geom_smooth(
+    method = 'lm'
+  ) +
+  geom_hline(yintercept = 1, linetype = 2) +
+  facet_wrap(~trawl) +
+  scale_color_tableau(name = "Gear", palette = "Tableau 20") +
+  scale_shape(name = "Gear") +
+  scale_y_continuous(name = "UWT/LWT") +
+  scale_x_continuous(name = "Upper wing tip spread (m)", limits = c(12,24), breaks = seq(12, 24, 4)) +
+  theme_bw() +
+  theme(
+    legend.position = "none", 
+    axis.text = element_text(size = 16), 
+    axis.title = element_text(size = 18),
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 14),
+    strip.text = element_text(size = 14)
+  )
+
