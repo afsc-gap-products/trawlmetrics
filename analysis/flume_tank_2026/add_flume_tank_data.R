@@ -43,13 +43,11 @@ flume_tank <-
 ) |>
   dplyr::arrange(year, trial)
 
-flume_tank <-
-trawlmetrics::flume_tank |>
-  dplyr::select(-total_buoyancy)
+# flume_tank <-
+# trawlmetrics::flume_tank |>
+#   dplyr::select(-total_buoyancy)
 
 save(flume_tank, file = here::here("data", "flume_tank.rda"))
-
-
 
 save(flume_tank_rigging, file = here::here("data", "flume_tank_rigging.rda"))
 
