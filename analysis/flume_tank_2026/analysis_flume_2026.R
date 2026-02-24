@@ -19,7 +19,7 @@ flume_2025 <- trawlmetrics::flume_tank |>
                 catch == "empty",
                 bridles != "2-weighted",
                 # trawl != "83-112",
-                footrope %in% c("EBS_v2", "GOA/AI_v6", "PNE", "83-112")) |>
+                footrope %in% c("EBS_v2", "GOA", "EBS", "PNE", "83-112")) |>
   dplyr::mutate(type = "Flume tank",
                 fac_trial = factor(trial),
                 type = paste0("Flume ", trawl, ", ", bridles),
@@ -51,9 +51,21 @@ projected_spread <-
 
 projected_spread_no83112 <- dplyr::filter(projected_spread, trawl != "83-112")
 
-ggplot(
-  data = trawl_data_no83112,
-           mapping = aes(x = spread_u_wing_m, y = opening_headline_m, color = factor(towing_speed_kn))
+
+theme_presentation <- function() {
+  theme_bw()  %+replace%
+    theme(axis.title = element_text(size = 14, color = "black"),
+          axis.text = element_text(size = 12, color = "black"),
+          axis.ticks = element_line(color = "black"),
+          legend.title = element_text(size = 12),
+          legend.text = element_text(size = 12),
+          strip.text = element_text(size = 12))
+}
+
+p_spread_vs_height <- 
+  ggplot(
+    data = trawl_data_no83112,
+    mapping = aes(x = spread_u_wing_m, y = opening_headline_m, color = factor(towing_speed_kn))
   ) +
   geom_polygon(
     data = data.frame(x = c(15, 20, 20, 15, 15), y = c(5, 5, 6, 6, 5)),
@@ -71,7 +83,13 @@ ggplot(
   facet_grid(bridles~trawl) +
   theme_bw()
 
-ggplot(
+png(filename = here::here("analysis", "flume_tank_2026", "plots", "bridles_spread_vs_height.png"), width = 8, height = 5, units = "in", res = 300)
+print(p_spread_vs_height + theme_presentation())
+dev.off()
+
+
+p_spread_vs_ratio <- 
+  ggplot(
   data = trawl_data_no83112,
   mapping = aes(x = spread_u_wing_m, y = spread_u_wing_m/opening_headline_m, color = factor(towing_speed_kn))
 ) +
@@ -91,26 +109,9 @@ ggplot(
   facet_grid(bridles~trawl) +
   theme_bw()
 
-
-ggplot(
-  data = trawl_data_no83112,
-  mapping = aes(x = spread_u_wing_m, y = spread_u_wing_m/opening_headline_m, color = factor(towing_speed_kn))
-) +
-  # geom_polygon(
-  #   data = data.frame(x = c(15, 20, 20, 15, 15), y = c(5, 5, 6, 6, 5)),
-  #   mapping = aes(x = x, y = y), color = "red", fill = NA) +
-  geom_hline(data = projected_spread_no83112,
-             mapping = aes(yintercept = spread_u_wing_m/opening_headline_m), color = "grey40", linetype = 2) + 
-  geom_vline(data = projected_spread_no83112,
-             mapping = aes(xintercept = spread_u_wing_m), color = "grey40", linetype = 2) + 
-  geom_point(mapping = aes(shape = footrope)) +
-  geom_smooth(se = FALSE, method = 'lm') +
-  scale_color_manual(name = "Speed (kn)", values = scales::viridis_pal(option = "C")(6)) +
-  scale_shape(name = "Footrope") +
-  scale_x_continuous(name = "Upper wing spread (m)") +
-  scale_y_continuous(name = "Spread:Height Ratio") +
-  facet_grid(bridles~trawl) +
-  theme_bw()
+png(filename = here::here("analysis", "flume_tank_2026", "plots", "bridles_spread_vs_ratio.png"), width = 8, height = 5, units = "in", res = 300)
+print(p_spread_vs_ratio + theme_presentation())
+dev.off()
 
 
 ggplot() +
@@ -118,89 +119,16 @@ ggplot() +
     data = flume_2026,
     mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = factor(spread_treatment))
   ) +
-  geom_path(
-    data = flume_2026,
-    mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = factor(spread_treatment))
-  ) +
+  # geom_path(
+  #   data = flume_2026,
+  #   mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = factor(spread_treatment))
+  # ) +
   scale_color_viridis_d(name = "Upper wing spread (m)", option = "C") +
   scale_x_continuous(name = "Speed (kn)") +
   scale_y_continuous(name = "Spread:Height Ratio") +
   facet_grid(footrope~paste0(trawl, " (", bridles, ")")) +
   theme_bw()
 
-
-ggplot() +
-  geom_point(
-    data = flume_2026,
-    mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = factor(spread_treatment))
-  ) +
-  geom_path(
-    data = flume_2026,
-    mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = factor(spread_treatment))
-  ) +
-  # geom_vline(xintercept = 3, color = "grey40", linetype = 2) + 
-  # geom_hline(yintercept = 5, color = "grey40", linetype = 2) +
-  # geom_hline(yintercept = 6, color = "grey40", linetype = 2) +
-  scale_color_viridis_d(name = "Upper wing spread (m)", option = "C") +
-  scale_x_continuous(name = "Speed (kn)") +
-  scale_y_continuous(name = "Spread:Height Ratio") +
-  facet_wrap(~paste0(trawl, " (Footrope: ", footrope, ", Bridles: ", bridles, ")")) +
-  theme_bw()
-
-
-ggplot() +
-  geom_path(
-    data = trawl_data_no83112,
-    mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = paste0(trawl, " (", footrope, ", ", bridles, ")"))
-  ) +
-  geom_point(
-    data = trawl_data_no83112,
-    mapping = 
-      aes(
-        x = towing_speed_kn, 
-        y = spread_u_wing_m/opening_headline_m, 
-        color = paste0(trawl, " (", footrope, ", ", bridles, ")"),
-        # shape = paste0(trawl, " (", footrope, ", ", bridles, ")")
-        )
-  ) +
-  # geom_vline(xintercept = 3, color = "grey40", linetype = 2) + 
-  # geom_hline(yintercept = 5, color = "grey40", linetype = 2) +
-  # geom_hline(yintercept = 6, color = "grey40", linetype = 2) +
-  scale_color_tableau(name = "Gear", palette = "Tableau 20") +
-  scale_shape(name = "Gear") +
-  scale_x_continuous(name = "Speed (kn)") +
-  scale_y_continuous(name = "Spread:Height Ratio") +
-  facet_wrap(~paste0("Spread: ", spread_treatment, " m")) +
-  theme_bw() +
-  theme(legend.position = "inside",
-        legend.position.inside = c(0.85, 0.2))
-
-ggplot() +
-  geom_path(
-    data = flume_2026,
-    mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = paste0(trawl, " (", footrope, ", ", bridles, ")"))
-  ) +
-  geom_point(
-    data = flume_2026,
-    mapping = 
-      aes(
-        x = towing_speed_kn, 
-        y = spread_u_wing_m/opening_headline_m, 
-        color = paste0(trawl, " (", footrope, ", ", bridles, ")"),
-        # shape = paste0(trawl, " (", footrope, ", ", bridles, ")")
-      )
-  ) +
-  # geom_vline(xintercept = 3, color = "grey40", linetype = 2) + 
-  # geom_hline(yintercept = 5, color = "grey40", linetype = 2) +
-  # geom_hline(yintercept = 6, color = "grey40", linetype = 2) +
-  scale_color_colorblind(name = "Gear") +
-  scale_shape(name = "Gear") +
-  scale_x_continuous(name = "Speed (kn)") +
-  scale_y_continuous(name = "Spread:Height Ratio") +
-  facet_wrap(~paste0("Spread: ", spread_treatment, " m")) +
-  theme_bw() +
-  theme(legend.position = "inside",
-        legend.position.inside = c(0.85, 0.2))
 
 ggplot(
   data = trawl_data_all,
@@ -230,7 +158,9 @@ ggplot(
     legend.title = element_text(size = 14)
   )
 
-ggplot(
+
+p_boa <- 
+  ggplot(
   data = trawl_data_no83112,
   mapping = 
     aes(
@@ -255,31 +185,10 @@ ggplot(
   scale_y_continuous(name = "Bridle angle of attack (degrees)") +
   theme_bw()
 
-ggplot() +
-  geom_path(
-    data = trawl_data_no83112,
-    mapping = aes(x = towing_speed_kn, y = bridle_angle_deg, color = paste0(trawl, " (", footrope, ", ", bridles, ")"))
-  ) +
-  geom_text(
-    data = trawl_data_no83112,
-    mapping = 
-      aes(
-        x = towing_speed_kn, 
-        y = bridle_angle_deg, 
-        color = paste0(trawl, " (", footrope, ", ", bridles, ")"),
-        shape = paste0(trawl, " (", footrope, ", ", bridles, ")"),
-        label = trial)
-  ) +
-  geom_hline(yintercept = 18, color = "grey40", linetype = 2) +
-  geom_hline(yintercept = 21, color = "grey40", linetype = 2) +
-  scale_color_tableau(name = "Gear") +
-  scale_shape(name = "Gear") +
-  scale_x_continuous(name = "Speed (kn)") +
-  scale_y_continuous(name = "Bridle angle of attack (degrees)") +
-  facet_wrap(~paste0("Spread: ", spread_treatment, " m")) +
-  theme_bw() +
-  theme(legend.position = "inside",
-        legend.position.inside = c(0.85, 0.2))
+png(filename = here::here("analysis", "flume_tank_2026", "plots", "bridles_spread_vs_boa.png"), width = 8, height = 5, units = "in", res = 300)
+print(p_boa + theme_presentation())
+dev.off()
+
 
 # Upper versus lower wing tip spread
 
