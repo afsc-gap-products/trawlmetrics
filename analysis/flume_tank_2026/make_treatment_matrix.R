@@ -82,11 +82,13 @@ p_race_testing_matrix <-
   theme(panel.grid = element_blank(),
         legend.position = "none")
 
-png(filename = here::here("analysis", "flume_tank_2026", "plots", "testing_matrix_race_trawl.png"), width = 169, height = 169, units = "mm", res = 300)
+png(filename = here::here("analysis", "flume_tank_2026", "plots", "testing_matrix_race_trawl.png"), 
+    width = 169, height = 169, units = "mm", res = 300)
 print(p_race_testing_matrix)
 dev.off()
 
-png(filename = here::here("analysis", "flume_tank_2026", "plots", "testing_matrix_pne_trawl.png"), width = 169, height = 169, units = "mm", res = 300)
+png(filename = here::here("analysis", "flume_tank_2026", "plots", "testing_matrix_pne_trawl.png"), 
+    width = 169, height = 169, units = "mm", res = 300)
 print(p_pne_testing_matrix)
 dev.off()
 

@@ -33,13 +33,14 @@
 
 #' Flume tank experimental data
 #' 
-#' Net measurement data from flume tank experiments conducted at the Centre for Sustainable Aquatic Resources (CSAR), Marine Institute, Memorial University of Newfoundland, St. John's, Newfoundland and Labrador from January 13-17, 2025. CURRENTLY EXAMPLE DATA.
+#' Net measurement data from flume tank experiments conducted at the Centre for Sustainable Aquatic Resources (CSAR), Marine Institute, Memorial University of Newfoundland, St. John's, Newfoundland and Labrador from January 13-17, 2025 and January 27-30, 2026.
 #' 
 #' @format A data frame
 #' \describe{
 #'      \item{trial}{Trial number.}
 #'      \item{trawl}{Trawl model (e.g., "83-112", "PNE", "RACE").}
 #'      \item{bridles}{Type of bridles used (e.g., "standard", "bridle 1", "bridle 2").}
+#'      \item{rig}{Rigging information for 2026 trials. Details are in the data set flume_tanke_rigging}
 #'      \item{bridle_length}{Bridle length as character vector.}
 #'      \item{footrope}{Footrope used on the trawl.}
 #'      \item{benthic_bag}{Was a model benthic bag attached to the footrope?}
@@ -56,7 +57,7 @@
 #'      \item{sweep_length_m}{Sweep length in meters.}
 #'      \item{u_bridle_extension_m}{Upper bridle extension length in meters.}
 #'      \item{towing_speed_kn}{Towing speed in knots.}
-#'      \item{door_m}{Door spread in meters.}
+#'      \item{door_spread_m}{Door spread in meters.}
 #'      \item{spread_treatment}{Upper wing tip spread treatment.}
 #'      \item{spread_u_wing_m}{Upper wing spread in meters.}
 #'      \item{spread_m_wing_m}{Middle wing spread in meters.}
@@ -65,6 +66,7 @@
 #'      \item{opening_wing_m}{Wing opening height in meters.}
 #'      \item{opening_headline_m}{Headline opening height in meters.}
 #'      \item{upper_wingend_height_m}{Upper wing tip end distance from bottom in meters.}
+#'      \item{middle_wingend_height_m}{Middle wing tip end distance from bottom in meters.}
 #'      \item{lower_wingend_height_m}{Lower wing tip end distance from bottom in meters. NA = 0}
 #'      \item{fishing_line_height_m}{Distance between the fishing line and bottom, in meters.}
 #'      \item{bridle_tension_port_t}{Port bridle/sweep tension in metric tons.}
@@ -73,6 +75,30 @@
 #'      \item{mouth_area_m2}{Mouth opening area in square meters.}
 #'      \item{mouth_drag_kgf_m2}{Mouth drag in kilogram-force per square meter.}
 #'      \item{bridle_angle_deg}{Bridle angle of attack in degrees.}
+#'      \item{year}{Year the trials were conducted}
+#'      \item{Comment}{Comments about the treatment}
 #' }
 #' @source \url{https://www.fisheries.noaa.gov/contact/groundfish-assessment-program}
 "flume_tank"
+
+
+#' Flume tank rigging in 2026
+#' 
+#' Rigging information for flume tank experiments conducted at the Centre for Sustainable Aquatic Resources (CSAR), Marine Institute, Memorial University of Newfoundland, St. John's, Newfoundland and Labrador from January 27-30, 2026.
+#' 
+#' @format A data frame
+#' \describe{
+#'      \item{rig}{Letter code for the rigging configuration; used in flume_tank dataset.}
+#'      \item{trawl}{Name of the trawl used in 2026: Poly Nor'eastern 2026 (PNE (2026)) or RACE Prototype 2026 (RACE (2026)).}
+#'      \item{bridles}{Bridle configuration; standard = 180' bridles used on current surveys (as of 2026); 1.2: 'split' design with 45/45 upper bridles; 1: 'split' design with 70/20 upper bridles; 2: 'split' design with three ~90' bridles connected at the delta plate}
+#'      \item{footrope}{EBS: Proposed EBS-type with 5" cookies; GOA: Proposed GOA-type with 5" cookies and 14" bobbins}
+#'      \item{bridle_length_m}{Bridle length in the flume tank}
+#'      \item{sweep_length_m}{Bridle length in the flume tank}
+#'      \item{top_setback_links}{Number of links used for the top wing tip setback; each 2.5"}
+#'      \item{middle_setback_links}{Number of links used for the middle wing tip setback; each 2.5"}
+#'      \item{bottom_setback_links}{Number of links used for the bottom footrope setback; each 2.5"}
+#'      \item{year}{Year the trials were conducted}
+#'      \item{Comment}{comments}
+#' }
+#' @source \url{https://www.fisheries.noaa.gov/contact/groundfish-assessment-program}
+"flume_tank_rigging"
