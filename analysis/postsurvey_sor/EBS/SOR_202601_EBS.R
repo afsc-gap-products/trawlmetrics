@@ -122,5 +122,5 @@ sor_save_results(final_dir = c(here::here("output", region, cruise, vessel1,
                                           paste0("PING_FILES_", region, "_", year))), 
                  create_user = create_user, 
                  survey = c(survey, survey), 
-                 delete_existing = delete_existing, 
+                 delete_existing = TRUE, 
                  cruise_idnum = c(cruise_idnum1, cruise_idnum2))
