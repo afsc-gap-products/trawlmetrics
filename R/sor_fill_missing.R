@@ -543,6 +543,10 @@ sor_fill_missing <- function(height_paths,
       
     }
     
+    # Placeholder for door spread method
+    final_spread$edit_door_spread <- NA
+    final_spread$door_spread_method <- NA
+    
     final_cruise <- 
       data.frame(
         cruise_id = sel_dat[['haul']]$cruise_id,
