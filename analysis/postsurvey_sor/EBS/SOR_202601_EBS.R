@@ -16,8 +16,8 @@ convert_marport_to_netmind = TRUE
 min_pings_for_sor = 50
 min_height_pings = 150
 fill_method = "ebs"
-create_user = "ROHANS"
-delete_existing = FALSE # CHANGE TO TRUE FOR UPDATING RESULTS
+create_user = "ANDERSONC"
+delete_existing = TRUE # CHANGE TO TRUE FOR UPDATING RESULTS
 
 cruise_idnum1 = 780
 vessel1 = 162
