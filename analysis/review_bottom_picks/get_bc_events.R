@@ -10,8 +10,10 @@ region <- "ebs"
 
 if(region == "ebs") {
   e1 <- 3
+  e1_name <- "On bottom"
 } else {
   e1 <- 4
+  e1_name <- "Equilibrium"
 }
 
 dir.create(here::here("analysis", "review_bottom_picks", "plots", year), recursive = TRUE)
@@ -85,7 +87,8 @@ for(ii in 1:length(unique_haul_id)) {
   
   sel_events <- dplyr::filter(events, HAUL_ID == unique_haul_id[ii]) |>
     dplyr::inner_join(
-      sel_haul
+      sel_haul,
+      by = "HAUL_ID"
     )
   
   sel_bottom <- sel_events |>
@@ -105,8 +108,10 @@ for(ii in 1:length(unique_haul_id)) {
     ) |>
     tidyr::pivot_longer(cols = c("EDIT_X_AXIS", "EDIT_Y_AXIS", "EDIT_Z_AXIS")) |>
     dplyr::inner_join(
-      data.frame(name = c("EDIT_X_AXIS", "EDIT_Y_AXIS", "EDIT_Z_AXIS"),
-                 short_name = c("x", "y", "z"))
+      data.frame(
+        name = c("EDIT_X_AXIS", "EDIT_Y_AXIS", "EDIT_Z_AXIS"),
+        short_name = c("x", "y", "z")),
+      by = "name"
     )
   
   p_accel <- 
@@ -140,7 +145,7 @@ for(ii in 1:length(unique_haul_id)) {
       data = sel_start_end,
       mapping = aes(xintercept = EDIT_DATE_TIME, linetype = NAME)
     ) +
-    ggtitle(label = "On bottom") +
+    ggtitle(label = e1_name) +
     scale_color_discrete(name = "Axis") +
     scale_x_datetime(name = "Time", limits = onbottom_window) +
     scale_y_continuous(name = "Acceleration (g)") +
