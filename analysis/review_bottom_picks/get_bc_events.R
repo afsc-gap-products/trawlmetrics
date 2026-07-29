@@ -3,6 +3,7 @@ library(cowplot)
 
 channel <- trawlmetrics::get_connected(schema = "AFSC")
 
+# Edit this part to change the survey, vessel, and region
 year <- 2026
 survey_definition_id <- 98
 vessel_id <- c(134, 162)
