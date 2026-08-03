@@ -9,8 +9,8 @@ taxa <-
     SPECIES_CODE = c(21740, 21720, 10110, 10112, 10115, 10210, 10261, 10130, 471, 10285),
     GROUP_CODE = c("walleye pollock", "Pacific cod", "arrowtooth flounder", "Kamchatka flounder",
                    "Greenland turbot", "yellowfin sole", "northern rock sole", "flathead sole", "Alaska skate", "Alaska plaice"),
-    MIN_SIZE_CM = c(NA, 10, 20, 15, 10, 10, NA, NA, NA, NA),
-    MIN_AGE = c(NA, 1, 1, 1, 1, 1, NA, NA, NA, NA)
+    MIN_SIZE_CM = c(5, 10, 20, 15, 10, 10, 6, NA, 20, NA),
+    MIN_AGE = c(1, 1, 1, 1, 1, 1, NA, 1, NA, NA)
   )
 
 taxa_slope <- 
@@ -182,3 +182,22 @@ print(p_crab_thresholds +
           legend.title = element_text(size = 16),
           strip.text = element_text(size = 18)))
 dev.off()
+
+
+# Checking minimum sizes in survey data
+# fish_size |>
+#   dplyr::filter(SPECIES_CODE == "walleye pollock") |>
+#   dplyr::mutate(THRESHOLD = LENGTH_CM <= 7) |>
+#   dplyr::group_by(
+#     SPECIES_CODE, THRESHOLD
+#   ) |>
+#   dplyr::summarise(
+#     n = sum(TOTAL)
+#   )
+# 
+# 
+# ggplot() +
+#   stat_ecdf(data = fish_size |>
+#               dplyr::filter(SPECIES_CODE == "walleye pollock"),
+#             mapping = aes(x = LENGTH_CM)) +
+#   geom_vline(xintercept = 5)
