@@ -119,12 +119,8 @@ ggplot() +
     data = flume_2026,
     mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = factor(spread_treatment))
   ) +
-  # geom_path(
-  #   data = flume_2026,
-  #   mapping = aes(x = towing_speed_kn, y = spread_u_wing_m/opening_headline_m, color = factor(spread_treatment))
-  # ) +
-  scale_color_viridis_d(name = "Upper wing spread (m)", option = "C") +
-  scale_x_continuous(name = "Speed (kn)") +
+  scale_color_manual(name = "Upper wing spread (m)", values = viridis_pal(option = "C")(5)[1:4]) +
+  scale_x_continuous(name = "Speed (knots)") +
   scale_y_continuous(name = "Spread:Height Ratio") +
   facet_grid(footrope~paste0(trawl, " (", bridles, ")")) +
   theme_bw()
@@ -138,7 +134,6 @@ ggplot(
       y = bridle_angle_deg, 
       color = trawl,
       shape = trawl)
-      # color = paste0(trawl, " (", footrope, ", ", bridles, ")"))
 ) +
   # geom_smooth(se = FALSE, method = 'lm') +
   geom_smooth(se = FALSE, method = 'gam', formula = y ~ s(x, bs = "cs", k = 4)) +
