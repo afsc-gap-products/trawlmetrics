@@ -71,6 +71,20 @@ ggplot() +
   facet_wrap(~haul, scales = "free") +
   theme_bw()
 
+ggplot() +
+  geom_smooth(
+    data = bcs_heights,
+    mapping = aes(x = dt, y = height_fit,  group = haul),
+    se = FALSE,
+    method = "loess",
+    span = 0.01
+  ) +
+  scale_y_continuous(limits = c(0, 10), name = "Height (cm)") +
+  scale_color_viridis_d(name = "Distance from center (m)") +
+  scale_linetype(name = "Side") +
+  facet_wrap(~position, scales = "free") +
+  theme_bw()
+
 
 ggplot() +
   geom_smooth(
