@@ -1,5 +1,12 @@
 # Analyze bottom contact sensor data for each haul
 
+library(trawlmetrics)
+library(readxl)
+library(here)
+library(lubridate)
+library(cowplot)
+library(mgcv)
+
 bcs_gam_2026 <- readRDS(file = here::here("output", "01_bcs_output", "bcs_calibration_gams_2026.rds"))
 
 bcs_haul_data <- 
@@ -29,9 +36,18 @@ bcs_bc_data <- vector(mode = "list", length = nrow(bcs_haul_data))
 
 for(ii in 1:nrow(bcs_haul_data)) {
   
-  bc <- read.csv(bcs_haul_data$path[ii], skip = 1)[, 2:8]
+  bc <- read.csv(bcs_haul_data$path[ii], skip = 1, fileEncoding = "latin1")
   
-  colnames(bc) <- c("dt", "x_g", "y_g", "z_g", "x_tilt", "y_tilt", "z_tilt")
+  if(ncol(bc) > 11) {
+    bc <- bc[, 2:8]
+    colnames(bc) <- c("dt", "x_g", "y_g", "z_g", "x_tilt", "y_tilt", "z_tilt")
+  } else{
+    bc <- bc[, 2:5]
+    colnames(bc) <- c("dt", "x_g", "y_g", "z_g")
+  }
+  
+  
+ 
   
   bc$haul <- bcs_haul_data$haul[ii]
   bc$position <- bcs_haul_data$position[ii]
@@ -53,7 +69,7 @@ bcs_heights <- lapply(
            x[c("dt", "haul", "position", "distance", "side", "height_fit", "x_g")]
          }
   ) |>
-  do.call(what = rbind) |>
+  do.call(what = dplyr::bind_rows) |>
   dplyr::filter(height_fit > -0.1)
 
 
