@@ -6,46 +6,6 @@ library(ggplot2)
 library(glmmTMB)
 library(ggrepel)
 
-
-extract_and_rename_xml <- function(zip_path, exdir = dirname(zip_path)) {
-  # Verify input file exists
-  if (!file.exists(zip_path)) {
-    stop("The specified zip file does not exist: ", zip_path)
-  }
-  
-  # List contents of the zip file without extracting yet
-  zip_contents <- unzip(zip_path, list = TRUE)
-  
-  # Find the XML file inside the zip archive
-  xml_files <- zip_contents$Name[grep("\\.xml$", zip_contents$Name, ignore.case = TRUE)]
-  
-  if (length(xml_files) == 0) {
-    stop("No .xml file was found inside the zip archive.")
-  }
-  
-  # Select the first XML file found
-  target_xml_relative <- xml_files[1]
-  
-  # Unzip the file to the destination directory
-  unzip(zip_path, files = target_xml_relative, exdir = exdir)
-  
-  # Construct full paths for extracted file and target file name
-  extracted_xml_path <- file.path(exdir, target_xml_relative)
-  zip_basename <- tools::file_path_sans_ext(basename(zip_path))
-  new_xml_path <- file.path(exdir, paste0(zip_basename, ".xml"))
-  
-  # Rename the file if the name differs
-  if (extracted_xml_path != new_xml_path) {
-    # If the target file already exists, remove it to avoid rename failure
-    if (file.exists(new_xml_path)) {
-      file.remove(new_xml_path)
-    }
-    file.rename(from = extracted_xml_path, to = new_xml_path)
-  }
-  
-  return(new_xml_path)
-}
-
 scs_zip <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, pattern = ".zip")
 
 vapply(scs_zip, extract_and_rename_xml, FUN.VALUE = character(1))
@@ -53,83 +13,6 @@ vapply(scs_zip, extract_and_rename_xml, FUN.VALUE = character(1))
 # Parse xml files to retrieve net height, net spread, and door spread
 
 library(xml2)
-
-parse_nmea_xml <- function(xml_file, door_range_m = c(20, 60), wing_range_m = c(8,23), height_range_m = c(1,10)) {
-  # 1. Extract numeric haul number from the filename (e.g., "haul0521.xml" -> 521)
-  file_name <- basename(xml_file)
-  haul_num <- as.integer(gsub("[^0-9]", "", file_name))
-  
-  # Helper function to return empty data frame when no valid tags are found
-  # empty_df <- function() {
-  #   data.frame(
-  #     HAUL = integer(0),
-  #     timestamp = as.POSIXct(character(0), tz = "UTC"),
-  #     sensor = character(0),
-  #     value = numeric(0),
-  #     unit = character(0),
-  #     stringsAsFactors = FALSE
-  #   )
-  # }
-  
-  # 2. Read XML file
-  doc <- read_xml(xml_file)
-  
-  # 3. Find all <DataItem> nodes
-  nodes <- xml_find_all(doc, "//DataItem")
-  if (length(nodes) == 0) return(empty_df())
-  
-  # 4. Extract raw text strings and timestamp attributes
-  payloads <- xml_text(nodes)
-  timestamps_raw <- xml_attr(nodes, "timestamp")
-  
-  # 5. Regex matching ONLY the 3 target NMEA sentence prefixes
-  pattern <- "^(HR,10,DTB|PW,18,XST|PD,23,XST),([^,]+),([-+]?[0-9]*\\.?[0-9]+)"
-  
-  # Filter out non-matching NMEA tags
-  keep_idx <- grepl(pattern, payloads)
-  if (!any(keep_idx)) return(NULL)
-  
-  payloads <- payloads[keep_idx]
-  timestamps_raw <- timestamps_raw[keep_idx]
-  
-  # 6. Extract matched values and units
-  prefix <- sub(paste0(pattern, ".*$"), "\\1", payloads)
-  # units  <- sub(paste0(pattern, ".*$"), "\\2", payloads)
-  values <- as.numeric(sub(paste0(pattern, ".*$"), "\\3", payloads))
-  
-  # 7. Convert timestamps to POSIXct (UTC)
-  timestamps <- as.POSIXct(timestamps_raw, format = "%Y-%m-%dT%H:%M:%S", tz = "UTC")
-  
-  # 8. Map exact prefixes to sensor names
-  sensor_map <- c(
-    "HR,10,DTB" = "NET_HEIGHT_M",
-    "PW,18,XST" = "NET_SPREAD_M",
-    "PD,23,XST" = "DOOR_SPREAD_M"
-  )
-  sensors <- unname(sensor_map[prefix])
-  
-  # 9. Return structured data frame
-  values <- 
-    data.frame(
-    haul = haul_num,
-    dt = lubridate::with_tz(timestamps, "America/Anchorage"),
-    name = sensors,
-    value = values,
-    stringsAsFactors = FALSE
-  )|>
-    tidyr::pivot_wider(
-      names_from = "name",
-      values_from = "value"
-    )
-  
-  values$DOOR_SPREAD_M[values$DOOR_SPREAD_M < door_range_m[1] | values$DOOR_SPREAD_M > door_range_m[2]] <- NA
-  values$NET_SPREAD_M[values$NET_SPREAD_M < wing_range_m[1] | values$NET_SPREAD_M > wing_range_m[2]] <- NA
-  values$NET_HEIGHT_M[values$NET_HEIGHT_M < height_range_m[1] | values$NET_HEIGHT_M > height_range_m[2]] <- NA
-  
-  return(values)
-  
-  
-}
 
 scope_tables <- 
   read_xlsx(path = here::here("data", "shelf_slope_table.xlsx")) |>
@@ -148,7 +31,12 @@ trawl_measurements <-
   do.call(what = dplyr::bind_rows) |> 
   isolate_treatments() |>
   dplyr::filter(!is.na(scope)) |>
-  dplyr::select(haul, dt, NET_HEIGHT_M, NET_SPREAD_M, DOOR_SPREAD_M, pass, scope)
+  dplyr::select(haul, dt, NET_HEIGHT_M, NET_SPREAD_M, DOOR_SPREAD_M, pass, scope) |>
+  dplyr::mutate(BRIDLE_ANGLE_DEG = bridle_angle_wes(
+    door_spread = DOOR_SPREAD_M, 
+    wing_spread = NET_SPREAD_M,
+    bridle_length = (180+30)/3.281
+    ))
 
 trawl_measurement_summary <- 
   trawl_measurements |>
@@ -162,6 +50,8 @@ trawl_measurement_summary <-
     SD_NET_HEIGHT = sd(NET_HEIGHT_M, na.rm = TRUE),
     MEAN_DOOR_SPREAD = mean(DOOR_SPREAD_M, na.rm = TRUE),
     SD_DOOR_SPREAD = sd(DOOR_SPREAD_M, na.rm = TRUE),
+    MEAN_BRIDLE_ANGLE = mean(BRIDLE_ANGLE_DEG, na.rm = TRUE),
+    SD_BRIDLE_ANGLE = mean(BRIDLE_ANGLE_DEG, na.rm = TRUE),
     MIN_DT = min(dt),
     MAX_DT = max(dt),
     MEAN_DT = mean(dt)
@@ -182,8 +72,6 @@ btd_data <- lapply(X = btd_path, FUN = read.csv) |>
   dplyr::select(dt, HAUL, DEPTH)
 
 names(btd_data) <- tolower(names(btd_data))
-
-
 
 btd_summary <- isolate_treatments(btd_data) |>
   dplyr::filter(!is.na(scope)) |>
@@ -220,17 +108,19 @@ for(ii in 1:length(unique_scs_hauls)) {
     ggplot() +
     geom_point(
       data = haul_pings,
-      mapping = aes(x = dt, y = NET_SPREAD_M, color = factor(scope))
+      mapping = aes(x = dt, y = NET_SPREAD_M, color = factor(scope)), 
+      size = 0.5
     ) +
     geom_segment(
       data = haul_summary,
       mapping = aes(x = MIN_DT, xend = MAX_DT, y = MEAN_NET_SPREAD, color = factor(scope)),
-      linewidth = 1.1
+      linewidth = 0.8,
+      linetype = 1
     ) +
     geom_text(
       data = haul_summary,
       mapping = aes(x = MEAN_DT, y = 11, 
-                    label = paste0(format(MEAN_NET_SPREAD, nsmall = 1, digits = 3), " (", format(SD_NET_SPREAD, nsmall = 1, digits = 1), ")"))
+                    label = MEAN_NET_SPREAD, nsmall = 1, digits = 3)
     ) +
     scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
     scale_x_datetime(name = "Date/time (AKDT)") +
@@ -241,17 +131,19 @@ for(ii in 1:length(unique_scs_hauls)) {
     ggplot() +
     geom_point(
       data = haul_pings,
-      mapping = aes(x = dt, y = DOOR_SPREAD_M, color = factor(scope))
+      mapping = aes(x = dt, y = DOOR_SPREAD_M, color = factor(scope)),
+      size = 0.5
     ) +
     geom_segment(
       data = haul_summary,
       mapping = aes(x = MIN_DT, xend = MAX_DT, y = MEAN_DOOR_SPREAD, color = factor(scope)),
-      linewidth = 1.1
+      linewidth = 0.8,
+      linetype = 1
     ) +
     geom_text(
       data = haul_summary,
       mapping = aes(x = MEAN_DT, y = 23, 
-                    label = paste0(format(MEAN_DOOR_SPREAD, nsmall = 1, digits = 3), " (", format(SD_DOOR_SPREAD, nsmall = 1, digits = 2), ")"))
+                    label = paste0(format(MEAN_DOOR_SPREAD, nsmall = 1, digits = 3)))
     ) +
     scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
     scale_x_datetime(name = "Date/time (AKDT)") +
@@ -262,17 +154,19 @@ for(ii in 1:length(unique_scs_hauls)) {
     ggplot() +
     geom_point(
       data = haul_pings,
-      mapping = aes(x = dt, y = NET_HEIGHT_M, color = factor(scope))
+      mapping = aes(x = dt, y = NET_HEIGHT_M, color = factor(scope)),
+      size = 0.5
     ) +
     geom_segment(
       data = haul_summary,
       mapping = aes(x = MIN_DT, xend = MAX_DT, y = MEAN_NET_HEIGHT, color = factor(scope)),
-      linewidth = 1.1
+      linewidth = 0.8,
+      linetype = 3
     ) +
     geom_text(
       data = haul_summary,
       mapping = aes(x = MEAN_DT, y = 3.5, 
-                    label = paste0(format(MEAN_NET_HEIGHT, nsmall = 1, digits = 1), " (", format(SD_NET_HEIGHT, nsmall = 1, digits = 2), ")"))
+                    label = format(MEAN_NET_HEIGHT, nsmall = 1, digits = 1))
     ) +
     ggtitle(paste0("Net/Door/Scope/Depth, Haul: ", haul_pings$haul[1])) +
     scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
@@ -280,7 +174,35 @@ for(ii in 1:length(unique_scs_hauls)) {
     scale_y_continuous(name = "Net Height (m)", limits = c(3, 10.5), breaks = seq(3,10,1)) +
     theme_bw()
   
+  p_bridle_angle <-
+    ggplot() +
+    geom_point(
+      data = haul_pings,
+      mapping = aes(x = dt, y = BRIDLE_ANGLE_DEG, color = factor(scope)),
+      size = 0.5
+    ) +
+    geom_segment(
+      data = haul_summary,
+      mapping = aes(x = MIN_DT, xend = MAX_DT, y = MEAN_BRIDLE_ANGLE, color = factor(scope)),
+      linewidth = 0.8,
+      linetype = 3
+    ) +
+    geom_text(
+      data = haul_summary,
+      mapping = aes(x = MEAN_DT, y = 10, 
+                    label = format(MEAN_BRIDLE_ANGLE, nsmall = 1, digits = 2))
+    ) +
+    scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
+    scale_x_datetime(name = "Date/time (AKDT)") +
+    scale_y_continuous(name = "Bridle Angle (deg)", limits = c(9, 24), breaks = seq(10,24,2)) +
+    theme_bw()
+  
   p_sdr <- ggplot() +
+    geom_line(
+      data = scope_tables,
+      mapping = aes(x = mean_depth_fm, y = scope_to_depth, linetype = gear),
+      color = "grey"
+      ) +
     geom_point(
       data = btd_haul, 
       mapping = aes(x = BT_DEPTH_FM, y = SCOPE_TO_DEPTH, color = factor(scope)),
@@ -288,12 +210,8 @@ for(ii in 1:length(unique_scs_hauls)) {
     geom_text_repel(
       data = btd_haul,
       mapping = aes(x = BT_DEPTH_FM, y = SCOPE_TO_DEPTH, label = format(SCOPE_TO_DEPTH, digits = 2, nsmall = 1))
-                    ) +
-    geom_line(
-      data = scope_tables,
-      mapping = aes(x = mean_depth_fm, y = scope_to_depth, linetype = gear)
-      ) +
-    scale_color_viridis_d(name = "Scope (ftm)", direction = -1) +
+    ) +
+    scale_color_viridis_d(name = "Scope (ftm)", direction = -1, guide = "none") +
     scale_x_continuous(name = "Bottom depth (fathoms)", limits = c(0, 300/1.8288), oob = scales::oob_keep) +
     scale_y_continuous(name = "Scope/depth", limits = c(0, 9), breaks = seq(1,9,1)) +
     scale_linetype(name = "Survey") +
@@ -313,16 +231,24 @@ for(ii in 1:length(unique_scs_hauls)) {
           plot.margin = unit(c(0,5,0,5), units = "mm")),
       p_net_spread +
         theme(
+          legend.position = "right", 
+          plot.margin = unit(c(0,5,0,5), units = "mm")
+        ),
+      p_bridle_angle +
+        theme(
           legend.position = "none", 
           plot.margin = unit(c(0,5,0,5), units = "mm")
         ),
       p_sdr  +
         theme(
-          legend.position = "bottom", 
+          legend.position = "inside", 
+          legend.position.inside = c(0.7, 0.8),
+          legend.direction = "horizontal",
+          legend.title = element_blank(),
           plot.margin = unit(c(0,5,0,5), units = "mm")
         ),
       rel_heights = c(1,1,1,1.2),
-      nrow = 4,
+      nrow = 5,
       align = "v"
     )
   

@@ -24,7 +24,7 @@ bcs_gam_2026 <- readRDS(file = here::here("output", "01_bcs_output", "bcs_calibr
 # Specify files
 bcs_files <- 
   data.frame(
-    path = list.files(path = here::here("data", "01_bcs_data", "haul_data"), 
+    path = list.files(path = here::here("data", "01_bcs_data", "haul_data", "Aug 7"), 
                       full.names = TRUE, recursive = TRUE, pattern = ".csv")
   )
 
