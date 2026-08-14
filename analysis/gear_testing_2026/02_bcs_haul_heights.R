@@ -21,7 +21,7 @@ dir.create(here::here("data", "01_bcs_data", "split_files"), recursive = TRUE, s
 
 bcs_paths <- 
   list.files(
-    path = here::here("data", "01_bcs_data", "combined_files"), 
+    path = here::here("data", "01_bcs_data", "combined_files", "haul_547"), 
     recursive = TRUE, pattern = ".csv", full.names = TRUE
   )
 
@@ -29,8 +29,10 @@ bcs_basename <- basename(bcs_paths)
 
 for(ii in 1:length(bcs_paths)) {
   
+  print(bcs_paths[ii])
+  
   bcs_with_haul <- split_hauls(
-    data_to_split <- read.csv(
+    data_to_split = read.csv(
       file = bcs_paths[ii],
       fileEncoding = "latin1",
       skip = 1),
@@ -108,7 +110,7 @@ for(ii in 1:nrow(bcs_haul_data)) {
   
   # Double-pass Kalman filter on x-axis acceleration
   bc$x_g_original <- bc$x_g
-  bc$x_g <- multi_pass_kalman(bc$x_g, n_passes = 2, mode = "lowpass", q = 0.01)
+  bc$x_g <- multi_pass_kalman(bc$x_g, n_passes = 1, mode = "lowpass", q = 0.01)
   
   
   bc$height_fit <- predict(object = bcs_gam_2026[[bcs_haul_data$bcs_id[ii]]]$model, bc)
@@ -137,7 +139,7 @@ bcs_segments <- isolate_treatments(
   buffer_eq_s = 30, buffer_scope_change_s = 10, buffer_hb_s = 10)
 
 
-height_summary <- 
+bcs_height_summary <- 
   bcs_segments |>
   dplyr::filter(!is.na(scope)) |>
   dplyr::group_by(haul, position, distance, side, pass, scope) |>
@@ -146,7 +148,7 @@ height_summary <-
                    sd_height = sd(height_fit, na.rm = TRUE))
 
 unique_haul_scope <- 
-  height_summary |>
+  bcs_height_summary |>
   dplyr::ungroup() |>
   dplyr::select(haul, scope) |>
   unique()
@@ -161,7 +163,7 @@ for(ii in 1:nrow(unique_haul_scope)) {
   
   p_trt <- ggplot() + 
     geom_point(
-      data = height_summary |>
+      data = bcs_height_summary |>
         dplyr::inner_join(sel_hsp, by = c("haul", "scope")),
       mapping = aes(
         x = ifelse(side == "P", distance*-1, distance),
@@ -184,7 +186,7 @@ for(ii in 1:nrow(unique_haul_scope)) {
 p_dtb_all <-
   ggplot() +
   geom_point(
-    data = height_summary,
+    data = bcs_height_summary,
     mapping = aes(
       x = ifelse(side == "P", distance*-1, distance),
       y = median_height)
@@ -198,3 +200,6 @@ png(filename = here::here("plots", "dtb_haul_scope", paste0("dist_to_bottom_all_
     width = 4, height = 4, units = "in", res = 300)
 print(p_trt)
 dev.off()
+
+saveRDS(bcs_height_summary, file = here::here("output", "bcs_height_summary.rds"))
+saveRDS(bcs_segments, file = here::here("output", "bcs_segments.rds"))

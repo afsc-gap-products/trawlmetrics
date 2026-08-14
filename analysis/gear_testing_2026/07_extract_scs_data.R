@@ -5,14 +5,16 @@ library(dplyr)
 library(ggplot2)
 library(glmmTMB)
 library(ggrepel)
+library(readxl)
+
+source("./functions/extract_and_rename_xml.R")
+source("./functions/parse_nmea_xml.R")
+source("./functions/isolate_treatments.R")
+source("./functions/bridle_angle_wes.R")
 
 scs_zip <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, pattern = ".zip")
 
 vapply(scs_zip, extract_and_rename_xml, FUN.VALUE = character(1))
-
-# Parse xml files to retrieve net height, net spread, and door spread
-
-library(xml2)
 
 scope_tables <- 
   read_xlsx(path = here::here("data", "shelf_slope_table.xlsx")) |>
@@ -32,11 +34,13 @@ trawl_measurements <-
   isolate_treatments() |>
   dplyr::filter(!is.na(scope)) |>
   dplyr::select(haul, dt, NET_HEIGHT_M, NET_SPREAD_M, DOOR_SPREAD_M, pass, scope) |>
-  dplyr::mutate(BRIDLE_ANGLE_DEG = bridle_angle_wes(
-    door_spread = DOOR_SPREAD_M, 
-    wing_spread = NET_SPREAD_M,
-    bridle_length = (180+30)/3.281
-    ))
+  dplyr::mutate(
+    BRIDLE_ANGLE_DEG = 
+      bridle_angle_wes(
+        door_spread = DOOR_SPREAD_M, 
+        wing_spread = NET_SPREAD_M,
+        bridle_length = (180+30)/3.281
+      ))
 
 trawl_measurement_summary <- 
   trawl_measurements |>
@@ -66,14 +70,16 @@ trawl_measurement_summary <-
 
 btd_path <- list.files(here::here("data", "05_btd_data"), pattern = ".BTD", full.names = TRUE)
 
-btd_data <- lapply(X = btd_path, FUN = read.csv) |>
+btd_data <- 
+  lapply(X = btd_path, FUN = read.csv) |>
   do.call(what = dplyr::bind_rows) |>
   dplyr::mutate(dt = as.POSIXct(DATE_TIME, tz = "America/Anchorage", format = "%m/%d/%Y %H:%M:%S")) |>
   dplyr::select(dt, HAUL, DEPTH)
 
 names(btd_data) <- tolower(names(btd_data))
 
-btd_summary <- isolate_treatments(btd_data) |>
+btd_summary <- 
+  isolate_treatments(btd_data) |>
   dplyr::filter(!is.na(scope)) |>
   dplyr::group_by(haul, pass, scope) |>
   dplyr::summarise(
@@ -114,13 +120,12 @@ for(ii in 1:length(unique_scs_hauls)) {
     geom_segment(
       data = haul_summary,
       mapping = aes(x = MIN_DT, xend = MAX_DT, y = MEAN_NET_SPREAD, color = factor(scope)),
-      linewidth = 0.8,
-      linetype = 1
+      linewidth = 0.3
     ) +
     geom_text(
       data = haul_summary,
       mapping = aes(x = MEAN_DT, y = 11, 
-                    label = MEAN_NET_SPREAD, nsmall = 1, digits = 3)
+                    label = format(MEAN_NET_SPREAD, nsmall = 1, digits = 3))
     ) +
     scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
     scale_x_datetime(name = "Date/time (AKDT)") +
@@ -137,13 +142,12 @@ for(ii in 1:length(unique_scs_hauls)) {
     geom_segment(
       data = haul_summary,
       mapping = aes(x = MIN_DT, xend = MAX_DT, y = MEAN_DOOR_SPREAD, color = factor(scope)),
-      linewidth = 0.8,
-      linetype = 1
+      linewidth = 0.3
     ) +
     geom_text(
       data = haul_summary,
       mapping = aes(x = MEAN_DT, y = 23, 
-                    label = paste0(format(MEAN_DOOR_SPREAD, nsmall = 1, digits = 3)))
+                    label = format(MEAN_DOOR_SPREAD, nsmall = 1, digits = 3))
     ) +
     scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
     scale_x_datetime(name = "Date/time (AKDT)") +
@@ -160,8 +164,7 @@ for(ii in 1:length(unique_scs_hauls)) {
     geom_segment(
       data = haul_summary,
       mapping = aes(x = MIN_DT, xend = MAX_DT, y = MEAN_NET_HEIGHT, color = factor(scope)),
-      linewidth = 0.8,
-      linetype = 3
+      linewidth = 0.3
     ) +
     geom_text(
       data = haul_summary,
@@ -184,8 +187,7 @@ for(ii in 1:length(unique_scs_hauls)) {
     geom_segment(
       data = haul_summary,
       mapping = aes(x = MIN_DT, xend = MAX_DT, y = MEAN_BRIDLE_ANGLE, color = factor(scope)),
-      linewidth = 0.8,
-      linetype = 3
+      linewidth = 0.3
     ) +
     geom_text(
       data = haul_summary,
@@ -258,20 +260,6 @@ for(ii in 1:length(unique_scs_hauls)) {
   
 }
 
-treatment_net_results <-
-  dplyr::left_join(trawl_measurement_summary, btd_summary, by = c("haul", "scope")) |>
-  dplyr::mutate(BOTTOM_DEPTH_M = MEAN_NET_HEIGHT + BT_DEPTH_M,
-                SCOPE_RATIO = scope/BOTTOM_DEPTH_M)
-
-# No difference in spread varaibility between doors?
-# model_door_sd0 <- 
-#   glmmTMB(formula = SD_DOOR_SPREAD ~ 1 + (1|depth_treatment) + (1|haul),
-#           data = treatment_net_results)
-# 
-# model_door_sd1 <- 
-#   glmmTMB(formula = SD_DOOR_SPREAD ~ factor(door_size_m2) + (1|depth_treatment) + (1|haul),
-#         data = treatment_net_results)
-# 
-# summary(model_door_sd1)
-# 
-# AIC(model_door_sd0, model_door_sd1)
+saveRDS(trawl_measurement_summary, here::here("output", "haul_summary.rds"))
+saveRDS(btd_summary, here::here("output", "btd_summary.rds"))
+saveRDS(trawl_measurements, here::here("trawl_measurements.rds"))

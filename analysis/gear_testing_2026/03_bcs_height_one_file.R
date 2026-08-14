@@ -24,7 +24,7 @@ bcs_gam_2026 <- readRDS(file = here::here("output", "01_bcs_output", "bcs_calibr
 # Specify files
 bcs_files <- 
   data.frame(
-    path = list.files(path = here::here("data", "01_bcs_data", "haul_data", "Aug 7"), 
+    path = list.files(path = here::here("data", "01_bcs_data", "haul_data"), 
                       full.names = TRUE, recursive = TRUE, pattern = ".csv")
   )
 
@@ -70,7 +70,9 @@ for(vv in 1:length(unique_hauls)) {
     bc$x_g <- multi_pass_kalman(bc$x_g, n_passes = 2, mode = "lowpass", q = 0.01)
     
     
-    bc$height_fit <- predict(object = bcs_gam_2026[[bcs_haul_data$bcs_id[ii]]]$model, bc)
+    bc$height_fit <- predict(
+      object = bcs_gam_2026[[bcs_haul_data$bcs_id[ii]]]$model, 
+      newdata = bc)
     
     bcs_bc_data[[ii]] <- bc
     
@@ -141,7 +143,7 @@ for(vv in 1:length(unique_hauls)) {
       mapping = aes(npcx = "left", npcy = "top", label = paste0(distance, " m"))
     ) +
     scale_x_datetime(name = "Date/time (AKDT)") +
-    scale_y_continuous(name = "Distance off bottom (cm)", limits = c(-0.1, 60), expand = c(0,0)) +
+    scale_y_continuous(name = "Distance off bottom (cm)", limits = c(-0.1, 60)) +
     scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
     scale_linetype(name = "Side") +
     ggtitle("Time series") +
