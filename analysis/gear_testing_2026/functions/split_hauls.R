@@ -3,6 +3,16 @@ split_hauls <-
   function(data_to_split, date_time_field = NULL, date_time_format = "%m/%d/%y %H:%M:%S", date_time_tz = "America/Anchorage", 
            haul_log_path = here::here("data", "2026_gear_testing_haul_start_end.xlsx"), time_buffer_s = 30) {
     
+    # data_to_split <- read.csv(
+    #   file = bcs_paths[ii],
+    #   fileEncoding = "latin1",
+    #   skip = 1)
+    # date_time_field = "Date.Time..GMT.08.00"
+    # date_time_format = "%m/%d/%y %H:%M:%S"
+    # date_time_tz = "America/Anchorage"
+    # haul_log_path = here::here("data", "2026_gear_testing_haul_start_end.xlsx")
+    # time_buffer_s = 30
+    
     data_to_split['dt'] <- as.POSIXct(data_to_split[[date_time_field]], format = date_time_format, tz = date_time_tz)
     data_to_split['dt'] <- lubridate::with_tz( data_to_split['dt'], tzone = "America/Anchorage")
     

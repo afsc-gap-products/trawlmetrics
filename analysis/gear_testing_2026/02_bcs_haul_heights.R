@@ -120,11 +120,12 @@ for(ii in 1:nrow(bcs_haul_data)) {
 }
 
 bcs_heights <- lapply(
-  X = bcs_bc_data, FUN = 
-         function(x) {
-           x[c("dt", "haul", "position", "distance", "side", "height_fit", "x_g")]
-         }
-  ) |>
+  X = bcs_bc_data, 
+  FUN = 
+    function(x) {
+      x[c("dt", "haul", "position", "distance", "side", "height_fit", "x_g")]
+    }
+) |>
   do.call(what = dplyr::bind_rows) |>
   dplyr::filter(height_fit > -0.1)
 

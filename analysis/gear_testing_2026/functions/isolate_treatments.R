@@ -30,9 +30,14 @@ isolate_treatments <-
       haul_events |>
       dplyr::group_by(haul, pass, scope, start_end) |>
       dplyr::summarise(n = n()) |>
-      dplyr::filter(n > 1) |> nrow()
+      dplyr::filter(n > 1)
     
-    stopifnot(check_duplicates == 0)
+    if(nrow(check_duplicates) != 0) {
+      print(check_duplicates)
+      stop("Duplicates found")
+    }
+    
+
     
     # Assign scope
     scope_haul <-
