@@ -1,4 +1,4 @@
-# Develop bottom contact sensor height models
+# Develop bottom contact sensor height models for 2026 prototype gear testing experiments
 
 library(trawlmetrics)
 library(readxl)
