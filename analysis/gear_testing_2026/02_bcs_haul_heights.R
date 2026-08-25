@@ -134,10 +134,11 @@ saveRDS(bcs_heights, file = here::here("data", "01_bcs_data", "bcs_heights.rds")
 
 # Split BCS heights by treatment within a haul
 
-bcs_segments <- isolate_treatments(
-  data_to_split = bcs_heights, 
-  haul_log_path = here::here("data", "2026_gear_testing_haul_log.xlsx"), 
-  buffer_eq_s = 30, buffer_scope_change_s = 10, buffer_hb_s = 10)
+bcs_segments <- 
+  isolate_treatments(
+    data_to_split = bcs_heights, 
+    haul_log_path = here::here("data", "2026_gear_testing_haul_log.xlsx"), 
+    buffer_eq_s = 30, buffer_scope_change_s = 10, buffer_hb_s = 10)
 
 
 bcs_height_summary <- 

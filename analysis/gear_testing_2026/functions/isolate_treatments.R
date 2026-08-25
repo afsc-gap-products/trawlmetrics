@@ -37,8 +37,6 @@ isolate_treatments <-
       stop("Duplicates found")
     }
     
-
-    
     # Assign scope
     scope_haul <-
       haul_events |>
@@ -53,7 +51,7 @@ isolate_treatments <-
     output <- data_to_split |>
       dplyr::left_join(
         scope_haul,
-        by = dplyr::join_by(dplyr::between(dt, start, end), haul)
+        by = dplyr::join_by(dplyr::between(dt, start, end))
       ) |>
       dplyr::left_join(
         additional_fields
