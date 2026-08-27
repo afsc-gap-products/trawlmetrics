@@ -1,5 +1,3 @@
-
-
 library(trawlmetrics)
 library(readxl)
 library(here)
@@ -85,10 +83,93 @@ bcs_segments <-
   isolate_treatments(
     data_to_split = bcs_data, 
     haul_log_path = here::here("data", "2026_gear_testing_haul_log.xlsx"), 
-    buffer_eq_s = 30, 
+    buffer_eq_s = 50, 
     buffer_scope_change_s = 10, 
     buffer_hb_s = 10
     )
 
+# Haul-level summary of BCS height data
+bcs_height_summary <- 
+  bcs_segments |>
+  dplyr::filter(!is.na(scope)) |>
+  dplyr::group_by(haul, position, distance, side, pass, scope) |>
+  dplyr::summarise(median_height = median(height_fit, na.rm = TRUE),
+                   mean_height = mean(height_fit, na.rm = TRUE),
+                   sd_height = sd(height_fit, na.rm = TRUE)) |>
+  dplyr::ungroup()
 
 saveRDS(bcs_segments, file = here::here("output", "bcs_segments.rds"))
+saveRDS(bcs_height_summary, file = here::here("output", "bcs_height_summary.rds"))
+
+# unique_haul_scope <- 
+#   bcs_height_summary |>
+#   dplyr::ungroup() |>
+#   dplyr::select(haul, scope) |>
+#   unique()
+
+unique_hauls <- unique(bcs_height_summary$haul)
+
+for(vv in 1:length(unique_hauls)) {
+  
+  sel_bcs <- dplyr::filter(bcs_height_summary, haul == unique_hauls[vv])
+  
+  sel_segments <- dplyr::filter(bcs_segments, haul == unique_hauls[vv]) 
+  
+  p_bcs_median <- 
+    ggplot() + 
+    geom_point(
+      data = sel_bcs,
+      mapping = aes(
+        x = ifelse(side == "P", distance*-1, distance),
+        y = median_height,
+        color = factor(scope)), 
+      size = rel(2.5),
+      alpha = 0.8
+    ) +
+    ggtitle(paste0("BCS Height, Haul: ", sel_bcs$haul[1])) +
+    geom_vline(xintercept = 0, linetype = 2) +
+    scale_x_continuous(name = "Distance from center (m)") +
+    scale_y_continuous(name = "Distance off bottom (cm)", limits = c(-1, 40), expand = c(0,0), oob = scales::oob_squish) +
+    scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
+    theme_bw()
+  
+  panel_labels <- 
+    sel_bcs |>
+    dplyr::select(haul, distance) |>
+    unique()
+  
+  p_bcs_timeseries <- 
+    ggplot() +
+    geom_path(
+      data = sel_segments,
+      mapping = aes(x = dt, y = height_fit, color = factor(scope), linetype = side, group = interaction(scope, pass, side)),
+      linewidth = 1.05
+    ) +
+    ggpp::geom_text_npc(
+      data = panel_labels, 
+      mapping = aes(npcx = "left", npcy = "top", label = paste0(distance, " m"))
+    ) +
+    scale_x_datetime(name = "Date/time (AKDT)") +
+    scale_y_continuous(name = "Distance off bottom (cm)", limits = c(-3, 40), expand = c(0,0), oob = scales::oob_squish) +
+    scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
+    scale_linetype(name = "Side") +
+    ggtitle("Time series") +
+    facet_wrap(~distance , ncol = 1) +
+    theme_bw() +
+    theme(strip.text = element_blank(),
+          strip.background = element_blank())
+  
+  p_bcs_panels <-
+    cowplot::plot_grid(
+      p_bcs_median + theme(legend.position = "none"),
+      p_bcs_timeseries,
+      ncol = 2,
+      rel_widths = c(0.4,0.6)
+    )
+  
+  png(filename = here::here("plots", "bcs_dtb", paste0(panel_labels$haul[1], "_dist_to_bottom", ".png")),
+      height = 6, width = 8, units = "in", res = 300)
+  print(p_bcs_panels)
+  dev.off()
+  
+}
