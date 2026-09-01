@@ -34,8 +34,10 @@ WHERE
 H.CRUISE_ID = CR.CRUISE_ID
 AND CR.CRUISE_ID in (", paste(cruise_idnum, collapse = ","), ")
 AND H.PERFORMANCE >= 0
+AND H.HAUL_TYPE in (3, 20)
 "))
 
+# Reverse the Marport to Netmind correction
 haul_data <- haul_data |>
   dplyr::mutate(CORRECTED_NET_SPREAD = ifelse(EDIT_NET_SPREAD > 1, (EDIT_NET_SPREAD-0.40046503)/0.935684155, EDIT_NET_SPREAD))
 
@@ -65,6 +67,12 @@ final_values <-
     CREATE_DATE = Sys.time()
   ) |>
   dplyr::select(-HAUL_TYPE, -CORRECTED_NET_SPREAD)
+
+# Convert all values to character
+final_values <- as.data.frame(apply(X = final_values, MARGIN = c(1,2), FUN = as.character))
+
+# Fill NA values
+final_values[is.na(final_values)] <- ""
 
 
 # Clear existing data from RACE_DATA.EDIT_HAUL_IMPORT_SOR_UPDATES

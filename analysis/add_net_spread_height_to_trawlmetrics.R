@@ -7,48 +7,48 @@ channel <- trawlmetrics::get_connected(schema = "AFSC")
 survey_abbv <- data.frame(SURVEY_ABBV = c("AI", "GOA", "EBS", "NBS", "BSS"),
                           SURVEY_DEFINITION_ID = c(52, 47, 98, 143, 78))
 
-rb_catch <- RODBC::sqlQuery(
-  channel = channel,
-  query = 
-  "SELECT 
-      C.HAULJOIN,
-      CR.VESSEL_ID,
-      S.SURVEY_DEFINITION_ID,
-      CR.CRUISE,
-      C.SPECIES_CODE, 
-      C.WEIGHT AS WEIGHT_KG,
-      C.NUMBER_FISH AS COUNT,
-      H.NET_MEASURED,
-      H.HAUL,
-      H.GEAR_DEPTH AS DEPTH_GEAR_M,
-      H.BOTTOM_DEPTH AS DEPTH_M,
-      H.NET_WIDTH AS NET_WIDTH_M,
-      H.NET_HEIGHT AS NET_HEIGHT_M,
-      H.START_LONGITUDE,
-      H.START_LATITUDE,
-      H.END_LONGITUDE,
-      H.END_LATITUDE,
-      H.DISTANCE_FISHED AS DISTANCE_FISHED_KM,
-      H.DURATION AS DURATION_HR,
-      H.STATIONID AS STATION,
-      H.WIRE_LENGTH AS WIRE_LENGTH_M,
-      H.GEAR,
-      H.ACCESSORIES
-    FROM 
-      RACEBASE.CATCH C,
-      RACEBASE.HAUL H,
-      RACE_DATA.CRUISES CR,
-      RACE_DATA.SURVEYS S
-    WHERE
-      H.HAULJOIN = C.HAULJOIN
-      AND CR.RACEBASE_CRUISEJOIN = H.CRUISEJOIN
-      AND S.SURVEY_ID = CR.SURVEY_ID
-      AND S.YEAR = 2026
-        "
-) |>
-  dplyr::inner_join(survey_abbv, by = 'SURVEY_DEFINITION_ID') |>
-  dplyr::mutate(NET_MEASURED = ifelse(NET_MEASURED == "Y", 1, 0),
-                NET_MEASURED = as.numeric(NET_MEASURED))
+# rb_catch <- RODBC::sqlQuery(
+#   channel = channel,
+#   query = 
+#   "SELECT 
+#       C.HAULJOIN,
+#       CR.VESSEL_ID,
+#       S.SURVEY_DEFINITION_ID,
+#       CR.CRUISE,
+#       C.SPECIES_CODE, 
+#       C.WEIGHT AS WEIGHT_KG,
+#       C.NUMBER_FISH AS COUNT,
+#       H.NET_MEASURED,
+#       H.HAUL,
+#       H.GEAR_DEPTH AS DEPTH_GEAR_M,
+#       H.BOTTOM_DEPTH AS DEPTH_M,
+#       H.NET_WIDTH AS NET_WIDTH_M,
+#       H.NET_HEIGHT AS NET_HEIGHT_M,
+#       H.START_LONGITUDE,
+#       H.START_LATITUDE,
+#       H.END_LONGITUDE,
+#       H.END_LATITUDE,
+#       H.DISTANCE_FISHED AS DISTANCE_FISHED_KM,
+#       H.DURATION AS DURATION_HR,
+#       H.STATIONID AS STATION,
+#       H.WIRE_LENGTH AS WIRE_LENGTH_M,
+#       H.GEAR,
+#       H.ACCESSORIES
+#     FROM 
+#       RACEBASE.CATCH C,
+#       RACEBASE.HAUL H,
+#       RACE_DATA.CRUISES CR,
+#       RACE_DATA.SURVEYS S
+#     WHERE
+#       H.HAULJOIN = C.HAULJOIN
+#       AND CR.RACEBASE_CRUISEJOIN = H.CRUISEJOIN
+#       AND S.SURVEY_ID = CR.SURVEY_ID
+#       AND S.YEAR > 2023
+#         "
+# ) |>
+#   dplyr::inner_join(survey_abbv, by = 'SURVEY_DEFINITION_ID') |>
+#   dplyr::mutate(NET_MEASURED = ifelse(NET_MEASURED == "Y", 1, 0),
+#                 NET_MEASURED = as.numeric(NET_MEASURED))
 
 gp_catch <- RODBC::sqlQuery(
   channel = channel,
@@ -85,22 +85,19 @@ gp_catch <- RODBC::sqlQuery(
     WHERE
       H.HAULJOIN = C.HAULJOIN
       AND CR.CRUISEJOIN = H.CRUISEJOIN
-      AND CR.YEAR < 2026
         "
 ) |>
   dplyr::inner_join(survey_abbv, by = 'SURVEY_DEFINITION_ID')
 
-all_catch <- dplyr::bind_rows(gp_catch, rb_catch) 
-
 total_catch <- 
-  all_catch |>
+  gp_catch |>
   dplyr::group_by(HAULJOIN) |>
   dplyr::summarise(TOTAL_WEIGHT_KG = sum(WEIGHT_KG, na.rm = TRUE),
                    .groups = 'keep') |>
   dplyr::ungroup()
 
 bts_geom <- 
-  all_catch |>
+  gp_catch |>
   dplyr::select(-SPECIES_CODE, -WEIGHT_KG) |>
   unique() |>
   dplyr::inner_join(total_catch) |>

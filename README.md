@@ -12,7 +12,7 @@ Tools for processing and analyzing trawl spread, height, and bottom contact sens
 
 # References
 
-### Marport-to-Netmind correction
+### Marport-to-Netmind correction for EBS/NBS (discontinued in 2024)
 Lauth, R. R., and S. Kotwicki. 2014. A calibration function for correcting mean net spread values obtained from Marport spread sensors used in conjunction with the Marport MK II receiver. AFSC Processed Rep. 2014-02, 26 p. Alaska Fish. Sci. Cent., NOAA, Natl. Mar. Fish. Serv., 7600 Sand Point Way NE, Seattle WA 98115. [https://apps-afsc.fisheries.noaa.gov/Publications/ProcRpt/PR2014-02.pdf](https://apps-afsc.fisheries.noaa.gov/Publications/ProcRpt/PR2014-02.pdf)
 
 ### Sequential Outlier Rejection

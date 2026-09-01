@@ -3,7 +3,8 @@ library(trawlmetrics)
 
 net_measured <- 
   trawlmetrics::bts_geom |>
-  dplyr::filter(NET_MEASURED == TRUE,
+  dplyr::filter(
+    NET_MEASURED == TRUE,
                 SURVEY_ABBV != "BSS") |>
   dplyr::mutate(SURVEY_GROUP = ifelse(SURVEY_ABBV %in% c("GOA", "AI"), "GOA/AI", "EBS/NBS"))
 
