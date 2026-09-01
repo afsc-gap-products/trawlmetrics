@@ -3,7 +3,8 @@ library(trawlmetrics)
 
 net_measured <- 
   trawlmetrics::bts_geom |>
-  dplyr::filter(NET_MEASURED == TRUE,
+  dplyr::filter(
+    NET_MEASURED == TRUE,
                 SURVEY_ABBV != "BSS") |>
   dplyr::mutate(SURVEY_GROUP = ifelse(SURVEY_ABBV %in% c("GOA", "AI"), "GOA/AI", "EBS/NBS"))
 
@@ -94,7 +95,7 @@ net_ebs_corrections <-
   dplyr::inner_join(
     data.frame(
       name = c("NET_WIDTH_M", "CORR_NET_WIDTH_M"),
-      label = c("Current EBS/NBS", "EBS/NBS without M2N 2024-2025")
+      label = c("Current EBS/NBS", "EBS/NBS without M2N 2024-2026")
     )
   )
 

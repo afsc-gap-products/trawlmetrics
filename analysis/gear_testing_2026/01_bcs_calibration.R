@@ -46,7 +46,7 @@ lubridate::month(events$dt) <- 7
 events$dt <- lubridate::force_tz(events$dt, "America/Anchorage")
 events$dt <- events$dt + 12*3600
 
-max_dt <- as.POSIXct("2026-07-31 20:48:15 AKDT")
+max_dt <- as.POSIXct("2026-07-31 20:48:15", tz = "America/Anchorage")
 
 # Read observations from sensors 1-12
 cal_files <- list.files(here::here("data", "01_bcs_data", "calibration_files"), pattern = ".csv", recursive = TRUE, full.names = TRUE)
