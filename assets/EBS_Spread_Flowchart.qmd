@@ -35,40 +35,7 @@ graph TD
 ", width = 768, height = 768*1.25)
 ```
 
-
-### GOA/AI Spread (Current)
-
-```{r, echo = FALSE}
-mermaid("
-graph TD
-    SA[\"Spread Data<br>(Both Vessels)\"]-->SB[\"Gate Filter<br>10#lt;Spread#lt;22\"]
-    SB[\"Gate Filter<br>10#lt;Spread#lt;22\"]-->SC[\"#gt;0 pings?\"]
-    SC[\"#gt;0 pings?\"]-->|Yes| SS[Good Performance?]
-    SC[\"#gt;0 pings?\"]-->|No| SG[Good Performance?]
-    SS[Good Performance?]-->|Yes| SU[Predictors]
-    SC[\"#gt;0 pings?\"]-->|Yes| SF[Accept Spread]
-    SG[Good Performance?]-->|Yes| SJ[Height and Net Number Available?]
-    SG[Good Performance?]-->|No| SF[Accept Spread]
-    SD[Vessel<br>Net Number<br>Speed<br>Scope Ratio<br>Bottom Depth<br>Catch Weight<br>Good Obs. Height]-->SU[Predictors]
-    subgraph Generalized Additive Models
-      SU[Predictors]-.->SO[GAM: Spread]
-      SU[Predictors]-.->SP[GAM: Spread<br>No NN]
-      SU[Predictors]-.->SQ[GAM: Spread<br>No Ht]
-      SU[Predictors]-.->SR[GAM: Spread<br>No Ht and NN]
-      SJ[Height and Net Number Available?]-->|Ht: Yes<br>NN: Yes| SO[GAM: Spread]
-      SJ[Height and Net Number Available?]-->|Ht: Yes<br>NN: No| SP[GAM: Spread<br>No NN]
-      SJ[Height and Net Number Available?]-->|Ht: No<br>NN: Yes| SQ[GAM: Spread<br>No Ht]
-      SJ[Height and Net Number Available?]-->|Ht: No<br>NN: No| SR[GAM: Spread<br>No Ht and NN]
-    end
-    SO[GAM: Spread]-->SF[Accept Spread]
-    SP[GAM: Spread<br>No NN]-->SF[Accept Spread]
-    SQ[GAM: Spread<br>No Ht]-->SF[Accept Spread]
-    SR[GAM: Spread<br>No Ht and NN]-->SF[Accept Spread]
-", width = 1024, height = 768*1.5)
-```
-
-
-### GOA/AI Spread (with SOR)
+### GOA/AI Spread
 
 ```{r, echo = FALSE}
 mermaid("
@@ -140,7 +107,7 @@ graph TD
 
 *-Includes accepted heights that were filled based on the average from other hauls.
 
-### EBS Spread (trawlmetrics)
+### EBS Spread
 ```{r, echo = FALSE}
 mermaid("
 graph TD
