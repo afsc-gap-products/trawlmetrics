@@ -1,3 +1,16 @@
+trawlmetrics 0.2.00 (September 18, 2026)
+----------------------------------------------------------------
+
+FUNCTIONALITY CHANGES
+
+- sor_fill_missing() uses method 8 (Marport with sequential 
+  outlier rejection) unless convert_marport_to_netmind is TRUE.
+  Previously, method was assigned based on the regional 
+  fill_method. The change reflects the discontinuation of 
+  the Marport to Netmind correction by the EBS shelf and NBS
+  surveys, beginning with 2024 survey data.
+
+
 trawlmetrics 0.1.08 (September 1, 2026)
 ----------------------------------------------------------------
 

@@ -21,7 +21,7 @@ dir.create(here::here("data", "01_bcs_data", "split_files"), recursive = TRUE, s
 
 bcs_paths <- 
   list.files(
-    path = here::here("data", "01_bcs_data", "combined_files", "haul_547"), 
+    path = here::here("data", "01_bcs_data", "combined_files"), 
     recursive = TRUE, pattern = ".csv", full.names = TRUE
   )
 
