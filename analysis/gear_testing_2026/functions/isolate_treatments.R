@@ -51,7 +51,7 @@ isolate_treatments <-
     output <- data_to_split |>
       dplyr::left_join(
         scope_haul,
-        by = dplyr::join_by(dplyr::between(dt, start, end))
+        by = dplyr::join_by(haul, dplyr::between(dt, start, end))
       ) |>
       dplyr::left_join(
         additional_fields

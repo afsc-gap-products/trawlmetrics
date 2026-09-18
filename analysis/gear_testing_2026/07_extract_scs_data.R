@@ -24,6 +24,8 @@ scope_tables <-
 
 scs_xml <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, pattern = ".xml")
 
+scs_xml <- scs_xml[50:52]
+
 # Load gear configuration data
 
 gear_config <- readxl::read_xlsx(path = here::here("data", "2026_gear_testing_gear_log.xlsx"))
@@ -263,3 +265,4 @@ for(ii in 1:length(unique_scs_hauls)) {
 saveRDS(trawl_measurement_summary, here::here("output", "haul_summary.rds"))
 saveRDS(btd_summary, here::here("output", "btd_summary.rds"))
 saveRDS(trawl_measurements, here::here("trawl_measurements.rds"))
+

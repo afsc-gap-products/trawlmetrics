@@ -1,5 +1,10 @@
 parse_nmea_xml <- function(xml_file, door_range_m = c(20, 60), wing_range_m = c(8,23), height_range_m = c(1,10)) {
   
+  # xml_file = scs_xml
+  # door_range_m = c(20, 60)
+  # wing_range_m = c(8,23)
+  # height_range_m = c(1,10)
+  
   # 1. Extract numeric haul number from the filename (e.g., "haul0521.xml" -> 521)
   file_name <- basename(xml_file)
   haul_num <- as.integer(gsub("[^0-9]", "", file_name))
