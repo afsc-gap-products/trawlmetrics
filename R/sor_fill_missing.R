@@ -527,9 +527,9 @@ sor_fill_missing <- function(height_paths,
       final_spread <- data.frame(
         edit_net_spread = sel_dat[['sor_results']]$mean_spread,
         net_spread_pings = sel_dat[['sor_results']]$n_pings,
-        net_spread_method = switch(fill_method, 
-                                   'ebs' = 7,
-                                   'goa' = 8),
+        net_spread_method = switch(as.character(convert_marport_to_netmind), 
+                                   'TRUE' = 7,
+                                   'FALSE' = 8),
         net_spread_standard_deviation = sel_dat[['sor_results']]$sd_spread
       )
       
