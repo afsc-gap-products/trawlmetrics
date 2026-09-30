@@ -466,7 +466,7 @@ crab_size_data <- read.csv(here::here("data", "06_catch_data", "crab_specimen_20
 
 crab_size_freq <- 
   crab_size_data |>
-  dplyr::group_by(SIZE_5MM, SPECIES_CODE, HAULJOIN) |>
+  dplyr::group_by(SIZE_1MM, SPECIES_CODE, HAULJOIN) |>
   dplyr::summarize(FREQUENCY = sum(SAMPLING_FACTOR)) |>
   dplyr::mutate(
     COMMON_NAME = factor(
@@ -485,7 +485,7 @@ crab_size_freq <-
   dplyr::inner_join(dplyr::select(cc_species_codes, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB)) |>
   dplyr::mutate(
     COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME),
-    SIZE = SIZE_5MM)
+    SIZE = SIZE_1MM)
 
 agg_cpue_crab <- 
   crab_size_freq |>
@@ -537,7 +537,7 @@ agg_cpue_target  <-
   tidyr::pivot_wider(
     values_from = TOTAL_CPUE_NOKM2,
                      names_from = GEAR_NAME,
-    values_fill = 0) |>
+    values_fill = 1e-3) |>
   tidyr::pivot_longer(
     cols = c(RRT, `83-112`),
     names_to = "GEAR_NAME",
@@ -545,20 +545,43 @@ agg_cpue_target  <-
   ) |>
   dplyr::mutate(COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME))
 
-ggplot() +
+p_agg_size_comp <-
+  ggplot() +
   geom_bar(
-    data = agg_cpue_target,
-    mapping = aes(x = SIZE, y = TOTAL_CPUE_NOKM2, fill = GEAR_NAME),
+    data = dplyr::mutate(
+      agg_cpue_target, 
+      FLIPPED_CPUE_NOKM2 = ifelse(GEAR_NAME == "83-112", TOTAL_CPUE_NOKM2*-1, TOTAL_CPUE_NOKM2)),
+    mapping = aes(x = SIZE, y = FLIPPED_CPUE_NOKM2, fill = GEAR_NAME),
     stat = "identity",
-    position = "dodge"
+    width = rel(1)
   ) +
+  geom_point(data = dplyr::group_by(agg_cpue_target, COMMON_NAME) |>
+               dplyr::summarise(MAX_CPUE_NOKM2 = max(TOTAL_CPUE_NOKM2),
+                                MIN_SIZE = min(SIZE)),
+             mapping = aes(x = MIN_SIZE, y = MAX_CPUE_NOKM2*1.04),
+             color = NA) +
+  geom_point(data = dplyr::group_by(agg_cpue_target, COMMON_NAME) |>
+               dplyr::summarise(MAX_CPUE_NOKM2 = max(TOTAL_CPUE_NOKM2),
+                                MIN_SIZE = min(SIZE)),
+             mapping = aes(x = MIN_SIZE, y = -1*MAX_CPUE_NOKM2*1.04),
+             color = NA) +
+  geom_hline(yintercept = 1) +
   scale_fill_tableau(name = "Gear") +
   scale_color_tableau(name = "Gear") +
   scale_x_continuous(name = "Size") +
-  scale_y_continuous(name = expression('Mean CPUE '*' '*('#'%.%km^-2)), limits = c(0, NA)) +
+  scale_y_continuous(name = expression('Aggregate CPUE '*' '*('#'%.%km^-2)), labels = abs, expand = c(0,0)) +
   facet_wrap(~COMMON_NAME, ncol = 3, scales = "free") +
   theme_bw() + 
-  theme(strip.background = element_blank())
+  theme(strip.background = element_blank(),
+        panel.spacing = unit(1, unit = "mm"),
+        strip.text = element_text(size = 9, face = "bold"),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 8))
+
+png(here::here("plots", "catch_comparison", "agg_size_comp.png"), width = 169, height = 169, units = "mm",
+    res = 300)
+print(p_agg_size_comp)
+dev.off()
 
 
 # Weighted ECDF
@@ -668,6 +691,25 @@ p_crab_40_60 <-
 png(filename = here::here("plots", "catch_comparison", "cpue_chinoecetes_40_60.png"), width = 80, height = 80, units = "mm", res = 300)
 print(p_crab_40_60)
 dev.off()
+
+
+# Catch attributed to bridle herding (Somerton and Munro, 2001)
+
+
+data.frame(
+  SPECIES_CODE = c(10261, 10210, 10130, 10200),
+  h = c(0.84, 0.58, 0.51, 0.502),
+  w_d = 58.7,
+  w_n = 17.3,
+  w_off = 21.8
+) |>
+  dplyr::mutate(
+    w_on = w_d - w_n - w_off,
+    p_bridles = 1+(h*w_on)/(w_n + h*w_on)
+  )
+
+
+
 
 
 # Extra plots
