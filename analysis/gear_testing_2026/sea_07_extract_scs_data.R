@@ -24,11 +24,9 @@ scope_tables <-
 
 scs_xml <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, pattern = ".xml")
 
-scs_xml <- scs_xml[50:52]
+# scs_xml <- scs_xml[50:52]
 
 # Load gear configuration data
-
-gear_config <- readxl::read_xlsx(path = here::here("data", "2026_gear_testing_gear_log.xlsx"))
 
 trawl_measurements <- 
   lapply(X = scs_xml, FUN = parse_nmea_xml) |>
@@ -40,8 +38,7 @@ trawl_measurements <-
     BRIDLE_ANGLE_DEG = 
       bridle_angle_wes(
         door_spread = DOOR_SPREAD_M, 
-        wing_spread = NET_SPREAD_M,
-        bridle_length = (180+30)/3.281
+        wing_spread = NET_SPREAD_M
       ))
 
 trawl_measurement_summary <- 

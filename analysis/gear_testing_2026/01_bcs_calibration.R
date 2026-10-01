@@ -164,9 +164,14 @@ p_bcs_fits <-
   scale_y_continuous(name = "Distance to bottom (cm)") +
   theme_bw() +
   theme(legend.position = "inside",
-        legend.position.inside = c(0.92, 0.6))
+        legend.position.inside = c(0.88, 0.65),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 8),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 8),
+        legend.key.size = unit(3, units = "mm"))
 
-png(here::here("plots", "bcs_gam_fits.png"), width = 169, height = 120, units = "mm", res = 300)
+png(here::here("plots", "bcs_gam_fits.png"), width = 80, height = 80, units = "mm", res = 300)
 print(p_bcs_fits)
 dev.off()
 

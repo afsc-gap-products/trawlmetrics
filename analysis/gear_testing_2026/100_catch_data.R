@@ -81,13 +81,40 @@ channel <- trawlmetrics::get_connected(schema = "AFSC")
 
 catch_records <- RODBC::sqlQuery(
   channel = channel,
-  query = "SELECT C.*, H.DISTANCE_FISHED, H.NET_WIDTH, H.NET_HEIGHT, H.DURATION FROM RACEBASE.HAUL H, RACEBASE.CATCH C 
+  query = "SELECT 
+  C.SPECIES_CODE,
+  C.WEIGHT,
+  C.NUMBER_FISH,
+  C.VESSEL,
+  C.CRUISE,
+  C.HAUL,
+  RDH.DOOR_SPREAD, 
+  H.BOTTOM_DEPTH, 
+  H.NET_WIDTH, 
+  H.DISTANCE_FISHED, 
+  H.NET_HEIGHT, 
+  H.DURATION,
+  H.WIRE_LENGTH
+  FROM RACEBASE.HAUL H, 
+  RACEBASE.CATCH C,
+  RACE_DATA.HAULS RDH,
+  RACE_DATA.CRUISES RDC
     WHERE C.CRUISE = 202601 
   AND H.HAUL_TYPE = 23
   AND H.PERFORMANCE >= 0
-  AND H.HAULJOIN = C.HAULJOIN"
+  AND H.HAULJOIN = C.HAULJOIN 
+  AND H.HAUL = RDH.HAUL 
+  AND RDH.CRUISE_ID = RDC.CRUISE_ID
+  AND H.VESSEL = RDC.VESSEL_ID
+  AND RDC.CRUISE = C.CRUISE
+  "
 ) |>
-  dplyr::mutate(AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH/1000)
+  dplyr::mutate(
+    AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH/1000,
+    BRIDLE_ANGLE = 
+      trawlmetrics::calc_bridle_angle(door_spread_m = DOOR_SPREAD, wing_spread_m = NET_WIDTH, total_bridle_length_m = (184/3.281)+10)
+  )
+
 
 # Get focal species data with gapindex
 # fish_codes <- unique(catch_records$SPECIES_CODE[catch_records$SPECIES_CODE < 40000])
@@ -111,7 +138,7 @@ cpue_target <- gapindex::calc_cpue(catch_data)
 cpue_target$COMMON_NAME <- factor(cpue_target$SPECIES_CODE, levels = cc_species_codes$SPECIES_CODE, labels = cc_species_codes$COMMON_NAME)
 
 
-# Calculate total catch
+# Calculate total catch ----------------------------------------------------------------------------
 
 total_catch <- 
   catch_records |>
@@ -528,7 +555,7 @@ haul_length_freq <-
 agg_cpue_fish <- haul_length_freq |>
   dplyr::group_by(SIZE, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB, GEAR_NAME) |>
   dplyr::summarise(
-    TOTAL_CPUE_NOKM2 = sum(TOTAL_FREQUENCY)/sum(AREA_SWEPT_KM2)
+    TOTAL_CPUE_NOKM2 = mean(TOTAL_FREQUENCY/AREA_SWEPT_KM2)
   )
 
 
@@ -569,7 +596,7 @@ p_agg_size_comp <-
   scale_fill_tableau(name = "Gear") +
   scale_color_tableau(name = "Gear") +
   scale_x_continuous(name = "Size") +
-  scale_y_continuous(name = expression('Aggregate CPUE '*' '*('#'%.%km^-2)), labels = abs, expand = c(0,0)) +
+  scale_y_continuous(name = expression('Mean CPUE '*' '*('#'%.%km^-2)), labels = abs, expand = c(0,0)) +
   facet_wrap(~COMMON_NAME, ncol = 3, scales = "free") +
   theme_bw() + 
   theme(strip.background = element_blank(),
@@ -695,7 +722,6 @@ dev.off()
 
 # Catch attributed to bridle herding (Somerton and Munro, 2001)
 
-
 data.frame(
   SPECIES_CODE = c(10261, 10210, 10130, 10200),
   h = c(0.84, 0.58, 0.51, 0.502),
@@ -705,7 +731,9 @@ data.frame(
 ) |>
   dplyr::mutate(
     w_on = w_d - w_n - w_off,
-    p_bridles = 1+(h*w_on)/(w_n + h*w_on)
+    p_bridles = (h*w_on)/(w_n + h*w_on),
+    rce_no_herding = (1-p_bridles),
+    ccr_no_herding = (rce_no_herding)/(1+rce_no_herding)
   )
 
 
