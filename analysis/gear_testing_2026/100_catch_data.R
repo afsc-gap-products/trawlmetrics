@@ -89,6 +89,7 @@ catch_records <- RODBC::sqlQuery(
   C.CRUISE,
   C.HAUL,
   RDH.DOOR_SPREAD, 
+  H.HAULJOIN,
   H.BOTTOM_DEPTH, 
   H.NET_WIDTH, 
   H.DISTANCE_FISHED, 
@@ -317,7 +318,14 @@ cpue_comparison_all_summary$COMMON_NAME <- factor(cpue_comparison_all_summary$CO
 # Plot catch results
 
 family_palette <- 
-  c("Gadidae" = "#009E73" , "Pleuronectidae" =  "#56B4E9", "Scyphozoa/Hydrozoa" = "#E69F00", "Oregoniidae" = "#D55E00", "Rajidae" = "#0072B2", "Various" = "#000000")
+  c(
+    "Gadidae" = "#009E73" , 
+    "Pleuronectidae" =  "#56B4E9", 
+    "Scyphozoa/Hydrozoa" = "#E69F00", 
+    "Oregoniidae" = "#D55E00", 
+    "Rajidae" = "#0072B2", 
+    "Various" = "#000000"
+  )
 
 p_biomass_ccr <- 
   ggplot() +
@@ -373,7 +381,7 @@ print(p_biomass_ccr)
 dev.off()
 
 p_numeric_ccr <- 
-ggplot() +
+  ggplot() +
   geom_abline(slope = 1, intercept = 2, linetype = 2, color = "grey60") +
   geom_point(
     data = dplyr::filter(cpue_comparison_all, SPECIES_CODE > 0),
@@ -486,7 +494,7 @@ dev.off()
 #   facet_wrap(~GROUP_NAME, scales = "free") +
 #   theme_bw()
 
-# Prep size data
+# Prep size data -----------------------------------------------------------------------------------
 
 crab_size_data <- read.csv(here::here("data", "06_catch_data", "crab_specimen_2026mod.csv")) |>
   dplyr::mutate(SIZE_5MM = plyr::round_any(SIZE, accuracy = 5, f = floor))
@@ -521,20 +529,20 @@ agg_cpue_crab <-
     TOTAL_CPUE_NOKM2 = sum(FREQUENCY)/sum(AREA_SWEPT_KM2)
   )
 
-haul_length_freq <- 
+fish_length_data <- 
   # Calculate raising factor
   catch_data$size |>
   dplyr::group_by(SPECIES_CODE, HAULJOIN) |>
   dplyr::summarise(N_LENGTHS = sum(FREQUENCY)) |>
   dplyr::inner_join(catch_data$catch) |>
   dplyr::mutate(
-    RAISING_FACTOR = NUMBER_FISH/N_LENGTHS) |>
+    SAMPLING_FACTOR = NUMBER_FISH/N_LENGTHS) |>
   dplyr::ungroup() |>
-  dplyr::select(SPECIES_CODE, HAULJOIN, RAISING_FACTOR) |>
+  dplyr::select(SPECIES_CODE, HAULJOIN, SAMPLING_FACTOR) |>
   # Apply raising factor to lengths
   dplyr::inner_join(catch_data$size) |>
   dplyr::mutate(
-    TOTAL_FREQUENCY = FREQUENCY * RAISING_FACTOR,
+    TOTAL_FREQUENCY = FREQUENCY * SAMPLING_FACTOR,
     LENGTH_CM = LENGTH /10,
     SIZE = LENGTH_CM
   ) |>
@@ -543,7 +551,10 @@ haul_length_freq <-
     dplyr::select(catch_data$haul, HAULJOIN, DISTANCE_FISHED, NET_WIDTH, VESSEL, CRUISE, HAUL) |>
       dplyr::mutate(AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000)
   ) |>
-  dplyr::inner_join(catch_treatments) |>
+  dplyr::inner_join(catch_treatments)
+
+fish_length_freq <-
+  fish_length_data |>
   dplyr::mutate(CPUE_NOKM2 = TOTAL_FREQUENCY/AREA_SWEPT_KM2) |>
   dplyr::inner_join(dplyr::select(cc_species_codes, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB)) |>
   dplyr::mutate(
@@ -552,18 +563,17 @@ haul_length_freq <-
       levels = cc_species_codes$COMMON_NAME)
   )
 
-agg_cpue_fish <- haul_length_freq |>
+agg_cpue_fish <- fish_length_freq |>
   dplyr::group_by(SIZE, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB, GEAR_NAME) |>
   dplyr::summarise(
     TOTAL_CPUE_NOKM2 = mean(TOTAL_FREQUENCY/AREA_SWEPT_KM2)
   )
 
-
-agg_cpue_target  <- 
+agg_cpue_target_filled  <- 
   dplyr::bind_rows(agg_cpue_fish, agg_cpue_crab) |> 
   tidyr::pivot_wider(
     values_from = TOTAL_CPUE_NOKM2,
-                     names_from = GEAR_NAME,
+    names_from = GEAR_NAME,
     values_fill = 1e-3) |>
   tidyr::pivot_longer(
     cols = c(RRT, `83-112`),
@@ -572,27 +582,137 @@ agg_cpue_target  <-
   ) |>
   dplyr::mutate(COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME))
 
+# Summary table for size-frequency composition 
+
+weighted_mean <- function(x, w, na.rm = TRUE) {
+  if (length(x) != length(w)) {
+    stop("`x` and `w` must be the same length.")
+  }
+  
+  if (na.rm) {
+    valid <- !is.na(x) & !is.na(w)
+    x <- x[valid]
+    w <- w[valid]
+  }
+  
+  total_weight <- sum(w)
+  
+  if (length(x) == 0 || total_weight == 0) {
+    return(NA_real_)
+  }
+  
+  sum(x * w) / total_weight
+}
+
+crab_size_table_by_sex <- 
+  dplyr::select(catch_data$haul, HAULJOIN, VESSEL, CRUISE, HAUL) |>
+  dplyr::inner_join(catch_treatments) |>
+  dplyr::inner_join(crab_size_data) |>
+  dplyr::group_by(SPECIES_CODE, SEX, GEAR_NAME) |>
+  dplyr::summarise(
+    MEAN_SIZE = mean(SIZE_1MM, w = SAMPLING_FACTOR),
+    MEDIAN_SIZE = median(SIZE_1MM, w = SAMPLING_FACTOR),
+    MIN_SIZE = min(SIZE_1MM),
+    MAX_SIZE = max(SIZE_1MM),
+    N = n()
+  )
+
+crab_size_table <- 
+  dplyr::select(catch_data$haul, HAULJOIN, VESSEL, CRUISE, HAUL) |>
+  dplyr::inner_join(catch_treatments) |>
+  dplyr::inner_join(crab_size_data) |>
+  dplyr::group_by(SPECIES_CODE, GEAR_NAME) |>
+  dplyr::summarise(
+    MEAN_SIZE = mean(SIZE_1MM, w = SAMPLING_FACTOR),
+    MEDIAN_SIZE = median(SIZE_1MM, w = SAMPLING_FACTOR),
+    MIN_SIZE = min(SIZE_1MM),
+    MAX_SIZE = max(SIZE_1MM),
+    N = n()
+  )
+
+fish_size_table <- 
+  fish_length_data |>
+  dplyr::group_by(SPECIES_CODE, GEAR_NAME) |>
+  dplyr::summarise(
+    N = sum(FREQUENCY),
+    MEAN_SIZE = mean(LENGTH_CM, w = SAMPLING_FACTOR),
+    MEDIAN_SIZE = median(LENGTH_CM, w = SAMPLING_FACTOR),
+    MIN_SIZE = min(LENGTH_CM),
+    MAX_SIZE = max(LENGTH_CM)
+  )
+
+size_summary <-
+  dplyr::bind_rows(
+    crab_size_table,
+    fish_size_table,
+    crab_size_table_by_sex
+  ) |>
+  dplyr::inner_join(
+    cc_species_codes
+  ) |>
+  dplyr::mutate(
+    SEX = case_when(
+      SEX == 1 ~ "M",
+      SEX == 2 ~ "F",
+      SEX == 4 ~ "I",
+      is.na(SEX) ~"All"
+    )
+  ) |>
+  dplyr::ungroup() |>
+  dplyr::mutate(MEAN_SIZE = sprintf("%.1f", MEAN_SIZE),
+                RANGE_SIZE =  sprintf("%.0f-%.0f", MIN_SIZE, MAX_SIZE)) |>
+  dplyr::mutate(COMMON_NAME = factor(COMMON_NAME, cc_species_codes$COMMON_NAME))
+
+size_table <- size_summary |>
+  dplyr::select(COMMON_NAME, SEX, GEAR_NAME, MEAN_SIZE, N, RANGE_SIZE) |>
+  tidyr::pivot_wider(values_from = c(N, MEAN_SIZE, RANGE_SIZE), names_from = "GEAR_NAME") |>
+  dplyr::filter(!is.na(SEX)) |>
+  dplyr::arrange(COMMON_NAME)
+
+write.csv(size_table, 
+          file = here::here("plots", "catch_comparison", "size_summary_table.csv"), 
+          row.names = FALSE)
+
 p_agg_size_comp <-
   ggplot() +
   geom_bar(
     data = dplyr::mutate(
-      agg_cpue_target, 
+      agg_cpue_target_filled, 
       FLIPPED_CPUE_NOKM2 = ifelse(GEAR_NAME == "83-112", TOTAL_CPUE_NOKM2*-1, TOTAL_CPUE_NOKM2)),
     mapping = aes(x = SIZE, y = FLIPPED_CPUE_NOKM2, fill = GEAR_NAME),
     stat = "identity",
-    width = rel(1)
+    width = 1,
+    alpha = 0.7
   ) +
-  geom_point(data = dplyr::group_by(agg_cpue_target, COMMON_NAME) |>
+  geom_point(data = dplyr::group_by(agg_cpue_target_filled, COMMON_NAME) |>
                dplyr::summarise(MAX_CPUE_NOKM2 = max(TOTAL_CPUE_NOKM2),
                                 MIN_SIZE = min(SIZE)),
-             mapping = aes(x = MIN_SIZE, y = MAX_CPUE_NOKM2*1.04),
+             mapping = aes(x = MIN_SIZE, y = MAX_CPUE_NOKM2*1.25),
              color = NA) +
-  geom_point(data = dplyr::group_by(agg_cpue_target, COMMON_NAME) |>
+  geom_point(data = dplyr::group_by(agg_cpue_target_filled, COMMON_NAME) |>
                dplyr::summarise(MAX_CPUE_NOKM2 = max(TOTAL_CPUE_NOKM2),
                                 MIN_SIZE = min(SIZE)),
-             mapping = aes(x = MIN_SIZE, y = -1*MAX_CPUE_NOKM2*1.04),
+             mapping = aes(x = MIN_SIZE, y = -1*MAX_CPUE_NOKM2*1.25),
              color = NA) +
-  geom_hline(yintercept = 1) +
+  geom_text_npc(
+    data = dplyr::filter(size_summary, GEAR_NAME == "83-112" & SEX == "All"),
+    mapping = aes(
+      npcx = 0.02, 
+      npcy = 0.04, 
+      label = paste0(MEAN_SIZE," (", MIN_SIZE, "-", MAX_SIZE, ")"),
+      color = GEAR_NAME),
+    size = 2.4,
+    fontface = "bold") +
+  geom_text_npc(
+    data = dplyr::filter(size_summary, GEAR_NAME == "RRT" & SEX == "All"),
+    mapping = aes(
+      npcx = 0.02, 
+      npcy = 0.96, 
+      label = paste0(MEAN_SIZE," (", MIN_SIZE, "-", MAX_SIZE, ")"),
+      color = GEAR_NAME),
+    size = 2.4,
+    fontface = "bold") +
+  geom_hline(yintercept = 1, linewidth = 0.1) +
   scale_fill_tableau(name = "Gear") +
   scale_color_tableau(name = "Gear") +
   scale_x_continuous(name = "Size") +
@@ -603,12 +723,105 @@ p_agg_size_comp <-
         panel.spacing = unit(1, unit = "mm"),
         strip.text = element_text(size = 9, face = "bold"),
         axis.text = element_text(size = 8),
-        axis.title = element_text(size = 8))
+        axis.title = element_text(size = 8),
+        panel.grid = element_line(linewidth = 0.1, color = "grey85"))
 
 png(here::here("plots", "catch_comparison", "agg_size_comp.png"), width = 169, height = 169, units = "mm",
     res = 300)
 print(p_agg_size_comp)
 dev.off()
+
+#' Weighted Two-Sample Kolmogorov-Smirnov Test
+#'
+#' @param x1 Numeric vector of observations for sample 1.
+#' @param x2 Numeric vector of observations for sample 2.
+#' @param w1 Numeric vector of non-negative weights for sample 1. Defaults to equal weights.
+#' @param w2 Numeric vector of non-negative weights for sample 2. Defaults to equal weights.
+#'
+#' @return An object of class "htest" containing test results.
+weighted_ks_test <- function(x1, x2, w1 = NULL, w2 = NULL) {
+  # Default to equal weights if null
+  if (is.null(w1)) w1 <- rep(1, length(x1))
+  if (is.null(w2)) w2 <- rep(1, length(x2))
+  
+  # Remove NAs
+  ok1 <- complete.cases(x1, w1)
+  ok2 <- complete.cases(x2, w2)
+  x1 <- x1[ok1]; w1 <- w1[ok1]
+  x2 <- x2[ok2]; w2 <- w2[ok2]
+  
+  if (any(w1 < 0) || any(w2 < 0)) stop("Weights must be non-negative.")
+  
+  # Sort data and weights
+  ord1 <- order(x1); x1_s <- x1[ord1]; w1_s <- w1[ord1]
+  ord2 <- order(x2); x2_s <- x2[ord2]; w2_s <- w2[ord2]
+  
+  # Evaluation grid (unique values from both samples)
+  grid <- sort(unique(c(x1_s, x2_s)))
+  
+  # Calculate weighted ECDFs
+  cdf1_vals <- cumsum(w1_s) / sum(w1_s)
+  idx1 <- findInterval(grid, x1_s)
+  cdf1 <- ifelse(idx1 == 0, 0, cdf1_vals[idx1])
+  
+  cdf2_vals <- cumsum(w2_s) / sum(w2_s)
+  idx2 <- findInterval(grid, x2_s)
+  cdf2 <- ifelse(idx2 == 0, 0, cdf2_vals[idx2])
+  
+  # Calculate K-S Statistic D
+  D <- max(abs(cdf1 - cdf2))
+  
+  # Kish's Effective Sample Sizes (n_eff = (sum w)^2 / sum(w^2))
+  n_eff1 <- (sum(w1)^2) / sum(w1^2)
+  n_eff2 <- (sum(w2)^2) / sum(w2^2)
+  n_eff  <- (n_eff1 * n_eff2) / (n_eff1 + n_eff2)
+  
+  # Asymptotic p-value approximation via Kolmogorov distribution
+  lambda <- (sqrt(n_eff) + 0.12 + 0.11 / sqrt(n_eff)) * D
+  
+  k <- 1:100
+  p_val <- 2 * sum((-1)^(k - 1) * exp(-2 * k^2 * lambda^2))
+  p_val <- min(max(p_val, 0), 1)
+  
+  # Return structured output
+  structure(
+    list(
+      statistic = c("D" = D),
+      p.value = p_val,
+      effective.sample.size = c("n_eff1" = n_eff1, "n_eff2" = n_eff2),
+      method = "Two-sample Weighted Kolmogorov-Smirnov Test",
+      data.name = paste(deparse(substitute(x1)), "and", deparse(substitute(x2)))
+    ),
+    class = "htest"
+  )
+}
+
+
+
+
+no_fill <- dplyr::bind_rows(agg_cpue_fish, agg_cpue_crab)
+spp_codes <- unique(no_fill$SPECIES_CODE)
+p_values <- numeric(length = length(spp_codes))
+
+
+
+for(ii in 1:length(spp_codes)) {
+  test <- weighted_ks_test(
+    x1 = no_fill$SIZE[no_fill$SPECIES_CODE == spp_codes[ii] & no_fill$GEAR_NAME == "83-112"],
+    x2 = no_fill$SIZE[no_fill$SPECIES_CODE == spp_codes[ii] & no_fill$GEAR_NAME == "RRT"],
+    w1 = no_fill$TOTAL_CPUE_NOKM2[no_fill$SPECIES_CODE == spp_codes[ii] & no_fill$GEAR_NAME == "83-112"],
+    w2 = no_fill$TOTAL_CPUE_NOKM2[no_fill$SPECIES_CODE == spp_codes[ii] & no_fill$GEAR_NAME == "RRT"]
+  )
+  p_values[ii] <- test$p.value
+}
+
+data.frame(SPECIES_CODE = spp_codes, P = round(p_values, 3))
+
+
+
+  
+
+
 
 
 # Weighted ECDF
@@ -616,13 +829,13 @@ dev.off()
 weighted_ecdf <- 
   data.frame(
     SIZE = 
-      rep(agg_cpue_target$SIZE, agg_cpue_target$TOTAL_CPUE_NOKM2),
+      rep(agg_cpue_target_filled$SIZE, agg_cpue_target_filled$TOTAL_CPUE_NOKM2),
     SPECIES_CODE =
-      rep(agg_cpue_target$SPECIES_CODE, agg_cpue_target$TOTAL_CPUE_NOKM2),
+      rep(agg_cpue_target_filled$SPECIES_CODE, agg_cpue_target_filled$TOTAL_CPUE_NOKM2),
     COMMON_NAME = 
-      rep(agg_cpue_target$COMMON_NAME, agg_cpue_target$TOTAL_CPUE_NOKM2),
+      rep(agg_cpue_target_filled$COMMON_NAME, agg_cpue_target_filled$TOTAL_CPUE_NOKM2),
     GEAR_NAME = 
-      rep(agg_cpue_target$GEAR_NAME, agg_cpue_target$TOTAL_CPUE_NOKM2)
+      rep(agg_cpue_target_filled$GEAR_NAME, agg_cpue_target_filled$TOTAL_CPUE_NOKM2)
   ) |>
   dplyr::mutate(
     COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME)
@@ -644,6 +857,26 @@ p_ecdf_size_by_gear <-
         strip.text = element_text(size = 9, face = "bold"),
         axis.text = element_text(size = 8),
         axis.title = element_text(size = 8))
+
+size_quantiles <- 
+  weighted_ecdf |>
+  dplyr::group_by(GEAR_NAME, COMMON_NAME) |>
+  dplyr::summarise(
+    MEDIAN_SIZE = median(SIZE),
+    MEAN_SIZE = mean(SIZE),
+    MIN_SIZE = min(SIZE),
+    MAX_SIZE = max(SIZE),
+    Q_25 = quantile(SIZE, 0.25),
+    Q_75 = quantile(SIZE, 0.75),
+    Q_025 = quantile(SIZE, 0.025),
+    Q_975 = quantile(SIZE, 0.975)
+  ) |>
+  dplyr::inner_join(
+    cc_species_codes
+  ) |>
+  dplyr::mutate(
+    COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME)
+  )
 
 png(here::here("plots", "catch_comparison", "ecdf_size_by_gear.png"), 
     width = 169, 

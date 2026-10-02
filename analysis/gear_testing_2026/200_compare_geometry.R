@@ -20,12 +20,16 @@ catch_records <- RODBC::sqlQuery(
   C.CRUISE,
   C.HAUL,
   RDH.DOOR_SPREAD, 
-  H.BOTTOM_DEPTH, 
+  H.BOTTOM_DEPTH,
+  H.HAULJOIN,
   H.NET_WIDTH, 
   H.DISTANCE_FISHED, 
   H.NET_HEIGHT, 
   H.DURATION,
-  H.WIRE_LENGTH
+  H.WIRE_LENGTH,
+  H.START_LONGITUDE,
+  H.START_LATITUDE,
+  H.START_TIME
   FROM RACEBASE.HAUL H, 
   RACEBASE.CATCH C,
   RACE_DATA.HAULS RDH,
@@ -45,6 +49,28 @@ catch_records <- RODBC::sqlQuery(
     BRIDLE_ANGLE = 
       trawlmetrics::calc_bridle_angle(door_spread_m = DOOR_SPREAD, wing_spread_m = NET_WIDTH, total_bridle_length_m = (184/3.281)+10)
   )
+
+# Distance between tow pairs
+tow_pair_distance <- 
+  dplyr::select(catch_records, VESSEL, CRUISE, HAUL, START_LONGITUDE, START_LATITUDE) |>
+  sf::st_as_sf(coords = c("START_LONGITUDE", "START_LATITUDE"),
+                   crs = "WGS84") |>
+  unique() |>
+  dplyr::inner_join(catch_treatments) |>
+  dplyr::group_by(BLOCK) |>
+  dplyr::summarise(do_union = TRUE) |>
+  sf::st_cast(to = "LINESTRING") |>
+  sf::st_length()/1000 |>
+  as.numeric()
+
+# Time elapsed between tow pairs
+dplyr::select(catch_records, VESSEL, CRUISE, HAUL, START_TIME) |>
+  unique() |>
+  dplyr::inner_join(catch_treatments) |>
+  dplyr::group_by(BLOCK) |>
+  dplyr::summarise(TIME_ELAPSED = max(START_TIME)-min(START_TIME))
+
+
 
 # Haul geometry statistics -------------------------------------------------------------------------
 
@@ -179,7 +205,7 @@ summarize_model_block <- function(block_label, model_list) {
     arrange(deltaAIC)
 }
 
-# 1. Organize models by response block
+# Organize models by response
 wing_spread_models <- list(
   "m0_cc_spread" = m0_cc_spread,
   "m1_cc_spread" = m1_cc_spread,
@@ -200,7 +226,6 @@ bridle_angle_models <- list(
   "m0_cc_bridles" = m0_cc_bridles
 )
 
-# 2. Combine blocks into a single summary table
 model_summary_table <- 
   dplyr::bind_rows(
   summarize_model_block("Upper wing spread", wing_spread_models),
@@ -272,7 +297,14 @@ ggplot() +
     mapping = aes(x = BOTTOM_DEPTH, y = WIRE_LENGTH/BOTTOM_DEPTH, color = GEAR_NAME)
   )
 
-# Phase 1 open codend hauls
+# Scope table hauls
+
+gear_treatments_45 <- 
+  readxl::read_xlsx(
+    path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
+    sheet = "treatments"
+  ) |>
+  dplyr::filter(Door_size_m2 == 4.5)
 
 gt_net_data <- 
   readRDS(file = here::here("output", "haul_summary.rds")) |>
@@ -303,8 +335,7 @@ gt_btd_data <-
   )
 
 gt_door_data <-
-  readxl::read_xlsx(
-    path = here::here("data", "2026_gear_testing_haul_log.xlsx"), sheet = "treatments") |>
+  gear_treatments_45 |>
   dplyr::group_by(Scope, Haul) |>
   dplyr::slice_max(Pass, n = 1) |>
   dplyr::ungroup() |>
@@ -322,9 +353,182 @@ gt_door_data <-
     DOOR_DEPTH_S = Stbd_Door_Depth
   )
 
+scope_tables <- 
+  readxl::read_xlsx(path = here::here("data", "shelf_slope_table.xlsx")) |>
+  dplyr::mutate(mean_depth_fm = (min_depth_fm+max_depth_fm)/2,
+                mean_depth_m = mean_depth_fm * 1.8288,
+                scope_to_depth = wire_out_fm/mean_depth_fm) |>
+  dplyr::inner_join(data.frame(table = c("GOA/AI", "EBS shelf", "EBS slope"), gear = c("PNE", "83-112", "PNE-S")))
+
 test <- 
   gt_door_data |>
   dplyr::inner_join(gt_btd_data) |>
-  dplyr::inner_join(gt_net_data)
+  dplyr::inner_join(gt_net_data) |>
+  dplyr::bind_rows(
+    catch_records |>
+      dplyr::filter(VESSEL == 134) |>
+      dplyr::select(HAUL, BOTTOM_DEPTH, WIRE_LENGTH, NET_HEIGHT, NET_WIDTH, DOOR_SPREAD) |>
+      unique() |>
+      dplyr::inner_join(gt_door_data) |>
+      dplyr::mutate(
+        WIRE_LENGTH_FM = WIRE_LENGTH/1.8288,
+        BOTTOM_DEPTH_FM = BOTTOM_DEPTH/1.8288)
+  ) |>
+  dplyr::mutate(
+    CODEND = ifelse(HAUL >= 600, "Closed", "Open"),
+    DOOR_ON_BOTTOM_P = DOOR_DEPTH_P > (BOTTOM_DEPTH - NET_HEIGHT),
+    DOOR_ON_BOTTOM_S = DOOR_DEPTH_S > (BOTTOM_DEPTH - NET_HEIGHT),
+    DOOR_LT30_P = abs(DOOR_ROLL_P) < 30,
+    DOOR_LT30_S = abs(DOOR_ROLL_S) < 30,
+    DOORS_GOOD = DOOR_ON_BOTTOM_P & DOOR_ON_BOTTOM_S & DOOR_LT30_P & DOOR_LT30_S)
 
-dplyr::filter(test, is.na(BOTTOM_DEPTH))
+depth_range <- range(test$BOTTOM_DEPTH, na.rm = TRUE)
+
+
+View(test[,c("DOOR_ON_BOTTOM_P", "DOOR_ON_BOTTOM_S", "DOOR_LT30_P", "DOOR_LT30_S")])
+
+
+ggplot() +
+  geom_point(
+    data = test, 
+    mapping = aes(x = WIRE_LENGTH/BOTTOM_DEPTH, y = DOOR_ROLL_P, color = CODEND)) +
+  geom_point(
+    data = test, 
+    mapping = aes(x = WIRE_LENGTH/BOTTOM_DEPTH, y = abs(DOOR_ROLL_S), color = CODEND))
+
+door_roll_breaks <- c(-Inf, -10, 0, 10, 25, Inf)
+door_roll_labels <- c("<-10", "-10-0", "0-10", "10-25", ">25")
+door_roll_colors <- c("#00204DFF", "#414D6BFF", "#7C7B78FF", "#BCAF6FFF", "red")
+names(door_roll_colors) <- door_roll_labels
+
+door_roll_breaks <- c(-Inf, 0, 25, 30, Inf)
+door_roll_labels <- c("<0", "0-25", "25-30", ">30")
+door_roll_colors <- c("#00204DFF", "#BCAF6FFF", "pink", "red")
+names(door_roll_colors) <- door_roll_labels
+
+
+depth_breaks <- c(20, seq(25,150,25), 200, 250)
+sdr_breaks <- 2:9
+max_sdr <- max(test$WIRE_LENGTH/test$BOTTOM_DEPTH, na.rm = TRUE)
+
+# 
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    data = dplyr::filter(test, !is.na(DOOR_ROLL_P)) |>
+      dplyr::arrange(DOOR_ROLL_P), 
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = WIRE_LENGTH/BOTTOM_DEPTH, 
+      color = cut(DOOR_ROLL_P, breaks = door_roll_breaks, labels = door_roll_labels), 
+      shape = CODEND,
+      size = CODEND),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Roll (\u00B0)", values = door_roll_colors) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_breaks,
+    limits = c(2, max_sdr)) +
+  scale_size_manual(name = "Codend", values = c("Closed" = 3, "Open" = 1.8)) +
+  scale_shape(name = "Codend") +
+  facet_wrap(~"Port door") +
+  theme_bw()
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    data = dplyr::filter(test, !is.na(DOOR_ROLL_S)) |>
+      dplyr::arrange(DOOR_ROLL_S), 
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = WIRE_LENGTH/BOTTOM_DEPTH, 
+      color = cut(-1*DOOR_ROLL_S, breaks = door_roll_breaks, labels = door_roll_labels),
+      shape = CODEND,
+      size = CODEND),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Roll (\u00B0)", values = door_roll_colors) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(NA, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_breaks,
+    limits = c(2, max_sdr)) +
+  scale_size_manual(name = "Codend", values = c("Closed" = 3, "Open" = 1.8)) +
+  scale_shape(name = "Codend") +
+  facet_wrap(~"Starboard door") +
+  theme_bw()
+
+# ggplot() +
+#   geom_point(
+#     data = dplyr::filter(test, !is.na(DOOR_ROLL_S)) |>
+#       dplyr::arrange(DOOR_ROLL_S), 
+#     mapping = aes(
+#       x = BOTTOM_DEPTH, 
+#       y = WIRE_LENGTH/BOTTOM_DEPTH, 
+#       color = cut(-1*DOOR_ROLL_S, breaks = door_roll_breaks, labels = door_roll_labels),
+#       shape = CODEND,
+#       size = CODEND)
+#   ) + 
+#   # scale_color_viridis_d(name = "Roll (\u00B0)", option = "E", na.value = NA, drop = TRUE) +
+#   scale_color_manual(name = "Roll (\u00B0)", values = door_roll_colors) +
+#   scale_x_continuous(name = "Bottom depth (m)") +
+#   scale_y_continuous(name = "Scope/Depth") +
+#   scale_size_manual(name = "Codend", values = c("Closed" = 3, "Open" = 1)) +
+#   scale_shape(name = "Codend") +
+#   theme_bw()
+
+ggplot() +
+  geom_point(
+    data = dplyr::filter(test, !is.na(DOORS_GOOD)), 
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = WIRE_LENGTH/BOTTOM_DEPTH, 
+      color = DOORS_GOOD, 
+      shape = CODEND,
+      size = CODEND),
+  ) + 
+  scale_color_discrete() +
+  # scale_color_manual(name = "Roll (\u00B0)") +
+  scale_x_log10(name = "Bottom depth (m)", breaks = seq(0,250,50)) +
+  scale_y_continuous(name = "Scope/Depth") +
+  scale_size_manual(name = "Codend", values = c("Closed" = 3, "Open" = 1)) +
+  scale_shape(name = "Codend") +
+  theme_bw()
+# 
+# ggplot() +
+#   geom_point(
+#     data = dplyr::filter(test, !is.na(DOOR_ROLL_S)), 
+#     mapping = aes(
+#       x = BOTTOM_DEPTH, 
+#       y = WIRE_LENGTH/BOTTOM_DEPTH, 
+#       color = cut(-1*DOOR_ROLL_S, breaks = door_roll_breaks))
+#   ) + 
+#   scale_color_viridis_d(name = "Roll (\u00B0)", option = "E", na.value = NA, drop = TRUE) +
+#   scale_x_continuous(name = "Bottom depth (m)", limits = c(0, NA)) +
+#   scale_y_continuous(name = "Scope/Depth", limits = c(2, NA)) +
+#   theme_bw()
