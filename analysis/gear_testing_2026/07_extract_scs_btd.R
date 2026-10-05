@@ -16,15 +16,7 @@ scs_zip <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, patt
 
 vapply(scs_zip, extract_and_rename_xml, FUN.VALUE = character(1))
 
-scope_tables <- 
-  read_xlsx(path = here::here("data", "shelf_slope_table.xlsx")) |>
-  dplyr::mutate(mean_depth_fm = (min_depth_fm+max_depth_fm)/2,
-                scope_to_depth = wire_out_fm/mean_depth_fm) |>
-  dplyr::inner_join(data.frame(table = c("GOA/AI", "EBS shelf", "EBS slope"), gear = c("PNE", "83-112", "PNE-S")))
-
 scs_xml <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, pattern = ".xml")
-
-# scs_xml <- scs_xml[50:52]
 
 # Load gear configuration data
 
@@ -65,12 +57,12 @@ btd_data <-
   lapply(X = btd_path, FUN = read.csv) |>
   do.call(what = dplyr::bind_rows) |>
   dplyr::mutate(dt = as.POSIXct(DATE_TIME, tz = "America/Anchorage", format = "%m/%d/%Y %H:%M:%S")) |>
-  dplyr::select(dt, HAUL, DEPTH)
-
-names(btd_data) <- tolower(names(btd_data))
-
-btd_summary <- 
-  isolate_treatments(btd_data) |>
+  dplyr::rename_with(tolower) |>
+  isolate_treatments() |>
+  dplyr::select(dt, haul, depth, pass, scope)
+  
+haul_summary <- 
+  btd_data |>
   dplyr::filter(!is.na(scope)) |>
   dplyr::group_by(haul, pass, scope) |>
   dplyr::summarise(
@@ -78,13 +70,13 @@ btd_summary <-
     BT_DEPTH_FM = BT_DEPTH_M/1.8288
   ) |>
   dplyr::inner_join(
-    trawl_measurement_summary |>
-      dplyr::select(haul, scope, MEAN_NET_HEIGHT)) |>
+    trawl_measurement_summary
+    ) |>
   dplyr::mutate(
     BOTTOM_DEPTH_FM = BT_DEPTH_FM + MEAN_NET_HEIGHT/1.8288,
     SCOPE_TO_DEPTH = scope/BOTTOM_DEPTH_FM 
   )
 
-saveRDS(trawl_measurement_summary, here::here("output", "haul_summary.rds"))
-saveRDS(btd_summary, here::here("output", "btd_summary.rds"))
-saveRDS(trawl_measurements, here::here("trawl_measurements.rds"))
+saveRDS(btd_summary, here::here("output", "haul_summary.rds"))
+saveRDS(btd_data, here::here("output", "btd_data.rds"))
+saveRDS(trawl_measurements, here::here("output", "trawl_measurements.rds"))
