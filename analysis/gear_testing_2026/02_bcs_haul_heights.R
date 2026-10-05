@@ -43,6 +43,10 @@ for(ii in 1:length(bcs_paths)) {
     time_buffer_s = 30
   )
   
+  if(nrow(bcs_with_haul) < 1) {
+    next
+  }
+  
   header <- readLines(bcs_paths[ii], 2)[2]
   
   unique_bcs_hauls <- unique(bcs_with_haul$haul)
@@ -103,6 +107,7 @@ for(ii in 1:nrow(bcs_haul_data)) {
   }
   
   bc$haul <- bcs_haul_data$haul[ii]
+  bc$bcs_id <- bcs_haul_data$bcs_id[ii]
   bc$position <- bcs_haul_data$position[ii]
   bc$distance <-  as.numeric(gsub("\\D", "", bc$position))
   bc$side <- gsub("[0-9]", "", bc$position)
@@ -127,7 +132,9 @@ bcs_heights <- lapply(
     }
 ) |>
   do.call(what = dplyr::bind_rows) |>
-  dplyr::filter(height_fit > -0.1)
+  dplyr::filter(height_fit > -0.1) |>
+  # Predicted heights > 40 cm are changed to 40 cm, corresponding to maxiumum calibration value
+  dplyr::mutate(height_fit = ifelse(height_fit > 40, 40, height_fit))
 
 
 saveRDS(bcs_heights, file = here::here("data", "01_bcs_data", "bcs_heights.rds"))

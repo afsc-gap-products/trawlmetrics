@@ -17,11 +17,13 @@ scope_tables <-
   dplyr::inner_join(data.frame(table = c("GOA/AI", "EBS shelf", "EBS slope"), gear = c("PNE", "83-112", "PNE-S")))
 
 # Load BCS data
-bcs_height_summary <- readRDS(file = here::here("output", "bcs_height_summary.rds")) |>
+bcs_height_summary <- 
+  readRDS(file = here::here("output", "bcs_height_summary.rds")) |>
   dplyr::rename(WIRE_LENGTH_FM = scope) |>
   dplyr::rename_with(toupper)
 
-bcs_timeseries <- readRDS(file = here::here("output", "bcs_segments.rds")) |>
+bcs_timeseries <- 
+  readRDS(file = here::here("output", "bcs_segments.rds")) |>
   dplyr::filter(!is.na(haul)) |>
   dplyr::rename(WIRE_LENGTH_FM = scope) |>
   dplyr::rename_with(toupper) |>
@@ -29,7 +31,8 @@ bcs_timeseries <- readRDS(file = here::here("output", "bcs_segments.rds")) |>
 
 # Load trawl measurement timeseries 
 
-trawl_measurements <- readRDS(here::here("output", "trawl_measurements.rds")) |>
+trawl_measurements <- 
+  readRDS(here::here("output", "trawl_measurements.rds")) |>
   dplyr::rename(WIRE_LENGTH_FM = scope) |>
   dplyr::rename_with(toupper)
 
@@ -159,32 +162,22 @@ gear_treatments_45 <-
   ) |>
   dplyr::filter(Door_size_m2 == 4.5)
 
-gt_net_data <- 
+gt_haul_data <- 
   readRDS(file = here::here("output", "haul_summary.rds")) |>
-  dplyr::select(
-    HAUL = haul,
-    WIRE_LENGTH_FM = scope,
-    NET_WIDTH = MEAN_NET_SPREAD,
-    NET_HEIGHT = MEAN_NET_HEIGHT,
-    DOOR_SPREAD = MEAN_DOOR_SPREAD
-  ) |>
-  dplyr::mutate(
-    WIRE_LENGTH = WIRE_LENGTH_FM * 1.8288
-  )
-
-gt_btd_data <- 
-  readRDS(file = here::here("output", "btd_summary.rds")) |>
   dplyr::group_by(scope, haul) |>
   dplyr::slice_max(pass, n = 1) |>
   dplyr::ungroup() |>
   dplyr::select(
     HAUL = haul,
     WIRE_LENGTH_FM = scope,
+    NET_WIDTH = MEAN_NET_SPREAD,
+    NET_HEIGHT = MEAN_NET_HEIGHT,
+    DOOR_SPREAD = MEAN_DOOR_SPREAD,
     BOTTOM_DEPTH_FM
   ) |>
   dplyr::mutate(
-    BOTTOM_DEPTH = BOTTOM_DEPTH_FM * 1.8288,
-    WIRE_LENGTH = WIRE_LENGTH_FM * 1.8288
+    WIRE_LENGTH = WIRE_LENGTH_FM * 1.8288,
+    BOTTOM_DEPTH = BOTTOM_DEPTH_FM * 1.8288
   )
 
 gt_door_data <-
@@ -208,8 +201,7 @@ gt_door_data <-
 
 gt_data <- 
   gt_door_data |>
-  dplyr::inner_join(gt_btd_data) |>
-  dplyr::inner_join(gt_net_data) |>
+  dplyr::inner_join(gt_haul_data ) |>
   dplyr::bind_rows(
     cc_hauls |>
       dplyr::select(HAUL, BOTTOM_DEPTH, WIRE_LENGTH, NET_HEIGHT, NET_WIDTH, DOOR_SPREAD) |>
@@ -260,7 +252,53 @@ gt_bcs_data <-
 
 # Review data from each haul -----
 
+sel_haul = 527
 
+bcs_test <- bcs_timeseries |> 
+  dplyr::filter(HAUL == sel_haul)
+
+bcs_panel_labels <- 
+  bcs_test  |>
+  dplyr::select(HAUL, DISTANCE) |>
+  unique()
+
+bcs_mean <-
+  bcs_test  |>
+  dplyr::group_by(HAUL, DISTANCE, WIRE_LENGTH_FM) |>
+  dplyr::summarise(
+    MEAN_DT = mean(DT),
+    MEAN_HEIGHT_FIT = mean(HEIGHT_FIT, na.rm = TRUE)
+  )
+
+
+p_bcs_timeseries <- 
+  ggplot() +
+  geom_path(
+    data = bcs_test,
+    mapping = aes(x = DT, y = HEIGHT_FIT, color = factor(WIRE_LENGTH_FM), linetype = SIDE),
+    linewidth = 1.1
+  ) +
+  ggpp::geom_text_npc(
+    data = bcs_panel_labels,
+    mapping = aes(npcx = "left", npcy = "top", label = paste0(DISTANCE, " m"))
+  ) +
+  geom_text(
+    data = bcs_mean,
+    mapping = aes(
+      x = MEAN_DT,
+      y = ifelse(MEAN_HEIGHT_FIT > 27, MEAN_HEIGHT_FIT - 7, MEAN_HEIGHT_FIT + 7),
+      label = sprintf("%.1f", MEAN_HEIGHT_FIT)
+                  )
+  ) +
+  ggtitle("BCS elevation (cm)") +
+  scale_x_datetime(name = "Date/time (AKDT)") +
+  scale_y_continuous(name = "BCS elevation (cm)", limits = c(-2, 40), oob = squish) +
+  scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
+  scale_linetype(name = "Side") +
+  facet_wrap(~DISTANCE , ncol = 1) +
+  theme_bw() +
+  theme(strip.text = element_blank(),
+        strip.background = element_blank())
 
   
 

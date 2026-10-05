@@ -77,6 +77,6 @@ haul_summary <-
     SCOPE_TO_DEPTH = scope/BOTTOM_DEPTH_FM 
   )
 
-saveRDS(btd_summary, here::here("output", "haul_summary.rds"))
+saveRDS(haul_summary, here::here("output", "haul_summary.rds"))
 saveRDS(btd_data, here::here("output", "btd_data.rds"))
 saveRDS(trawl_measurements, here::here("output", "trawl_measurements.rds"))
