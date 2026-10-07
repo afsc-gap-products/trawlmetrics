@@ -289,7 +289,7 @@ geom_levels <-
       c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)"),
       levels = c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)")
     ),
-    min_value = c(NA, -5, 10, 4, 26, 6),
+    min_value = c(NA, -5, 8, 4, 20, 6),
     max_value = c(NA, 40, 22, 10, 56, 21.5),
     min_target = c(NA, NA, 15, 5, NA, 18),
     max_target = c(NA, 30, 20, 6, NA, 21)
@@ -569,7 +569,7 @@ for(uu in 1:length(unique_hauls)) {
 # Sean Rohan and Nicole Charriere reviewed data from individual treatments to evaluate whether 
 # sensor data showed the footrope and doors were on bottom. Values were assigned 'Yes', 'No', or
 # 'Inconclusive', where the latter indicated sensor data were insufficient to make a determination.
-# Combined with 
+
   
 
 # Plots
