@@ -25,7 +25,15 @@ trawl_measurements <-
   do.call(what = dplyr::bind_rows) |> 
   isolate_treatments() |>
   dplyr::filter(!is.na(scope)) |>
-  dplyr::select(haul, dt, NET_HEIGHT_M, NET_SPREAD_M, DOOR_SPREAD_M, pass, scope)
+  dplyr::select(haul, dt, NET_HEIGHT_M, NET_SPREAD_M, DOOR_SPREAD_M, pass, scope) |>
+  dplyr::mutate(
+    NET_SPREAD_M = ifelse(NET_HEIGHT_M > 24, NA, NET_SPREAD_M),
+    NET_HEIGHT_M = ifelse(NET_HEIGHT_M > 15, NA, NET_HEIGHT_M),
+    DOOR_SPREAD_M = ifelse(DOOR_SPREAD_M > 80, NA, DOOR_SPREAD_M),
+    NET_SPREAD_M = ifelse(NET_HEIGHT_M < 8, NA, NET_SPREAD_M),
+    NET_HEIGHT_M = ifelse(NET_HEIGHT_M < 3, NA, NET_HEIGHT_M),
+    DOOR_SPREAD_M = ifelse(DOOR_SPREAD_M < 20, NA, DOOR_SPREAD_M),
+  )
 
 trawl_measurement_summary <- 
   trawl_measurements |>

@@ -6,7 +6,18 @@ library(ggthemes)
 library(shadowtext)
 library(dplyr)
 library(ggpp)
+library(ggrepel)
 library(scales)
+
+dir.create(here::here("plots", "geometry_by_haul"), recursive = TRUE)
+
+# Gear configuration spreadsheet
+gear_config <- 
+  readxl::read_xlsx(path = here::here("data", "2026_gear_config.xlsx")) |>
+  dplyr::mutate(
+    TOTAL_GEAR_LENGTH_M = (total_bridle_length_ft + door_leg_tail_chain_length_ft + bridle_chain_length_ft)/3.281
+  ) |>
+  dplyr::rename_with(toupper)
 
 # PNE and 83-112 scope tables
 scope_tables <- 
@@ -24,7 +35,7 @@ bcs_height_summary <-
 
 bcs_timeseries <- 
   readRDS(file = here::here("output", "bcs_segments.rds")) |>
-  dplyr::filter(!is.na(haul)) |>
+  dplyr::filter(!is.na(scope)) |>
   dplyr::rename(WIRE_LENGTH_FM = scope) |>
   dplyr::rename_with(toupper) |>
   dplyr::select(DT, BCS_ID, POSITION, DISTANCE, SIDE, X_G, X_G_ORIGINAL, HEIGHT_FIT, HAUL, WIRE_LENGTH_FM)
@@ -33,8 +44,30 @@ bcs_timeseries <-
 
 trawl_measurements <- 
   readRDS(here::here("output", "trawl_measurements.rds")) |>
-  dplyr::rename(WIRE_LENGTH_FM = scope) |>
-  dplyr::rename_with(toupper)
+  dplyr::group_by(scope, haul) |>
+  dplyr::slice_max(pass, n = 1) |>
+  dplyr::ungroup() |>
+  dplyr::rename(
+    WIRE_LENGTH_FM = scope,
+    DOOR_SPREAD = DOOR_SPREAD_M,
+    NET_WIDTH = NET_SPREAD_M,
+    NET_HEIGHT = NET_HEIGHT_M) |>
+  dplyr::rename_with(toupper) |>
+  dplyr::inner_join(
+    dplyr::select(
+      gear_config,
+      HAUL, 
+      TOTAL_GEAR_LENGTH_M
+    )
+  ) |>
+  dplyr::mutate(
+    BRIDLE_ANGLE_DEG = 
+      trawlmetrics::calc_bridle_angle(
+        door_spread_m = DOOR_SPREAD, 
+        wing_spread_m = NET_WIDTH,
+        total_bridle_length_m = TOTAL_GEAR_LENGTH_M
+      )
+  )
 
 
 # Examine BCS height data
@@ -96,6 +129,7 @@ cc_hauls <-
     H.HAUL,
     RDH.DOOR_SPREAD, 
     H.BOTTOM_DEPTH,
+    H.GEAR_DEPTH,
     H.HAULJOIN,
     H.NET_WIDTH, 
     H.DISTANCE_FISHED, 
@@ -124,15 +158,6 @@ cc_hauls <-
     WIRE_LENGTH_FM = WIRE_LENGTH / 1.8288
   )
 
-gear_config <- readxl::read_xlsx(path = here::here("data", "2026_gear_config.xlsx")) |>
-  dplyr::mutate(
-    TOTAL_GEAR_LENGTH_M = (total_bridle_length_ft + door_leg_tail_chain_length_ft + bridle_chain_length_ft)/3.281
-  )
-
-names(gear_config) <- toupper(names(gear_config))
-
-gear_config <- gear_config
-
 # Analysis and plot settings
 door_roll_breaks <- c(-Inf, -10, 0, 10, 25, Inf)
 door_roll_labels <- c("<-10", "-10-0", "0-10", "10-25", ">25")
@@ -159,11 +184,12 @@ gear_treatments_45 <-
   readxl::read_xlsx(
     path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
     sheet = "treatments"
-  ) |>
-  dplyr::filter(Door_size_m2 == 4.5)
+  ) #|>
+  # dplyr::filter(Door_size_m2 == 4.5)
 
 gt_haul_data <- 
   readRDS(file = here::here("output", "haul_summary.rds")) |>
+  dplyr::filter(haul < 600) |> # Use fully processed means for catch comparison hauls
   dplyr::group_by(scope, haul) |>
   dplyr::slice_max(pass, n = 1) |>
   dplyr::ungroup() |>
@@ -173,7 +199,9 @@ gt_haul_data <-
     NET_WIDTH = MEAN_NET_SPREAD,
     NET_HEIGHT = MEAN_NET_HEIGHT,
     DOOR_SPREAD = MEAN_DOOR_SPREAD,
-    BOTTOM_DEPTH_FM
+    BOTTOM_DEPTH_FM,
+    GEAR_DEPTH = BT_DEPTH_M,
+    GEAR_DEPTH_FM = BT_DEPTH_FM
   ) |>
   dplyr::mutate(
     WIRE_LENGTH = WIRE_LENGTH_FM * 1.8288,
@@ -204,11 +232,11 @@ gt_data <-
   dplyr::inner_join(gt_haul_data ) |>
   dplyr::bind_rows(
     cc_hauls |>
-      dplyr::select(HAUL, BOTTOM_DEPTH, WIRE_LENGTH, NET_HEIGHT, NET_WIDTH, DOOR_SPREAD) |>
+      dplyr::select(HAUL, BOTTOM_DEPTH, GEAR_DEPTH, WIRE_LENGTH, NET_HEIGHT, NET_WIDTH, DOOR_SPREAD) |>
       unique() |>
       dplyr::inner_join(gt_door_data) |>
       dplyr::mutate(
-        WIRE_LENGTH_FM = WIRE_LENGTH/1.8288,
+        WIRE_LENGTH_FM = round(WIRE_LENGTH/1.8288),
         BOTTOM_DEPTH_FM = BOTTOM_DEPTH/1.8288)
   ) |>
   dplyr::mutate(
@@ -252,54 +280,296 @@ gt_bcs_data <-
 
 # Review data from each haul -----
 
-sel_haul = 527
+unique_hauls <- sort(unique(gt_data$HAUL))
 
-bcs_test <- bcs_timeseries |> 
-  dplyr::filter(HAUL == sel_haul)
-
-bcs_panel_labels <- 
-  bcs_test  |>
-  dplyr::select(HAUL, DISTANCE) |>
-  unique()
-
-bcs_mean <-
-  bcs_test  |>
-  dplyr::group_by(HAUL, DISTANCE, WIRE_LENGTH_FM) |>
-  dplyr::summarise(
-    MEAN_DT = mean(DT),
-    MEAN_HEIGHT_FIT = mean(HEIGHT_FIT, na.rm = TRUE)
+geom_levels <- 
+  data.frame(
+    name = c("GEAR_DEPTH", "DOOR_ROLL", "NET_WIDTH", "NET_HEIGHT", "DOOR_SPREAD", "BRIDLE_ANGLE_DEG"),
+    label = factor(
+      c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)"),
+      levels = c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)")
+    ),
+    min_value = c(NA, -5, 10, 4, 26, 6),
+    max_value = c(NA, 40, 22, 10, 56, 21.5),
+    min_target = c(NA, NA, 15, 5, NA, 18),
+    max_target = c(NA, 30, 20, 6, NA, 21)
   )
 
+bcs_position_labels <-
+  data.frame(
+    DISTANCE = c(0, 2, 8, 13, 16, 18, 21, 29),
+    POS_NAME = c(
+      "Footrope center", 
+      "Footrope near center", 
+      "Footrope off-center", 
+      "Footrope wingtip", 
+      "Bridle 2-m ahead of footrope", 
+      "Bridle 4-m ahead of footrope", 
+      "Bridle 7-m ahead of footrope", 
+      "Mid bridle"
+    )
+  ) |>
+  dplyr::mutate(
+    DISTANCE_FAC = 
+      factor(
+        DISTANCE, 
+        levels = DISTANCE,
+        labels = paste0(DISTANCE, " m BCS")
+      ),
+    DISTANCE_DETAIL = 
+      factor(
+        DISTANCE, 
+        levels = DISTANCE,
+        labels = paste0(DISTANCE, " m BCS: ", POS_NAME)
+      )
+  )
 
-p_bcs_timeseries <- 
-  ggplot() +
-  geom_path(
-    data = bcs_test,
-    mapping = aes(x = DT, y = HEIGHT_FIT, color = factor(WIRE_LENGTH_FM), linetype = SIDE),
-    linewidth = 1.1
-  ) +
-  ggpp::geom_text_npc(
-    data = bcs_panel_labels,
-    mapping = aes(npcx = "left", npcy = "top", label = paste0(DISTANCE, " m"))
-  ) +
-  geom_text(
-    data = bcs_mean,
-    mapping = aes(
-      x = MEAN_DT,
-      y = ifelse(MEAN_HEIGHT_FIT > 27, MEAN_HEIGHT_FIT - 7, MEAN_HEIGHT_FIT + 7),
-      label = sprintf("%.1f", MEAN_HEIGHT_FIT)
-                  )
-  ) +
-  ggtitle("BCS elevation (cm)") +
-  scale_x_datetime(name = "Date/time (AKDT)") +
-  scale_y_continuous(name = "BCS elevation (cm)", limits = c(-2, 40), oob = squish) +
-  scale_color_viridis_d(name = "Scope (fm)", direction = -1) +
-  scale_linetype(name = "Side") +
-  facet_wrap(~DISTANCE , ncol = 1) +
-  theme_bw() +
-  theme(strip.text = element_blank(),
-        strip.background = element_blank())
+for(uu in 1:length(unique_hauls)) {
+  
+  sel_haul <- unique_hauls[uu]
+  
+  sel_bcs <- 
+    bcs_timeseries |> 
+    dplyr::filter(HAUL == sel_haul) |>
+    dplyr::inner_join(
+      bcs_position_labels
+    )
+  
+  bcs_panel_labels <- 
+    sel_bcs  |>
+    dplyr::select(HAUL, DISTANCE, DISTANCE_FAC, DISTANCE_DETAIL) |>
+    unique()
+  
+  bcs_mean <-
+    sel_bcs  |>
+    dplyr::group_by(HAUL, DISTANCE, DISTANCE_FAC, DISTANCE_DETAIL, WIRE_LENGTH_FM) |>
+    dplyr::summarise(
+      MEAN_DT = mean(DT),
+      MEAN_HEIGHT_FIT = mean(HEIGHT_FIT, na.rm = TRUE)
+    ) |>
+    dplyr::ungroup()
+  
+  time_mean <- 
+    sel_bcs  |>
+    dplyr::group_by(HAUL, WIRE_LENGTH_FM) |>
+    dplyr::summarise(
+      MEAN_DT = mean(DT),
+    ) |>
+    dplyr::ungroup()
+  
+  sel_gt_data <- 
+    gt_data |>
+    dplyr::filter(HAUL == sel_haul)
+  
+  # sel_door_depth <- 
+    
+  
+  if(sel_haul >= 600) {
+    time_mean <-
+      time_mean |>
+      dplyr::select(-WIRE_LENGTH_FM)
+  }
+  
+  sel_door_depth <- 
+    sel_gt_data |>
+    dplyr::select(HAUL, WIRE_LENGTH_FM, GEAR_DEPTH, DOOR_DEPTH_P, DOOR_DEPTH_S) |>
+    tidyr::pivot_longer(
+      cols = c("GEAR_DEPTH", "DOOR_DEPTH_P", "DOOR_DEPTH_S"),
+      names_to = "var"
+    ) |>
+    dplyr::inner_join(data.frame(
+      var = c("GEAR_DEPTH", "DOOR_DEPTH_P", "DOOR_DEPTH_S"),
+      text = c("Headline", "Port door", "Starboard door"))) |>
+    dplyr::mutate(name = "GEAR_DEPTH") |>
+    dplyr::inner_join(geom_levels) |>
+    dplyr::inner_join(time_mean) |>
+    dplyr::select(-min_value, -max_value)
+  
+  door_depth_range <- 
+    sel_door_depth |>
+    dplyr::group_by(label) |>
+    dplyr::summarise(
+      min_value = min(value, na.rm = TRUE)*0.85,
+      max_value = max(value, na.rm = TRUE)*1.02
+    )
+  
+  sel_door_depth <-
+    sel_door_depth |>
+    dplyr::inner_join(
+      door_depth_range
+    )
+  
+  sel_door_depth_labels <-
+    sel_door_depth |>
+    dplyr::select(HAUL, WIRE_LENGTH_FM, label, value, var, min_value, max_value) |>
+    tidyr::pivot_wider(
+      values_from = "value",
+      names_from = "var"
+    ) |>
+    dplyr::inner_join(
+      time_mean
+    ) |>
+    dplyr::mutate(text = sprintf("%.1f", GEAR_DEPTH-(DOOR_DEPTH_P+DOOR_DEPTH_S)/2))
+  
+  sel_trawl_geom <- 
+    sel_gt_data |>
+    dplyr::select(HAUL, WIRE_LENGTH_FM, NET_WIDTH, NET_HEIGHT, DOOR_SPREAD, BRIDLE_ANGLE_DEG) |>
+    tidyr::pivot_longer(
+      cols = c(NET_WIDTH, NET_HEIGHT, DOOR_SPREAD, BRIDLE_ANGLE_DEG)
+    ) |>
+    dplyr::inner_join(
+      geom_levels
+    ) |>
+    dplyr::inner_join(time_mean)
+  
+  anchor_trawl_geom <-
+    sel_trawl_geom |>
+    dplyr::select(label, MEAN_DT, min_value, max_value) |>
+    tidyr::pivot_longer(cols = c(min_value, max_value)) |>
+    dplyr::bind_rows(
+      door_depth_range |>
+        tidyr::pivot_longer(
+          cols = c(min_value, max_value)
+        )
+    )
+  
+  targets_trawl_geom <-
+    sel_trawl_geom |>
+    dplyr::select(label, MEAN_DT, min_target, max_target) |>
+    tidyr::pivot_longer(cols = c(min_target, max_target))
+  
+  sel_trawl_measurements <- 
+    trawl_measurements |>
+    dplyr::filter(HAUL == sel_haul) |>
+    tidyr::pivot_longer(
+      cols = c(NET_WIDTH, NET_HEIGHT, DOOR_SPREAD, BRIDLE_ANGLE_DEG)
+    ) |>
+    dplyr::inner_join(
+      geom_levels
+    ) |>
+    dplyr::select(HAUL, DT, WIRE_LENGTH_FM, name, value, label) |>
+    dplyr::arrange(DT)
+  
+  scope_palette <- viridis_pal(direction = -1)(length(unique(sel_trawl_measurements$WIRE_LENGTH_FM)) + 1)[-1]
+  
+  p_trawl_geometry <- 
+    ggplot() +
+    geom_point(
+      data = sel_trawl_measurements,
+      mapping = aes(
+        x = DT,
+        y = value,
+        color = factor(WIRE_LENGTH_FM)
+      ),
+      size = 0.15
+    ) +
+    geom_hline(
+      data = targets_trawl_geom,
+      mapping = aes(yintercept = value),
+      linetype = 2,
+      color = "grey30",
+      size = 0.3
+    ) +
+    geom_text(
+      data = sel_door_depth_labels,
+      mapping = aes(x = MEAN_DT, y = min_value*1.05, label = text),
+      size = 2.5,
+      hjust = 0.5) +
+    geom_text_repel(
+      data = sel_trawl_geom,
+      mapping = aes(x = MEAN_DT, y = min_value, label = sprintf("%.1f", value)),
+      size = 2.5) +
+    geom_point(
+      data = anchor_trawl_geom,
+      mapping = aes(x = MEAN_DT, y = value),
+      color = NA) +
+    geom_point(
+      data = sel_door_depth,
+      mapping = aes(x = MEAN_DT, y = value, color = factor(WIRE_LENGTH_FM), shape = text),
+      size = 2.2) +
+    scale_color_manual(name = "Scope (fm)", values = scope_palette) +
+    scale_shape_manual(name = "Sensor", values = c('Port door' = 0, 'Starboard door' = 2, 'Headline' = 16)) +
+    scale_x_datetime(name = "Date/time") +
+    scale_y_continuous(name = "Value", oob = squish) +
+    facet_wrap(~label, scales = "free_y", nrow = 5) +
+    theme_bw() +
+    theme(
+      strip.background = element_blank(),
+      strip.text = element_text(face = "bold", hjust = 0, size = 9),
+      axis.text = element_text(size = 8),
+      axis.title = element_text(size = 8),
+      legend.text = element_text(size = 8),
+      legend.title = element_text(size = 8),
+      legend.key.size = unit(4, "mm")
+    )
+  
+  p_bcs_timeseries <- 
+    ggplot() +
+    geom_hline(
+      yintercept = c(0, 2.54*3), 
+      linetype = 2,
+      color = "grey30",
+      linewidth = 0.3
+    ) +
+    geom_point(
+      data = sel_bcs,
+      mapping = aes(x = DT, y = HEIGHT_FIT, color = factor(WIRE_LENGTH_FM), linetype = SIDE), 
+      size = 0.15
+    ) +
+    geom_text(
+      data = bcs_mean,
+      mapping = aes(
+        x = MEAN_DT,
+        y = -2.5,
+        label = sprintf("%.1f", MEAN_HEIGHT_FIT)
+      ),
+      size = 2.5
+    ) +
+    scale_x_datetime(name = "Date/time (AKDT)") +
+    scale_y_continuous(name = "Elevation (cm)", limits = c(-5, 40), oob = squish) +
+    scale_color_manual(name = "Scope (fm)", values = scope_palette, guide = "none") +
+    scale_linetype(name = "Side") +
+    facet_wrap(~DISTANCE_DETAIL, ncol = 1) +
+    theme_bw() +
+    theme(
+      strip.text = element_text(face = "bold", hjust = 0, size = 9),
+      strip.background = element_blank(),
+      axis.text = element_text(size = 8),
+      axis.title = element_text(size = 8),
+      legend.text = element_text(size = 8),
+      legend.title = element_text(size = 8),
+      legend.key.size = unit(4, "mm")
+    )
+  
+  p_grid_performance <- 
+    cowplot::plot_grid(
+      p_trawl_geometry +
+        theme(legend.position = "bottom", 
+              legend.box = "vertical",
+              legend.spacing = unit(1, "mm")),
+      p_bcs_timeseries +
+        theme(legend.position = "bottom"), 
+      ncol = 2,
+      align = "hv"
+    )
+  
+  png(
+    filename = here::here("plots", "geometry_by_haul", paste0("geom_by_haul_", sel_haul, ".png")),
+    width = 169,
+    height = 169,
+    units = "mm",
+    res = 300
+  )
+  print(p_grid_performance)
+  dev.off()
+  
+}
 
+# Reviewed data from scope treatments
+# Sean Rohan and Nicole Charriere reviewed data from individual treatments to evaluate whether 
+# sensor data showed the footrope and doors were on bottom. Values were assigned 'Yes', 'No', or
+# 'Inconclusive', where the latter indicated sensor data were insufficient to make a determination.
+# Combined with 
   
 
 # Plots

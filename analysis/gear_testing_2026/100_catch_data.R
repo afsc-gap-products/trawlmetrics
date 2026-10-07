@@ -955,7 +955,8 @@ dev.off()
 
 # Catch attributed to bridle herding (Somerton and Munro, 2001)
 
-data.frame(
+somerton_herding <- 
+  data.frame(
   SPECIES_CODE = c(10261, 10210, 10130, 10200),
   h = c(0.84, 0.58, 0.51, 0.502),
   w_d = 58.7,
@@ -967,10 +968,26 @@ data.frame(
     p_bridles = (h*w_on)/(w_n + h*w_on),
     rce_no_herding = (1-p_bridles),
     ccr_no_herding = (rce_no_herding)/(1+rce_no_herding)
+  ) |>
+  dplyr::inner_join(
+    cc_species_codes
   )
 
+herding_table <- 
+  somerton_herding |>
+  dplyr::mutate(
+    pct_bridles = sprintf("%.1f", p_bridles*100)
+  ) |>
+  dplyr::select(
+    COMMON_NAME, 
+    pct_bridles
+  )
 
-
+write.csv(
+  herding_table,
+  here::here("plots", "design_considerations", "somerton_munro_pct_herding.csv"),
+  row.names = FALSE
+)
 
 
 # Extra plots
