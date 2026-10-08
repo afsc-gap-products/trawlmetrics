@@ -4,6 +4,7 @@ library(ggthemes)
 library(shadowtext)
 library(dplyr)
 library(ggpp)
+library(readxl)
 
 
 # Data prep ----------------------------------------------------------------------------------------
@@ -13,6 +14,14 @@ catch_treatments <-
   readxl::read_xlsx(
     path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
     sheet = "catch_treatments"
+  )
+
+# Door and footrope bottom contact evaluation
+
+door_footrope_bc <- 
+  readxl::read_xlsx(
+    path = here::here("data", "scope_performance.xlsx"),
+    sheet = "consensus"
   )
 
 # Review door trials and assign to hauls

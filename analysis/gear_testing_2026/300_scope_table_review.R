@@ -27,18 +27,48 @@ scope_tables <-
                 scope_to_depth = wire_out_fm/mean_depth_fm) |>
   dplyr::inner_join(data.frame(table = c("GOA/AI", "EBS shelf", "EBS slope"), gear = c("PNE", "83-112", "PNE-S")))
 
+# Door and footrope bottom contact evaluation
+
+# SR and NC reviewed data from individual treatments to evaluate whether 
+# sensor data showed the footrope and doors were on bottom. Values were assigned 'Yes', 'No', or
+# 'Inconclusive', where the latter indicated sensor data were insufficient to make a determination.
+
+door_footrope_bc <- 
+  readxl::read_xlsx(
+    path = here::here("data", "scope_performance.xlsx"),
+    sheet = "consensus"
+  ) |>
+  dplyr::rename(WIRE_LENGTH_FM = scope) |>
+  dplyr::rename_with(toupper) |>
+  dplyr::mutate(
+    GEAR_ON_BOTTOM = ifelse(FOOTROPE_ON_BOTTOM == "Yes" & DOORS_ON_BOTTOM == "Yes", "Yes", "No"),
+    GEAR_ON_BOTTOM = ifelse(FOOTROPE_ON_BOTTOM == "Inconclusive" | DOORS_ON_BOTTOM == "Inconclusive", "Inconclusive", GEAR_ON_BOTTOM)
+    )
+
 # Load BCS data
 bcs_height_summary <- 
   readRDS(file = here::here("output", "bcs_height_summary.rds")) |>
   dplyr::rename(WIRE_LENGTH_FM = scope) |>
-  dplyr::rename_with(toupper)
+  dplyr::rename_with(toupper) |>
+  dplyr::left_join(
+    door_footrope_bc
+  ) |>
+  dplyr::left_join(
+    gear_config
+  )
 
 bcs_timeseries <- 
   readRDS(file = here::here("output", "bcs_segments.rds")) |>
   dplyr::filter(!is.na(scope)) |>
   dplyr::rename(WIRE_LENGTH_FM = scope) |>
   dplyr::rename_with(toupper) |>
-  dplyr::select(DT, BCS_ID, POSITION, DISTANCE, SIDE, X_G, X_G_ORIGINAL, HEIGHT_FIT, HAUL, WIRE_LENGTH_FM)
+  dplyr::select(DT, BCS_ID, POSITION, DISTANCE, SIDE, X_G, X_G_ORIGINAL, HEIGHT_FIT, HAUL, WIRE_LENGTH_FM) |>
+  dplyr::left_join(
+    door_footrope_bc
+  ) |>
+  dplyr::left_join(
+    gear_config
+  )
 
 # Load trawl measurement timeseries 
 
@@ -69,53 +99,6 @@ trawl_measurements <-
       )
   )
 
-
-# Examine BCS height data
-ggplot() +
-  geom_hline(yintercept = 0, linetype = 3) +
-  geom_path(
-    data = bcs_height_summary,
-    mapping = aes(x = HAUL, y = MEAN_HEIGHT, group = interaction(HAUL, WIRE_LENGTH_FM)),
-    color = "grey30"
-  ) +
-  geom_point(
-    data = bcs_height_summary,
-    mapping = aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE),
-    size = 0.7
-  ) +
-  scale_color_manual(name = "Side", values = c('P'="#264EFF", 'C' = "grey60", 'S' = "#D92632")) +
-  scale_y_continuous("Distance to bottom (cm)", 
-                     limits = c(-2, 40), 
-                     oob = scales::squish_infinite) +
-  facet_wrap(~DISTANCE) +
-  theme_bw()
-
-ggplot() +
-  geom_hline(yintercept = 0, linetype = 3) +
-  geom_path(
-    data = bcs_height_summary,
-    mapping = 
-      aes(
-        x = HAUL, 
-        y = MEAN_HEIGHT, 
-        group = interaction(HAUL, WIRE_LENGTH_FM), 
-        alpha = HAUL > 535 & HAUL < 551),
-    color = "grey30"
-  ) +
-  geom_point(
-    data = bcs_height_summary,
-    mapping = 
-      aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE, 
-          alpha = HAUL > 535 & HAUL < 551),
-    size = 0.7
-  ) +
-  scale_color_manual(name = "Side", values = c('P'="#264EFF", 'C' = "grey60", 'S' = "#D92632")) +
-  scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1)) +
-  scale_y_continuous("Distance to bottom (cm)", 
-                     limits = c(-2, 40), 
-                     oob = scales::squish_infinite) +
-  facet_wrap(~DISTANCE) +
-  theme_bw()
 
 # Closed codened trawl geometry data ---------------------------------------------------------------
 channel <- trawlmetrics::get_connected(schema = "AFSC")
@@ -178,8 +161,50 @@ depth_labels <- c("20-30 m", "30-50 m", "50-75 m", "75-100 m", "100-150 m", "150
 codend_symbols <- c('Open' = 1, 'Closed' = 16)
 codend_symbol_size <- c("Closed" = 3.5, "Open" = 1.8)
 
+geom_levels <- 
+  data.frame(
+    name = c("GEAR_DEPTH", "DOOR_ROLL", "NET_WIDTH", "NET_HEIGHT", "DOOR_SPREAD", "BRIDLE_ANGLE_DEG"),
+    label = factor(
+      c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)"),
+      levels = c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)")
+    ),
+    min_value = c(NA, -5, 8, 4, 20, 6),
+    max_value = c(NA, 40, 22, 10, 56, 21.5),
+    min_target = c(NA, NA, 15, 5, NA, 18),
+    max_target = c(NA, 30, 20, 6, NA, 21)
+  )
 
-# Open codend tow data
+bcs_position_labels <-
+  data.frame(
+    DISTANCE = c(0, 2, 8, 13, 16, 18, 21, 29),
+    POS_NAME = c(
+      "Footrope center", 
+      "Footrope near center", 
+      "Footrope off-center", 
+      "Footrope wingtip", 
+      "Bridle 2-m ahead of footrope", 
+      "Bridle 4-m ahead of footrope", 
+      "Bridle 7-m ahead of footrope", 
+      "Mid bridle"
+    )
+  ) |>
+  dplyr::mutate(
+    DISTANCE_FAC = 
+      factor(
+        DISTANCE, 
+        levels = DISTANCE,
+        labels = paste0(DISTANCE, " m BCS")
+      ),
+    DISTANCE_DETAIL = 
+      factor(
+        DISTANCE, 
+        levels = DISTANCE,
+        labels = paste0(DISTANCE, " m BCS: ", POS_NAME)
+      )
+  )
+
+
+# Open codend tow data ----
 gear_treatments_45 <- 
   readxl::read_xlsx(
     path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
@@ -229,7 +254,7 @@ gt_door_data <-
 
 gt_data <- 
   gt_door_data |>
-  dplyr::inner_join(gt_haul_data ) |>
+  dplyr::inner_join(gt_haul_data) |>
   dplyr::bind_rows(
     cc_hauls |>
       dplyr::select(HAUL, BOTTOM_DEPTH, GEAR_DEPTH, WIRE_LENGTH, NET_HEIGHT, NET_WIDTH, DOOR_SPREAD) |>
@@ -241,11 +266,10 @@ gt_data <-
   ) |>
   dplyr::mutate(
     CODEND = ifelse(HAUL >= 600, "Closed", "Open"),
-    DOOR_ON_BOTTOM_P = DOOR_DEPTH_P > (BOTTOM_DEPTH - NET_HEIGHT),
-    DOOR_ON_BOTTOM_S = DOOR_DEPTH_S > (BOTTOM_DEPTH - NET_HEIGHT),
     DOOR_LT30_P = abs(DOOR_ROLL_P) < 30,
     DOOR_LT30_S = abs(DOOR_ROLL_S) < 30,
-    DOORS_GOOD = DOOR_ON_BOTTOM_P & DOOR_ON_BOTTOM_S & DOOR_LT30_P & DOOR_LT30_S) |>
+    DOORS_GOOD = ifelse(DOOR_LT30_P & DOOR_LT30_S, "Yes", "No"),
+    DOORS_GOOD = ifelse(is.na(DOOR_LT30_P) | is.na(DOOR_LT30_S), "Inconclusive", DOORS_GOOD))|>
   dplyr::inner_join(
     gear_config
   ) |>
@@ -263,6 +287,13 @@ gt_data <-
       cut(BOTTOM_DEPTH, breaks = depth_breaks, label = depth_labels),
     MAX_DOOR_ROLL = pmax(abs(DOOR_ROLL_P), abs(DOOR_ROLL_S), na.rm = TRUE),
     TOTAL_WINCH_TENSION = WINCH_TENSION_P+WINCH_TENSION_S
+  ) |>
+  dplyr::left_join(
+    door_footrope_bc
+  ) |>
+  dplyr::mutate(
+    DOORS_GEAR_GOOD = ifelse(MAX_DOOR_ROLL < 30 & GEAR_ON_BOTTOM == "Yes", "Yes", "No"),
+    DOORS_GEAR_GOOD = ifelse(is.na(MAX_DOOR_ROLL) | GEAR_ON_BOTTOM == "Inconclusive", "Inconclusive", DOORS_GEAR_GOOD)
   )
 
 gt_bcs_data <- 
@@ -276,53 +307,14 @@ gt_bcs_data <-
       dplyr::inner_join(
         bcs_height_summary
       )
+  ) |>
+  dplyr::left_join(
+    door_footrope_bc
   )
 
-# Review data from each haul -----
+# Review data from each haul -----------------------------------------------------------------------
 
 unique_hauls <- sort(unique(gt_data$HAUL))
-
-geom_levels <- 
-  data.frame(
-    name = c("GEAR_DEPTH", "DOOR_ROLL", "NET_WIDTH", "NET_HEIGHT", "DOOR_SPREAD", "BRIDLE_ANGLE_DEG"),
-    label = factor(
-      c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)"),
-      levels = c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)")
-    ),
-    min_value = c(NA, -5, 8, 4, 20, 6),
-    max_value = c(NA, 40, 22, 10, 56, 21.5),
-    min_target = c(NA, NA, 15, 5, NA, 18),
-    max_target = c(NA, 30, 20, 6, NA, 21)
-  )
-
-bcs_position_labels <-
-  data.frame(
-    DISTANCE = c(0, 2, 8, 13, 16, 18, 21, 29),
-    POS_NAME = c(
-      "Footrope center", 
-      "Footrope near center", 
-      "Footrope off-center", 
-      "Footrope wingtip", 
-      "Bridle 2-m ahead of footrope", 
-      "Bridle 4-m ahead of footrope", 
-      "Bridle 7-m ahead of footrope", 
-      "Mid bridle"
-    )
-  ) |>
-  dplyr::mutate(
-    DISTANCE_FAC = 
-      factor(
-        DISTANCE, 
-        levels = DISTANCE,
-        labels = paste0(DISTANCE, " m BCS")
-      ),
-    DISTANCE_DETAIL = 
-      factor(
-        DISTANCE, 
-        levels = DISTANCE,
-        labels = paste0(DISTANCE, " m BCS: ", POS_NAME)
-      )
-  )
 
 for(uu in 1:length(unique_hauls)) {
   
@@ -565,12 +557,8 @@ for(uu in 1:length(unique_hauls)) {
   
 }
 
-# Reviewed data from scope treatments
-# Sean Rohan and Nicole Charriere reviewed data from individual treatments to evaluate whether 
-# sensor data showed the footrope and doors were on bottom. Values were assigned 'Yes', 'No', or
-# 'Inconclusive', where the latter indicated sensor data were insufficient to make a determination.
 
-  
+
 
 # Plots
 
@@ -584,6 +572,103 @@ gt_subset <-
 
 gt_bcs_subset <- 
   dplyr::filter(gt_bcs_data, !is.na(SDR_FAC))
+
+bcs_closed_open_summary <- bcs_height_summary |>
+  dplyr::mutate(
+    CODEND = ifelse(HAUL < 600, "Open", "Closed")
+    ) |>
+  dplyr::filter(GEAR_ON_BOTTOM == TRUE) |>
+  dplyr::group_by(DISTANCE, CODEND, DOOR_SIZE_M2, BRIDLE_CHAIN_WEIGHT) |>
+  dplyr::summarise(
+    MEAN_HEIGHT = mean(MEAN_HEIGHT, na.rm = TRUE)
+  )
+
+bcs_closed_open <- bcs_height_summary |>
+  dplyr::mutate(
+    CODEND = ifelse(HAUL < 600, "Open", "Closed")
+  )
+
+p_mean_bcs_height_45 <- ggplot() + 
+  geom_point(
+    data = dplyr::filter(bcs_closed_open_summary, DOOR_SIZE_M2 == 4.5),
+    mapping = 
+      aes(
+        x = DISTANCE,
+        y = MEAN_HEIGHT,
+        shape = CODEND,
+        color = factor(BRIDLE_CHAIN_WEIGHT)
+      ),
+    size = 2.3
+  ) +
+  geom_hline(yintercept = c(0, 2.54*3), linetype = 2) +
+  scale_x_continuous(name = "Distance from center (m)", breaks = c(0, 2, 8, 13, 16, 18, 21, 29)) +
+  scale_y_continuous(name = "Footrope/bridle elevation (cm)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_color_manual(name = "Addl. bridle weight (kg)", values = viridis_pal(option = "C", direction = -1)(4)[2:4]) +
+  theme_bw() +
+  theme(
+    strip.text = element_text(face = "bold", hjust = 0, size = 9),
+    strip.background = element_blank(),
+    axis.text = element_text(size = 8),
+    axis.title = element_text(size = 8),
+    legend.text = element_text(size = 8),
+    legend.title = element_text(size = 8),
+    legend.key.size = unit(4, "mm"),
+    panel.grid = element_line(linewidth = 0.25)
+  )
+
+png(here::here("plots", "bcs_dtb", "bcs_dtb_45m2_doors.png"), width = 120, height = 80, units = "mm", res = 300)
+print(p_mean_bcs_height_45)
+dev.off()
+  
+
+# Examine BCS height data
+ggplot() +
+  geom_hline(yintercept = 0, linetype = 3) +
+  geom_path(
+    data = dplyr::filter(bcs_height_summary, GEAR_ON_BOTTOM == TRUE),
+    mapping = aes(x = HAUL, y = MEAN_HEIGHT, group = interaction(HAUL, WIRE_LENGTH_FM)),
+    color = "grey30"
+  ) +
+  geom_point(
+    data = dplyr::filter(bcs_height_summary, GEAR_ON_BOTTOM == TRUE),
+    mapping = aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE),
+    size = 0.7
+  ) +
+  scale_color_manual(name = "Side", values = c('P'="#264EFF", 'C' = "grey60", 'S' = "#D92632")) +
+  scale_y_continuous("Elevation (cm)", 
+                     limits = c(-2, 40), 
+                     oob = scales::squish_infinite) +
+  facet_wrap(~DISTANCE) +
+  theme_bw()
+
+ggplot() +
+  geom_hline(yintercept = c(0, 2.54*3), linetype = 2) +
+  geom_vline(xintercept = 533.5, linetype = 1) +
+  geom_path(
+    data = dplyr::filter(bcs_height_summary, !is.na(GEAR_ON_BOTTOM)),
+    mapping = 
+      aes(
+        x = HAUL, 
+        y = MEAN_HEIGHT, 
+        group = interaction(HAUL, WIRE_LENGTH_FM), 
+        alpha = GEAR_ON_BOTTOM),
+    color = "grey30"
+  ) +
+  geom_point(
+    data =  dplyr::filter(bcs_height_summary, !is.na(GEAR_ON_BOTTOM)),
+    mapping = 
+      aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE, 
+          alpha = GEAR_ON_BOTTOM),
+    size = 0.7
+  ) +
+  scale_color_manual(name = "Side", values = c('P'="#264EFF", 'C' = "grey60", 'S' = "#D92632")) +
+  scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1)) +
+  scale_y_continuous("Distance to bottom (cm)", 
+                     limits = c(-2, 40), 
+                     oob = scales::squish_infinite) +
+  facet_wrap(~DISTANCE) +
+  theme_bw()
   
 
 
@@ -591,7 +676,7 @@ gt_bcs_subset <-
 ggplot() +
   geom_hline(yintercept = c(0, 30), linetype = 2) +
   geom_point(
-    data = gt_subset, 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE),
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = MAX_DOOR_ROLL, 
@@ -602,7 +687,7 @@ ggplot() +
     size = 2.2
   ) +
   geom_rug(
-    data = gt_subset, 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
     mapping = aes(
       x = BOTTOM_DEPTH
     )
@@ -617,7 +702,7 @@ ggplot() +
 ggplot() +
   geom_hline(yintercept = c(15, 20), linetype = 2) +
   geom_point(
-    data = gt_subset, 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = NET_WIDTH, 
@@ -627,20 +712,14 @@ ggplot() +
     alpha = 0.7,
     size = 2.2
   ) +
-  geom_rug(
-    data = gt_subset, 
-    mapping = aes(
-      x = BOTTOM_DEPTH
-    )
-  ) +
   scale_color_colorblind(name = "Chain weight (kg)") +
   scale_size_manual(name = "Codend", values = codend_symbol_size) +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
   scale_x_continuous(name = "Depth (m)") +
   scale_y_continuous(
     name = "Upper wing spread (m)", 
-                     oob = scales::squish, 
-    limits = c(10, 20.5),
+                     oob = scales::squish_infinite, 
+    limits = c(10, 21.5),
     expand = c(0, 0)) +
   facet_wrap(~SDR_FAC) +
   theme_bw()
@@ -648,7 +727,7 @@ ggplot() +
 ggplot() +
   geom_hline(yintercept = c(5, 6), linetype = 2) +
   geom_point(
-    data = gt_subset, 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = NET_HEIGHT, 
@@ -659,7 +738,7 @@ ggplot() +
     size = 2.2
   ) +
   geom_rug(
-    data = gt_subset, 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
     mapping = aes(
       x = BOTTOM_DEPTH
     )
@@ -677,7 +756,7 @@ ggplot() +
 
 ggplot() +
   geom_point(
-    data = gt_subset, 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = DOOR_SPREAD, 
@@ -689,7 +768,7 @@ ggplot() +
     size = 2.2
   ) +
   geom_rug(
-    data = gt_subset, 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
     mapping = aes(
       x = BOTTOM_DEPTH
     )
@@ -1142,23 +1221,415 @@ ggplot() +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
   theme_bw()
 
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_ON_BOTTOM, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  # scale_color_manual(name = "Roll (\u00B0)", values = door_roll_colors) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  # scale_size_manual(name = "Codend", values = c("Closed" = 3, "Open" = 1.8)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  theme_bw()
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = FOOTROPE_ON_BOTTOM, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  geom_text_repel(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = FOOTROPE_ON_BOTTOM, 
+        label = HAUL),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Footrope on bottom", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  theme_bw()
 
 
 ggplot() +
-  geom_hline(yintercept = 0, linetype = 3) +
   geom_path(
-    data = bcs_height_summary,
-    mapping = aes(x = HAUL, y = MEAN_HEIGHT, group = interaction(HAUL, SCOPE)),
-    color = "grey30"
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.2
   ) +
   geom_point(
-    data = bcs_height_summary,
-    mapping = aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE),
-    size = 0.7
-  ) +
-  scale_color_manual(name = "Side", values = c('P'="#264EFF", 'C' = "grey60", 'S' = "#D92632")) +
-  scale_y_continuous("Distance to bottom (cm)", 
-                     limits = c(-2, 40), 
-                     oob = scales::squish_infinite) +
-  facet_wrap(~DISTANCE) +
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_ON_BOTTOM, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  geom_text_repel(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_ON_BOTTOM, 
+        label = HAUL),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Doors on bottom", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
   theme_bw()
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = GEAR_ON_BOTTOM, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  geom_text_repel(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = GEAR_ON_BOTTOM, 
+        label = HAUL),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Footrope & doors\non bottom", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  theme_bw()
+
+
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_GEAR_GOOD, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  geom_text_repel(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_GEAR_GOOD, 
+        label = HAUL),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Footrope/doors on bottom\n& door roll<30", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  facet_wrap(~DOOR_LEG_SETBACK_IN) +
+  theme_bw()
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.02
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_GEAR_GOOD, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  geom_text_repel(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_GEAR_GOOD, 
+        label = HAUL),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Footrope/doors on bottom\n& door roll<30", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  facet_grid(BRIDLE_CHAIN_WEIGHT~DOOR_LEG_SETBACK_IN) +
+  theme_bw()
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.02
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color =  GEAR_ON_BOTTOM, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  geom_text_repel(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = GEAR_ON_BOTTOM, 
+        label = HAUL),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Footrope/doors on bottom", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  facet_grid(BRIDLE_CHAIN_WEIGHT~DOOR_LEG_SETBACK_IN) +
+  theme_bw()
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.02
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color =  DOORS_GOOD, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  geom_text_repel(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_GOOD, 
+        label = HAUL),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Door roll <30\u00B0", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  facet_grid(BRIDLE_CHAIN_WEIGHT~DOOR_LEG_SETBACK_IN) +
+  theme_bw()
+
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = DOORS_GEAR_GOOD, 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_manual(name = "Footrope/doors on bottom\n& door roll<30", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  facet_grid(DOORS_GOOD ~ GEAR_ON_BOTTOM) +
+  theme_bw()
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
+    color = "grey",
+    linewidth = 1.02
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    mapping = 
+      aes(
+        x = BOTTOM_DEPTH, 
+        y = WIRE_LENGTH/BOTTOM_DEPTH, 
+        color = factor(DOOR_LEG_SETBACK_IN), 
+        shape = CODEND),
+    alpha = 0.8
+  ) + 
+  scale_linetype(name = "Scope table/gear") +
+  scale_color_tableau(name = "Door leg setback (in)") +
+  scale_x_log10(
+    name = "Bottom depth (m)", 
+    limits = c(depth_range[1]-2, depth_range[2]), 
+    breaks = depth_breaks,
+    oob = scales::oob_squish_infinite,
+    expand = c(0,0)) +
+  scale_y_continuous(
+    name = "Scope/Depth", 
+    oob = scales::oob_squish_infinite,
+    breaks = sdr_axis_breaks,
+    limits = c(2, max_sdr)) +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  facet_grid(paste0("Door roll < 30? ", DOORS_GOOD) ~ paste0("Gear on bottom? ", GEAR_ON_BOTTOM)) +
+  theme_bw()
+
+

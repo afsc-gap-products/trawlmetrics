@@ -957,8 +957,8 @@ dev.off()
 
 somerton_herding <- 
   data.frame(
-  SPECIES_CODE = c(10261, 10210, 10130, 10200),
-  h = c(0.84, 0.58, 0.51, 0.502),
+  SPECIES_CODE = c(10261, 10210, 10130, 10200, -9, -8, -7),
+  h = c(0.84, 0.58, 0.51, 0.502, 0.636, 0.384, 0.161),
   w_d = 58.7,
   w_n = 17.3,
   w_off = 21.8
@@ -967,7 +967,8 @@ somerton_herding <-
     w_on = w_d - w_n - w_off,
     p_bridles = (h*w_on)/(w_n + h*w_on),
     rce_no_herding = (1-p_bridles),
-    ccr_no_herding = (rce_no_herding)/(1+rce_no_herding)
+    ccr_no_herding = (rce_no_herding)/(1+rce_no_herding),
+    implied_q = 1/(1-p_bridles)
   ) |>
   dplyr::inner_join(
     cc_species_codes
