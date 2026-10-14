@@ -5,3 +5,5 @@ doc
 data
 output
 plots
+*.dll
+*.o

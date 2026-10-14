@@ -577,9 +577,11 @@ bcs_closed_open_summary <- bcs_height_summary |>
   dplyr::mutate(
     CODEND = ifelse(HAUL < 600, "Open", "Closed")
     ) |>
-  dplyr::filter(GEAR_ON_BOTTOM == TRUE) |>
+  dplyr::filter(GEAR_ON_BOTTOM == "Yes") |>
   dplyr::group_by(DISTANCE, CODEND, DOOR_SIZE_M2, BRIDLE_CHAIN_WEIGHT) |>
   dplyr::summarise(
+    MIN_HEIGHT = min(MEAN_HEIGHT, na.rm = TRUE),
+    MAX_HEIGHT = max(MEAN_HEIGHT, na.rm = TRUE),
     MEAN_HEIGHT = mean(MEAN_HEIGHT, na.rm = TRUE)
   )
 
@@ -588,7 +590,8 @@ bcs_closed_open <- bcs_height_summary |>
     CODEND = ifelse(HAUL < 600, "Open", "Closed")
   )
 
-p_mean_bcs_height_45 <- ggplot() + 
+p_mean_bcs_height_45 <- 
+  ggplot() + 
   geom_point(
     data = dplyr::filter(bcs_closed_open_summary, DOOR_SIZE_M2 == 4.5),
     mapping = 
@@ -620,63 +623,234 @@ p_mean_bcs_height_45 <- ggplot() +
 png(here::here("plots", "bcs_dtb", "bcs_dtb_45m2_doors.png"), width = 120, height = 80, units = "mm", res = 300)
 print(p_mean_bcs_height_45)
 dev.off()
-  
+
 
 # Examine BCS height data
-ggplot() +
-  geom_hline(yintercept = 0, linetype = 3) +
+
+p_dtb_by_side <- 
+  ggplot() +
+  annotate(
+    "rect",
+    xmin = -Inf,
+    xmax = Inf,
+    ymin = 0,
+    ymax = 2.54 * 3,
+    alpha = 0.25,
+    fill = "grey50"
+  ) +
+  geom_vline(xintercept = 533.5, linetype = 2) +
   geom_path(
-    data = dplyr::filter(bcs_height_summary, GEAR_ON_BOTTOM == TRUE),
-    mapping = aes(x = HAUL, y = MEAN_HEIGHT, group = interaction(HAUL, WIRE_LENGTH_FM)),
+    data = 
+      dplyr::filter(bcs_height_summary, !is.na(GEAR_ON_BOTTOM)),
+    mapping =
+      aes(
+        x = HAUL,
+        y = MEAN_HEIGHT,
+        group = interaction(HAUL, WIRE_LENGTH_FM),
+        alpha =  DOORS_ON_BOTTOM),
     color = "grey30"
   ) +
   geom_point(
-    data = dplyr::filter(bcs_height_summary, GEAR_ON_BOTTOM == TRUE),
-    mapping = aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE),
-    size = 0.7
+    data =  dplyr::filter(bcs_height_summary, !is.na(GEAR_ON_BOTTOM)),
+    mapping =
+      aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE,
+          alpha = DOORS_ON_BOTTOM),
+    size = 0.6
   ) +
   scale_color_manual(name = "Side", values = c('P'="#264EFF", 'C' = "grey60", 'S' = "#D92632")) +
-  scale_y_continuous("Elevation (cm)", 
-                     limits = c(-2, 40), 
+  scale_alpha_manual(name = "Doors on bottom?", values = c('Yes' = 1, 'No' = 0.1)) +
+  scale_y_continuous("Elevation (cm)",
+                     limits = c(-2, 40),
                      oob = scales::squish_infinite) +
+  scale_x_continuous(name = "Haul") +
   facet_wrap(~DISTANCE) +
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = "bottom")
 
-ggplot() +
-  geom_hline(yintercept = c(0, 2.54*3), linetype = 2) +
-  geom_vline(xintercept = 533.5, linetype = 1) +
+png(here::here("plots", "bcs_dtb", "bcs_dtb_by_side_all_hauls.png"), 
+    width = 169, height = 169, units = "mm", res = 300)
+print(p_dtb_by_side)
+dev.off()
+  
+events <-
+  data.frame(
+  event_number = c(1:7),
+  event = c(
+    "(1) Bridle 2",
+    "(2) Bridle 1.2,\nremove half-bobbin",
+    "(3) 120 kg bridle weight,\n8-in door setback", 
+    "(4) 68 kg bridle weight", 
+    "(5) Change scope\nprocedure",
+    "(6) 4-in door setback",
+    "(7) Remove 8 floats"),
+  haul = c(526.5, 530.5, 533.5, 535.5, 539.5, 543.5, 550.5)
+)
+
+
+p_dtb_events <- 
+  ggplot() +
+  annotate(
+    "rect", 
+    xmin = -Inf, 
+    xmax = Inf, 
+    ymin = 0, 
+    ymax = 2.54 * 3, 
+    alpha = 0.15,  
+    fill = "green4"
+  ) +
+  geom_vline(
+    data = events,
+    mapping = aes(
+      xintercept = haul,
+      color = factor(event, levels = events$event)
+    ),
+    linetype = 2,
+    linewidth = 0.65
+             ) +
+  geom_text(
+    data = dplyr::mutate(events, DISTANCE = 0) |>
+      dplyr::inner_join(
+        bcs_position_labels
+      ),
+    mapping = aes(
+      x = haul,
+      y = 48,
+      label = event_number
+    ),
+    hjust = -0.3,
+    color = "grey30"
+  ) +
   geom_path(
-    data = dplyr::filter(bcs_height_summary, !is.na(GEAR_ON_BOTTOM)),
+    data = 
+      dplyr::filter(
+        bcs_height_summary, 
+        !is.na(GEAR_ON_BOTTOM),
+        !(DISTANCE %in% c(2, 18)),
+        HAUL < 600
+      ) |>
+      dplyr::inner_join(
+        bcs_position_labels
+      ),
     mapping = 
       aes(
         x = HAUL, 
         y = MEAN_HEIGHT, 
         group = interaction(HAUL, WIRE_LENGTH_FM), 
-        alpha = GEAR_ON_BOTTOM),
+        alpha =  DOORS_ON_BOTTOM),
     color = "grey30"
   ) +
   geom_point(
-    data =  dplyr::filter(bcs_height_summary, !is.na(GEAR_ON_BOTTOM)),
+    data =
+      dplyr::filter(
+        bcs_height_summary, 
+        !is.na(GEAR_ON_BOTTOM),
+        !(DISTANCE %in% c(2, 18)),
+        HAUL < 600
+      ) |>
+      dplyr::inner_join(
+        bcs_position_labels
+      ),
     mapping = 
-      aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE, 
-          alpha = GEAR_ON_BOTTOM),
+      aes(x = HAUL, 
+          y = MEAN_HEIGHT,
+          alpha =  DOORS_ON_BOTTOM),
     size = 0.7
   ) +
-  scale_color_manual(name = "Side", values = c('P'="#264EFF", 'C' = "grey60", 'S' = "#D92632")) +
-  scale_alpha_manual(values = c('TRUE' = 1, 'FALSE' = 0.1)) +
-  scale_y_continuous("Distance to bottom (cm)", 
+  scale_color_discrete(name = "Change") +
+  scale_alpha_manual("Doors on bottom?", values = c('Yes' = 1, 'No' = 0.2)) +
+  scale_y_continuous("Elevation (cm)", 
+                     limits = c(-2, 50), 
+                     oob = scales::squish_infinite) +
+  scale_x_continuous(name = "Haul") +
+  facet_wrap(~DISTANCE_DETAIL, nrow = 7) +
+  theme_bw() +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold", hjust = 0)
+  )
+
+png(here::here("plots", "bcs_dtb", "bcs_dtb_events_open.png"), 
+    width = 169, height = 169, units = "mm", res = 300)
+print(p_dtb_events)
+dev.off()
+
+
+p_dtb_closed <- 
+  ggplot() +
+  annotate(
+    "rect", 
+    xmin = -Inf, 
+    xmax = Inf, 
+    ymin = 0, 
+    ymax = 2.54 * 3, 
+    alpha = 0.15,  
+    fill = "green4"
+  ) +
+  geom_path(
+    data = 
+      dplyr::filter(
+        bcs_height_summary, 
+        !is.na(GEAR_ON_BOTTOM),
+        DISTANCE %in% c(0, 8, 13, 16, 21),
+        HAUL >= 600
+      ) |>
+      dplyr::inner_join(dplyr::select(cc_hauls, HAUL, PERFORMANCE, BOTTOM_DEPTH)) |>
+      # dplyr::filter(PERFORMANCE >= 0) |>
+      dplyr::inner_join(
+        bcs_position_labels
+      ),
+    mapping = 
+      aes(
+        x = HAUL, 
+        y = MEAN_HEIGHT, 
+        group = HAUL, 
+        color = BOTTOM_DEPTH)
+  ) +
+  geom_point(
+    data =
+      dplyr::filter(
+        bcs_height_summary, 
+        !is.na(GEAR_ON_BOTTOM),
+        DISTANCE %in% c(0, 8, 13, 16, 21),
+        HAUL >= 600
+      ) |>
+      dplyr::inner_join(dplyr::select(cc_hauls, HAUL, PERFORMANCE, BOTTOM_DEPTH)) |>
+      # dplyr::filter(PERFORMANCE >= 0) |>
+      dplyr::inner_join(
+        bcs_position_labels
+      ),
+    mapping = 
+      aes(
+        x = HAUL, 
+          y = MEAN_HEIGHT,
+        fill = BOTTOM_DEPTH),
+    shape = 21
+  ) +
+  scale_fill_viridis_c(name = "Bottom depth (m)", direction = -1, option = "E") +
+  scale_color_viridis_c(name = "Bottom depth (m)", direction = -1, option = "E") +
+  scale_y_continuous("Elevation (cm)", 
                      limits = c(-2, 40), 
                      oob = scales::squish_infinite) +
-  facet_wrap(~DISTANCE) +
-  theme_bw()
-  
+  scale_x_continuous(name = "Haul") +
+  facet_wrap(~DISTANCE_DETAIL, nrow = 5) +
+  theme_bw() +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold", hjust = 0)
+  )
+
+png(here::here("plots", "bcs_dtb", "bcs_dtb_closed.png"), 
+    width = 120, height = 120, units = "mm", res = 300)
+print(p_dtb_closed)
+dev.off()
+
 
 
 # SDR facets, bottom depth x-axis
 ggplot() +
   geom_hline(yintercept = c(0, 30), linetype = 2) +
   geom_point(
-    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE),
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes"),
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = MAX_DOOR_ROLL, 
@@ -687,7 +861,7 @@ ggplot() +
     size = 2.2
   ) +
   geom_rug(
-    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes"), 
     mapping = aes(
       x = BOTTOM_DEPTH
     )
@@ -702,7 +876,7 @@ ggplot() +
 ggplot() +
   geom_hline(yintercept = c(15, 20), linetype = 2) +
   geom_point(
-    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes"), 
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = NET_WIDTH, 
@@ -727,7 +901,7 @@ ggplot() +
 ggplot() +
   geom_hline(yintercept = c(5, 6), linetype = 2) +
   geom_point(
-    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes"), 
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = NET_HEIGHT, 
@@ -738,7 +912,7 @@ ggplot() +
     size = 2.2
   ) +
   geom_rug(
-    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes"), 
     mapping = aes(
       x = BOTTOM_DEPTH
     )
@@ -756,7 +930,7 @@ ggplot() +
 
 ggplot() +
   geom_point(
-    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes"), 
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = DOOR_SPREAD, 
@@ -768,7 +942,7 @@ ggplot() +
     size = 2.2
   ) +
   geom_rug(
-    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE), 
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes"), 
     mapping = aes(
       x = BOTTOM_DEPTH
     )
@@ -859,7 +1033,7 @@ ggplot() +
   scale_y_continuous(
     name = "Upper wing spread (m)", 
     oob = scales::squish, 
-    limits = c(10, 20.5), 
+    limits = c(10, 22), 
     expand = c(0, 0)) +
   facet_wrap(~BOTTOM_DEPTH_FAC, scales = "free") +
   theme_bw()
@@ -1001,7 +1175,7 @@ ggplot() +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
   scale_x_continuous(name = "Scope/Depth") +
   scale_y_continuous(
-    name = "13-m BCS Height (cm)", 
+    name = "13-m BCS Elevation (cm)", 
     oob = scales::squish, 
     limits = c(-1, 40)) +
   facet_wrap(~BOTTOM_DEPTH_FAC, scales = "free") +
@@ -1024,7 +1198,7 @@ ggplot() +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
   scale_x_continuous(name = "Scope/Depth") +
   scale_y_continuous(
-    name = "16-m BCS Height (cm)", 
+    name = "16-m BCS Elevation (cm)", 
     oob = scales::squish, 
     limits = c(-1, 40)) +
   facet_wrap(~BOTTOM_DEPTH_FAC, scales = "free") +
@@ -1047,7 +1221,7 @@ ggplot() +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
   scale_x_continuous(name = "Scope/Depth") +
   scale_y_continuous(
-    name = "8-m BCS Height (cm)", 
+    name = "8-m BCS Elevation (cm)", 
     oob = scales::squish, 
     limits = c(-1, 40)) +
   facet_wrap(~BOTTOM_DEPTH_FAC, scales = "free") +
@@ -1080,29 +1254,6 @@ ggplot() +
 ggplot() +
   geom_hline(yintercept = c(0, 2.54*3), linetype = 2) +
   geom_point(
-    data = dplyr::filter(gt_bcs_subset, DISTANCE == 2),
-    mapping = aes(
-      x = SDR, 
-      y = MEAN_HEIGHT, 
-      shape = CODEND, 
-      color = factor(BRIDLE_CHAIN_WEIGHT)
-    ),
-    alpha = 0.5
-  ) +
-  scale_color_colorblind(name = "Chain weight (kg)") +
-  # scale_size_manual(name = "Codend", values = codend_symbol_size) +
-  scale_shape_manual(name = "Codend", values = codend_symbols) +
-  scale_x_continuous(name = "Scope/Depth") +
-  scale_y_continuous(
-    name = "2-m BCS Height (cm)", 
-    oob = scales::squish, 
-    limits = c(-1, 40)) +
-  facet_wrap(~BOTTOM_DEPTH_FAC, scales = "free") +
-  theme_bw()
-
-ggplot() +
-  geom_hline(yintercept = c(0, 2.54*3), linetype = 2) +
-  geom_point(
     data = dplyr::filter(gt_bcs_subset, DISTANCE == 21),
     mapping = aes(
       x = SDR, 
@@ -1118,31 +1269,7 @@ ggplot() +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
   scale_x_continuous(name = "Scope/Depth") +
   scale_y_continuous(
-    name = "21-m BCS Height (cm)", 
-    oob = scales::squish, 
-    limits = c(-1, 40)) +
-  facet_wrap(~BOTTOM_DEPTH_FAC, scales = "free") +
-  theme_bw()
-
-ggplot() +
-  geom_hline(yintercept = c(0, 2.54*3), linetype = 2) +
-  geom_point(
-    data = dplyr::filter(gt_bcs_subset, DISTANCE == 29),
-    mapping = aes(
-      x = SDR, 
-      y = MEAN_HEIGHT, 
-      shape = CODEND, 
-      color = factor(BRIDLE_CHAIN_WEIGHT)
-    ),
-    alpha = 0.7,
-    size = 2.2
-  ) +
-  scale_color_colorblind(name = "Chain weight (kg)") +
-  # scale_size_manual(name = "Codend", values = codend_symbol_size) +
-  scale_shape_manual(name = "Codend", values = c(4, 8)) +
-  scale_x_continuous(name = "Scope/Depth") +
-  scale_y_continuous(
-    name = "29-m BCS Height (cm)", 
+    name = "21-m BCS Elevation (cm)", 
     oob = scales::squish, 
     limits = c(-1, 40)) +
   facet_wrap(~BOTTOM_DEPTH_FAC, scales = "free") +
@@ -1221,39 +1348,6 @@ ggplot() +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
   theme_bw()
 
-ggplot() +
-  geom_path(
-    data = scope_tables,
-    mapping = aes(x = mean_depth_m, y = scope_to_depth, linetype = gear),
-    color = "grey",
-    linewidth = 1.2
-  ) +
-  geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
-    mapping = 
-      aes(
-        x = BOTTOM_DEPTH, 
-        y = WIRE_LENGTH/BOTTOM_DEPTH, 
-        color = DOORS_ON_BOTTOM, 
-        shape = CODEND),
-    alpha = 0.8
-  ) + 
-  scale_linetype(name = "Scope table/gear") +
-  # scale_color_manual(name = "Roll (\u00B0)", values = door_roll_colors) +
-  scale_x_log10(
-    name = "Bottom depth (m)", 
-    limits = c(depth_range[1]-2, depth_range[2]), 
-    breaks = depth_breaks,
-    oob = scales::oob_squish_infinite,
-    expand = c(0,0)) +
-  scale_y_continuous(
-    name = "Scope/Depth", 
-    oob = scales::oob_squish_infinite,
-    breaks = sdr_axis_breaks,
-    limits = c(2, max_sdr)) +
-  # scale_size_manual(name = "Codend", values = c("Closed" = 3, "Open" = 1.8)) +
-  scale_shape_manual(name = "Codend", values = codend_symbols) +
-  theme_bw()
 
 ggplot() +
   geom_path(
@@ -1428,7 +1522,7 @@ ggplot() +
     breaks = sdr_axis_breaks,
     limits = c(2, max_sdr)) +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
-  facet_wrap(~DOOR_LEG_SETBACK_IN) +
+  facet_wrap(~paste0(DOOR_LEG_SETBACK_IN, "-in setback")) +
   theme_bw()
 
 ggplot() +
@@ -1462,7 +1556,7 @@ ggplot() +
   scale_color_manual(name = "Footrope/doors on bottom\n& door roll<30", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
   scale_x_log10(
     name = "Bottom depth (m)", 
-    limits = c(depth_range[1]-2, depth_range[2]), 
+    limits = c(depth_range[1]-2, depth_range[2]+10), 
     breaks = depth_breaks,
     oob = scales::oob_squish_infinite,
     expand = c(0,0)) +
@@ -1544,13 +1638,14 @@ ggplot() +
         y = WIRE_LENGTH/BOTTOM_DEPTH, 
         color = DOORS_GOOD, 
         label = HAUL),
-    alpha = 0.8
+    alpha = 0.8,
+    size = 2.7
   ) + 
   scale_linetype(name = "Scope table/gear") +
   scale_color_manual(name = "Door roll <30\u00B0", values = c("No" = "red", "Yes" = "blue4", "Inconclusive" = "grey50")) +
   scale_x_log10(
     name = "Bottom depth (m)", 
-    limits = c(depth_range[1]-2, depth_range[2]), 
+    limits = c(depth_range[1]-2, depth_range[2]+20), 
     breaks = depth_breaks,
     oob = scales::oob_squish_infinite,
     expand = c(0,0)) +
@@ -1633,3 +1728,205 @@ ggplot() +
   theme_bw()
 
 
+
+
+ggplot() +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE, DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = DOOR_SPREAD, 
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Depth (m)") +
+  scale_y_continuous(name = "Door spread (m)", oob = scales::squish) +
+  facet_wrap(~SDR_FAC) +
+  theme_bw()
+
+ggplot() +
+  geom_hline(yintercept = c(15, 20), linetype = 2) +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE, DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = NET_WIDTH, 
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Depth (m)") +
+  scale_y_continuous(name = "Upper wing spread (m)", oob = scales::squish) +
+  facet_wrap(~SDR_FAC) +
+  theme_bw()
+
+ggplot() +
+  geom_hline(yintercept = c(18, 21), linetype = 2) +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE, DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = BRIDLE_ANGLE_DEG, 
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Depth (m)") +
+  scale_y_continuous(name = "Bridle angle of attack (\u00B0)") +
+  facet_wrap(~SDR_FAC) +
+  theme_bw()
+
+
+ggplot() +
+  geom_hline(yintercept = c(5, 6), linetype = 2) +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == TRUE, DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = NET_HEIGHT, 
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Depth (m)") +
+  scale_y_continuous(name = "Opening height (m)") +
+  facet_wrap(~SDR_FAC) +
+  theme_bw()
+
+
+p_doors_vs_bridles <- 
+  ggplot() +
+  geom_smooth(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = DOOR_SPREAD,  
+      y = BRIDLE_ANGLE_DEG
+    ),
+    method = 'gam',
+    color = "blue3"
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = DOOR_SPREAD, 
+      y = BRIDLE_ANGLE_DEG, 
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Door spread (m)") +
+  scale_y_continuous(name = "Bridle angle of attack (\u00B0)") +
+  theme_bw()
+
+p_wings_vs_bridles <- ggplot() +
+  geom_smooth(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = NET_WIDTH, 
+      y = BRIDLE_ANGLE_DEG
+    ),
+    method = 'gam',
+    color = "blue3"
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = NET_WIDTH, 
+      y = BRIDLE_ANGLE_DEG, 
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Upper wing spread (m)") +
+  scale_y_continuous(name = "Bridle angle of attack (\u00B0)") +
+  theme_bw()
+
+
+cowplot::plot_grid(
+  p_doors_vs_bridles + 
+    theme(legend.position = "inside",
+          legend.position.inside = c(0.15, 0.8)),
+  p_wings_vs_bridles +
+    theme(legend.position = "none"),
+  align = "h"
+)
+
+
+ggplot() +
+  geom_smooth(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = BRIDLE_ANGLE_DEG
+    ),
+    method = 'gam',
+    color = "blue3"
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = BRIDLE_ANGLE_DEG, 
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Bottom depth (m)") +
+  scale_y_continuous(name = "Bridle angle of attack (\u00B0)") +
+  theme_bw()
+
+ggplot() +
+  geom_smooth(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = DOOR_SPREAD
+    ),
+    method = 'gam',
+    color = "blue3"
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = DOOR_SPREAD,
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Bottom depth (m)") +
+  scale_y_continuous(name = "Door spread (m)") +
+  theme_bw()
