@@ -209,8 +209,7 @@ gear_treatments_45 <-
   readxl::read_xlsx(
     path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
     sheet = "treatments"
-  ) #|>
-  # dplyr::filter(Door_size_m2 == 4.5)
+  )
 
 gt_haul_data <- 
   readRDS(file = here::here("output", "haul_summary.rds")) |>
