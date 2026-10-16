@@ -3,7 +3,7 @@
 library(sratio)
 
 crab_size_sex_freq <- readRDS(here::here("data", "06_catch_data", "size_freq_crab.rds")) |>
-  dplyr::filter(SEX == !is.na(SIZE_5MM))
+  dplyr::filter(!is.na(SIZE_5MM))
 
 fish_length_freq <- readRDS(here::here("data", "06_catch_data", "size_freq_fish.rds"))
 
@@ -168,7 +168,6 @@ p_lgcp <-
     legend.position = "bottom",
     legend.direction = "horizontal"
   )
-
 
 ggsave(
   p_lgcp, 

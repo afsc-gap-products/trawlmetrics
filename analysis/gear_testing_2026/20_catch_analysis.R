@@ -276,9 +276,6 @@ ggsave(
 crab_size_freq <- readRDS(here::here("data", "06_catch_data", "size_freq_crab.rds")) |>
   dplyr::filter(SEX == 3)
 
-crab_size_sex_freq <- readRDS(here::here("data", "06_catch_data", "size_freq_crab.rds")) |>
-  dplyr::filter(SEX == !is.na(SIZE_5MM))
-
 crab_size_data <- readRDS(here::here("data", "06_catch_data", "crab_size_data.rds"))
 
 fish_length_data <- readRDS(here::here("data", "06_catch_data", "fish_size_data.rds"))
@@ -566,87 +563,3 @@ ggsave(
   units = "mm", 
   dpi = 300
 )
-
-
-
-
-
-# Catch attributed to bridle herding (Somerton and Munro, 2001)
-
-somerton_herding <- 
-  data.frame(
-  SPECIES_CODE = c(10261, 10210, 10130, 10200, -9, -8, -7),
-  h = c(0.84, 0.58, 0.51, 0.502, 0.636, 0.384, 0.161),
-  w_d = 58.7,
-  w_n = 17.3,
-  w_off = 21.8
-) |>
-  dplyr::mutate(
-    w_on = w_d - w_n - w_off,
-    p_bridles = (h*w_on)/(w_n + h*w_on),
-    rce_no_herding = (1-p_bridles),
-    ccr_no_herding = (rce_no_herding)/(1+rce_no_herding),
-    implied_q = 1/(1-p_bridles)
-  ) |>
-  dplyr::inner_join(
-    cc_species_codes
-  )
-
-herding_table <- 
-  somerton_herding |>
-  dplyr::mutate(
-    pct_bridles = sprintf("%.1f", p_bridles*100)
-  ) |>
-  dplyr::select(
-    COMMON_NAME, 
-    pct_bridles
-  )
-
-write.csv(
-  herding_table,
-  here::here("plots", "design_considerations", "somerton_munro_pct_herding.csv"),
-  row.names = FALSE
-)
-
-
-# Extra plots
-
-ggplot() +
-  stat_ecdf(
-    data = cpue_comparison_target,
-    mapping = aes(x = CCR_CPUE_KGKM2)
-  ) +
-  geom_rug(
-    data = cpue_comparison_target,
-    mapping = aes(x = CCR_CPUE_KGKM2)
-  ) +
-  geom_vline(xintercept = 0.5, linetype = 2) +
-  geom_hline(yintercept = 0.5, linetype = 2) +
-  scale_x_continuous(name = expression(over(CPUE[RRT], CPUE[RRT]+CPUE[83-112])), limits = c(0,1), expand = c(0,0)) +
-  scale_y_continuous(name = "Cumulative proportion", limits = c(0, 1)) +
-  facet_wrap(~COMMON_NAME, scales = "free") +
-  theme_bw()
-
-ggplot() +
-  geom_histogram(
-    data = cpue_comparison_target,
-    mapping = aes(x = CCR_CPUE_KGKM2, fill = FAMILY),
-    breaks = seq(0,1,0.1)
-  ) +
-  geom_text_npc(
-    data = cpue_comparison_target_summary,
-    mapping = 
-      aes(
-        label = paste0("CCR: ", format(round(MEAN_CCR_CPUE_KGKM2, 2), nsmall = 2), "\n", 
-                       "RE:", format(round(MEAN_RELEFF_CPUE_KGKM2, 2), nsmall = 2)), 
-        npcx = 0.98, 
-        npcy = 0.98),
-    hjust = 1
-  ) +
-  geom_vline(xintercept = 0.5, linetype = 2) +
-  scale_x_continuous(name = expression('Biomass catch comparison rate, '*over(CPUE[RRT], CPUE[RRT]+CPUE[83-112])), limits = c(0,1), expand = c(0,0)) +
-  scale_y_continuous(name = "Frequency (hauls)") +
-  scale_fill_manual(name = "Family", values = colorblind_pal()(5)[2:5]) +
-  facet_wrap(~COMMON_NAME, scales = "free", ncol = 3) +
-  theme_bw() +
-  theme(strip.background = element_blank())
