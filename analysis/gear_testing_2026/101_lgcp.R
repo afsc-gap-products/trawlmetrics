@@ -107,8 +107,6 @@ for(ii in 1:nrow(lgcp_taxa)) {
   
 }
 
-
-
 lgcp_fits <- 
   lgcp_fits |>
   do.call(what = rbind) |>
@@ -171,6 +169,12 @@ p_lgcp <-
     legend.direction = "horizontal"
   )
 
-png(here::here("plots", "catch_comparison", "lgcp_rce_by_size.png"), width = 169, height = 169, res = 300, units = "mm")
-print(p_lgcp)
-dev.off()
+
+ggsave(
+  p_lgcp, 
+  filename = here::here("plots", "catch_comparison", "lgcp_rce_by_size.png"), 
+  width = 169, 
+  height = 169, 
+  units = "mm", 
+  dpi = 300
+)
