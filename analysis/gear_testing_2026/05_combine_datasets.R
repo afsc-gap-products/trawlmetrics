@@ -51,7 +51,7 @@ trawl_measurement_summary <-
   dplyr::mutate(
     WIRE_LENGTH = WIRE_LENGTH_FM * 1.8288,
     BOTTOM_DEPTH = BOTTOM_DEPTH_FM * 1.8288,
-    INV_SCOPE = 1/SCOPE_RATIO
+    INV_SCOPE = 1/SCOPE_RATIO,
   ) |>
   dplyr::select(-PASS)
 
@@ -100,7 +100,15 @@ bcs_heights <-
                 ) |>
   dplyr::select(-PASS)
 
+# Effort data from closed codend hauls
 
+closed_effort <- 
+  readRDS(here::here("data", "catch_records.rds")) |>
+  dplyr::filter(VESSEL == 134) |>
+  dplyr::group_by(AREA_SWEPT_KM2, HAUL) |>
+  dplyr::summarise(TOTAL_CATCH_KG = sum(WEIGHT))
+
+# Combine trawl measurement data into a single data frame
 trawl_data_by_haul <- 
   dplyr::inner_join(
   trawl_measurement_summary,
@@ -110,6 +118,15 @@ trawl_data_by_haul <-
   ) |>
   dplyr::inner_join(
     gear_config
+  ) |>
+  dplyr::mutate(
+    BRIDLE_ANGLE_DEG = trawlmetrics::calc_bridle_angle(
+      door_spread_m = DOOR_SPREAD, 
+      wing_spread_m = NET_WIDTH, 
+      total_bridle_length_m = (TOTAL_BRIDLE_LENGTH_FT + DOOR_LEG_TAIL_CHAIN_LENGTH_FT + BRIDLE_CHAIN_LENGTH_FT)/3.281)
+  ) |>
+  dplyr::left_join(
+    closed_effort
   )
 
 bcs_data_by_haul <- 

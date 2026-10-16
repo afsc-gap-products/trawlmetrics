@@ -7,68 +7,6 @@ library(shadowtext)
 library(dplyr)
 library(ggpp)
 
-# Configuration ------------------------------------------------------------------------------------
-# Focal species
-cc_species_codes <- 
-  data.frame(
-    SPECIES_CODE = c(68560, 68580, 68590, 21740, 21720, 10110, 10112, 10210, 10261, 10130, 10285, 10200, 10120, 435, 471, -1, -2, -3),
-    COMMON_NAME = 
-      c(
-        "Tanner crab",
-        "snow crab",
-        "Snow/Tanner hybrid",
-        "walleye pollock", 
-        "Pacific cod", 
-        "arrowtooth flounder",
-        "Kamchatka flounder", 
-        "yellowfin sole", 
-        "northern rock sole",
-        "flathead sole",
-        "Alaska plaice",
-        "rex sole",
-        "Pacific halibut",
-        "Bering skate",
-        "Alaska skate",
-        "jellyfish",
-        "Other fish", 
-        "Other invertebrates"),
-    FAMILY = 
-      c(
-        rep("Oregoniidae", 3),
-        rep("Gadidae", 2),
-        rep("Pleuronectidae", 8),
-        rep("Rajidae", 2),
-        "Scyphozoa/Hydrozoa",
-        "Various",
-        "Various"
-      ),
-    GROUP_NAME = 
-      c(
-        rep("Chinoecetes spp.", 3),
-        "walleye pollock", 
-        "Pacific cod", 
-        rep("Atheresthes spp.", 2),
-        "yellowfin sole", 
-        "northern rock sole",
-        "flathead sole",
-        "Alaska plaice",
-        "rex sole",
-        "Pacific halibut",
-        rep("Bathyraja spp.", 2),
-        "jellyfish",
-        "Other fish",
-        "Other invertebrates"
-      ),
-    FISH_CRAB = c(
-      rep("Crab", 3),
-      rep("Fish", 12),
-      "jellyfish",
-      "Fish",
-      "Other invertebrates")
-  )
-
-# Data prep ----------------------------------------------------------------------------------------
-
 # Matched catch treatments
 catch_treatments <- 
   readxl::read_xlsx(
@@ -76,173 +14,18 @@ catch_treatments <-
     sheet = "catch_treatments"
   )
 
-# Review door trials and assign to hauls
-# channel <- trawlmetrics::get_connected(schema = "AFSC")
-# 
-# catch_records <- RODBC::sqlQuery(
-#   channel = channel,
-#   query = "SELECT 
-#   C.SPECIES_CODE,
-#   C.WEIGHT,
-#   C.NUMBER_FISH,
-#   C.VESSEL,
-#   C.CRUISE,
-#   C.HAUL,
-#   RDH.DOOR_SPREAD, 
-#   H.HAULJOIN,
-#   H.BOTTOM_DEPTH, 
-#   H.NET_WIDTH, 
-#   H.DISTANCE_FISHED, 
-#   H.NET_HEIGHT, 
-#   H.DURATION,
-#   H.WIRE_LENGTH
-#   FROM RACEBASE.HAUL H, 
-#   RACEBASE.CATCH C,
-#   RACE_DATA.HAULS RDH,
-#   RACE_DATA.CRUISES RDC
-#     WHERE C.CRUISE = 202601 
-#   AND H.HAUL_TYPE = 23
-#   AND H.PERFORMANCE >= 0
-#   AND H.HAULJOIN = C.HAULJOIN 
-#   AND H.HAUL = RDH.HAUL 
-#   AND RDH.CRUISE_ID = RDC.CRUISE_ID
-#   AND H.VESSEL = RDC.VESSEL_ID
-#   AND RDC.CRUISE = C.CRUISE
-#   "
-# ) |>
-#   dplyr::mutate(
-#     AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH/1000,
-#     BRIDLE_ANGLE = 
-#       trawlmetrics::calc_bridle_angle(door_spread_m = DOOR_SPREAD, wing_spread_m = NET_WIDTH, total_bridle_length_m = (184/3.281)+10)
-#   )
-# 
-# saveRDS(catch_records, here::here("data", "catch_records.rds"))
+# Species taxonomy
+cc_species_codes <- readRDS(here::here("data", "analysis_species_taxonomy.rds"))
 
-catch_records <- readRDS(here::here("data", "catch_records.rds"))
-
-# Get focal species data with gapindex
-
-catch_data <- 
-  gapindex::get_data(
-    year_set = 2026,
-    spp_codes = cc_species_codes$SPECIES_CODE,
-    haul_type = 23,
-    abundance_haul = "N",
-    pull_lengths = TRUE,
-    survey_set = "EBS",
-    channel = channel
-  )
-
-# saveRDS(catch_data, here::here("data", "catch_records.rds"))
-
-catch_data <- readRDS(here::here("data", "catch_records.rds"))
-
-cc_species_codes <- 
-  dplyr::left_join(cc_species_codes, catch_data$species)
-
-cpue_target <- gapindex::calc_cpue(catch_data)
-
-cpue_target$COMMON_NAME <- factor(cpue_target$SPECIES_CODE, levels = cc_species_codes$SPECIES_CODE, labels = cc_species_codes$COMMON_NAME)
-
-
-# Calculate total catch ----------------------------------------------------------------------------
-
-total_catch <- 
-  catch_records |>
-  dplyr::mutate(FISH_CRAB = ifelse(SPECIES_CODE < 40000, "Fish", "Other invertebrates"),
-                FISH_CRAB = ifelse(SPECIES_CODE %in% c(68560, 68580, 68590), "Chinoecetes spp.", FISH_CRAB),
-                FISH_CRAB = ifelse(SPECIES_CODE >= 40500 & SPECIES_CODE <= 40599, "jellyfish", FISH_CRAB)) |>
-  dplyr::mutate() |>
-  dplyr::group_by(FISH_CRAB, HAULJOIN, VESSEL, CRUISE, HAUL, AREA_SWEPT_KM2, DISTANCE_FISHED, NET_WIDTH, NET_HEIGHT, DURATION) |>
-  dplyr::summarise(
-    TOTAL_CATCH_WEIGHT_KG = sum(WEIGHT),
-    N_SPECIES = dplyr::n()
-  ) |>
-  dplyr::ungroup() |>
-  dplyr::mutate(CPUE_KGKM2 = TOTAL_CATCH_WEIGHT_KG/AREA_SWEPT_KM2) |>
-  dplyr::inner_join(catch_treatments)
-
-total_catch_wide <- 
-  total_catch |>
-  dplyr::select(
-    FISH_CRAB, BLOCK, GEAR_NAME, CPUE_KGKM2, AREA_SWEPT_KM2, NET_WIDTH, NET_HEIGHT, DISTANCE_FISHED, DURATION) |> 
-  tidyr::pivot_wider(
-    names_from = GEAR_NAME,
-    values_from = c(CPUE_KGKM2, AREA_SWEPT_KM2, NET_WIDTH, NET_HEIGHT, DISTANCE_FISHED, DURATION),
-    values_fill = 0) |>
-  dplyr::mutate( CCR_CPUE_KGKM2 =  CPUE_KGKM2_RRT/(CPUE_KGKM2_RRT+`CPUE_KGKM2_83-112`))
-
-p_mirror_plot <- 
-  ggplot() + 
-  geom_bar(
-    data = dplyr::mutate(
-      total_catch, 
-      CPUE_KGKM2 = ifelse(GEAR_NAME == "RRT", CPUE_KGKM2, CPUE_KGKM2*-1)
-    ),  
-    mapping = aes(x = factor(as.numeric(gsub("[^0-9]", "", BLOCK))), y = CPUE_KGKM2, fill = FISH_CRAB), 
-    position = "stack", 
-    stat = "identity") +
-  geom_hline(yintercept = 0) +
-  scale_y_continuous(
-    name = expression(CPUE*' '*(kg%.%km^1)),
-    breaks = seq(-1e5, 1e5, 5e4),
-    labels = abs(seq(-1e5, 1e5, 5e4))
-  ) +
-  geom_text_npc(mapping = aes(label = c("83-112", "RRT"), npcx = c(0.02, 0.02), npcy = c(0.02, 0.98))) +
-  scale_fill_brewer(direction = -1, palette = "BrBG") +
-  scale_x_discrete(name = "Haul pair") +
-  theme_bw() +
-  theme(legend.title = element_blank())
-
-png(filename = here::here("plots", "catch_comparison", "cpue_stacked_coarse_taxa.png"), 
-    width = 169, height = 80, units = "mm", res = 300)
-print(p_mirror_plot)
-dev.off()
-
-p_cpue_coarse <- 
-  ggplot() + 
-  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "grey70") +
-  geom_point(
-    data = total_catch_wide,
-    mapping = aes(
-      x = `CPUE_KGKM2_83-112`,
-      y = CPUE_KGKM2_RRT,
-      color = FISH_CRAB
-    )
-  ) +
-  geom_point(
-    data = total_catch |>
-      dplyr::group_by(FISH_CRAB) |>
-      dplyr::summarise(MAX_CPUE_KGKM2 = max(CPUE_KGKM2)*1.02),
-    mapping = aes(x = MAX_CPUE_KGKM2, y = MAX_CPUE_KGKM2),
-    color = NA
-  ) +
-  facet_wrap(~FISH_CRAB, scales = "free") +
-  scale_color_brewer(direction = -1, palette = "BrBG") +
-  scale_x_continuous(name = expression(CPUE[83-112]*' '*(kg%.%km^-2)), limits = c(0, NA)) +
-  scale_y_continuous(name = expression(CPUE[RRT]*' '*(kg%.%km^-2)), limits = c(0, NA)) +
-  theme_bw() +
-  theme(strip.background = element_blank(),
-        legend.title = element_blank(),
-        legend.position = "none")
-
-png(filename = here::here("plots", "catch_comparison", "cpue_scatter_coarse_taxa.png"), 
-    width = 120, height = 120, units = "mm", res = 300)
-print(p_cpue_coarse)
-dev.off()
+catch_records <- readRDS(here::here("data", "06_catch_data", "catch_records.rds"))
+catch_data <- readRDS(here::here("data", "06_catch_data", "catch_gapindex.rds"))
 
 
 # Biomass/numbers: Focal species calculations ------------------------------------------------------
 
-cpue_target <- 
-  dplyr::select(catch_data$haul, VESSEL, HAULJOIN, HAUL, NET_WIDTH, NET_HEIGHT, DISTANCE_FISHED, DURATION) |>
-    dplyr::inner_join(cpue_target) |>
-    dplyr::inner_join(catch_data$species) |>
-    dplyr::inner_join(
-      dplyr::select(cc_species_codes, SPECIES_CODE, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB, REPORT_NAME_SCIENTIFIC)) |>
-  dplyr::inner_join(catch_treatments)
+cpue_focal <- readRDS(here::here("data", "cpue_focal.rds"))
 
-cpue_comparison_target <- cpue_target |>
+cpue_comparison_target <- cpue_focal |>
   dplyr::select(SPECIES_CODE, COMMON_NAME, REPORT_NAME_SCIENTIFIC, FAMILY, GROUP_NAME, FISH_CRAB, GEAR_NAME, BLOCK, CPUE_KGKM2, CPUE_NOKM2, AREA_SWEPT_KM2, NET_WIDTH, NET_HEIGHT, DISTANCE_FISHED, DURATION) |>
   tidyr::pivot_wider(
     names_from = GEAR_NAME,
@@ -312,7 +95,7 @@ cpue_comparison_misc_summary <-
 
 
 # Biomass/numbers: Catch comparison rate -----------------------------------------------------------
-cpue_all <- dplyr::bind_rows(cpue_target, cpue_misc)
+cpue_all <- dplyr::bind_rows(cpue_focal, cpue_misc)
 cpue_comparison_all <- dplyr::bind_rows(cpue_comparison_target, cpue_comparison_misc)
 cpue_comparison_all_summary <- dplyr::bind_rows(cpue_comparison_target_summary, cpue_comparison_misc_summary)
 
@@ -377,14 +160,14 @@ p_biomass_ccr <-
         legend.text = element_text(size = 9),
         legend.title = element_text(size = 9))
 
-
-png(here::here("plots", "catch_comparison", "cpue_biomass_scatter.png"), 
-    width = 169, 
-    height = 200,
-    units = "mm",
-    res = 300)
-print(p_biomass_ccr)
-dev.off()
+ggsave(
+  p_biomass_ccr, 
+  filename = here::here("plots", "catch_comparison", "cpue_biomass_scatter.png"), 
+  width = 169, 
+  height = 200,
+  units = "mm",
+  dpi = 300
+)
 
 p_numeric_ccr <- 
   ggplot() +
@@ -431,13 +214,14 @@ p_numeric_ccr <-
         legend.text = element_text(size = 9),
         legend.title = element_text(size = 9))
 
-png(here::here("plots", "catch_comparison", "cpue_numeric_scatter.png"), 
-    width = 169, 
-    height = 169,
-    units = "mm",
-    res = 300)
-print(p_numeric_ccr)
-dev.off()
+ggsave(
+  p_numeric_ccr, 
+  filename = here::here("plots", "catch_comparison", "cpue_numeric_scatter.png"), 
+  width = 169, 
+  height = 200,
+  units = "mm",
+  dpi = 300
+)
 
 p_ccr_boxplot <- 
   ggplot() +
@@ -478,219 +262,30 @@ p_ccr_boxplot <-
         panel.grid.major = element_line()
   )
 
-png(here::here("plots", "catch_comparison", "ccr_boxplot.png"), width = 169, height = 169, units = "mm",
-    res = 300)
-print(p_ccr_boxplot)
-dev.off()
-
-# ggplot() +
-#   stat_ecdf(
-#     data = cpue_comparison_target,
-#     mapping = aes(x = CCR_CPUE_NOKM2, group = COMMON_NAME),
-#     color = "grey70"
-#   ) +
-#   stat_ecdf(
-#     data = cpue_comparison_target,
-#     mapping = aes(x = CCR_CPUE_NOKM2)
-#   ) +
-#   geom_vline(xintercept = 0.5, linetype = 2) +
-#   geom_hline(yintercept = 0.5, linetype = 2) +
-#   scale_x_continuous(name = expression('Numeric '*over(CPUE[RRT], CPUE[RRT]+CPUE[83-112])), limits = c(0,1), expand = c(0,0)) +
-#   scale_y_continuous(name = "Cumulative proportion of hauls", limits = c(0, 1), expand = c(0,0)) +
-#   facet_wrap(~GROUP_NAME, scales = "free") +
-#   theme_bw()
+ggsave(
+  p_ccr_boxplot, 
+  filename = here::here("plots", "catch_comparison", "ccr_boxplot.png"), 
+  width = 169, 
+  height = 200,
+  units = "mm",
+  dpi = 300
+)
 
 # Prep size data -----------------------------------------------------------------------------------
 
-crab_size_data <- read.csv(here::here("data", "06_catch_data", "crab_specimen_2026mod.csv")) |>
-  dplyr::mutate(SIZE_5MM = plyr::round_any(SIZE, accuracy = 5, f = floor))
+crab_size_freq <- readRDS(here::here("data", "06_catch_data", "size_freq_crab.rds")) |>
+  dplyr::filter(SEX == 3)
 
-crab_size_freq <- 
-  crab_size_data |>
-  dplyr::group_by(SIZE_1MM, SPECIES_CODE, HAULJOIN) |>
-  dplyr::summarize(FREQUENCY = sum(SAMPLING_FACTOR)) |>
-  dplyr::mutate(
-    COMMON_NAME = factor(
-      SPECIES_CODE, 
-      levels = cc_species_codes$SPECIES_CODE, 
-      labels = cc_species_codes$COMMON_NAME
-    )
-  ) |>
-  dplyr::inner_join(
-    dplyr::select(catch_data$haul, HAULJOIN, DISTANCE_FISHED, NET_WIDTH, VESSEL, CRUISE, HAUL) |>
-      dplyr::mutate(
-        AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000)
-  ) |>
-  dplyr::inner_join(catch_treatments) |>
-  dplyr::mutate(CPUE_NOKM2 = FREQUENCY/AREA_SWEPT_KM2) |>
-  dplyr::inner_join(dplyr::select(cc_species_codes, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB)) |>
-  dplyr::mutate(
-    COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME),
-    SIZE = SIZE_1MM)
+crab_size_sex_freq <- readRDS(here::here("data", "06_catch_data", "size_freq_crab.rds")) |>
+  dplyr::filter(SEX == !is.na(SIZE_5MM))
 
-crab_size_sex_freq <- 
-  crab_size_data |>
-  dplyr::group_by(SIZE_5MM, SPECIES_CODE, SEX, HAULJOIN) |>
-  dplyr::summarize(FREQUENCY = sum(SAMPLING_FACTOR)) |>
-  dplyr::mutate(
-    COMMON_NAME = factor(
-      SPECIES_CODE, 
-      levels = cc_species_codes$SPECIES_CODE, 
-      labels = cc_species_codes$COMMON_NAME
-    )
-  ) |>
-  dplyr::inner_join(
-    dplyr::select(catch_data$haul, HAULJOIN, DISTANCE_FISHED, NET_WIDTH, VESSEL, CRUISE, HAUL) |>
-      dplyr::mutate(
-        AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000)
-  ) |>
-  dplyr::inner_join(catch_treatments) |>
-  dplyr::mutate(CPUE_NOKM2 = FREQUENCY/AREA_SWEPT_KM2) |>
-  dplyr::inner_join(dplyr::select(cc_species_codes, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB)) |>
-  dplyr::mutate(
-    COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME),
-    SIZE = SIZE_5MM)
+crab_size_data <- readRDS(here::here("data", "06_catch_data", "crab_size_data.rds"))
 
-agg_cpue_crab <- 
-  crab_size_freq |>
-  dplyr::group_by(SIZE, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB, GEAR_NAME) |>
-  dplyr::summarise(
-    TOTAL_CPUE_NOKM2 = sum(FREQUENCY)/sum(AREA_SWEPT_KM2)
-  )
+fish_length_data <- readRDS(here::here("data", "06_catch_data", "fish_size_data.rds"))
 
-fish_length_data <- 
-  # Calculate raising factor
-  catch_data$size |>
-  dplyr::group_by(SPECIES_CODE, HAULJOIN) |>
-  dplyr::summarise(N_LENGTHS = sum(FREQUENCY)) |>
-  dplyr::inner_join(catch_data$catch) |>
-  dplyr::mutate(
-    SAMPLING_FACTOR = NUMBER_FISH/N_LENGTHS) |>
-  dplyr::ungroup() |>
-  dplyr::select(SPECIES_CODE, HAULJOIN, SAMPLING_FACTOR) |>
-  # Apply raising factor to lengths
-  dplyr::inner_join(catch_data$size) |>
-  dplyr::mutate(
-    TOTAL_FREQUENCY = FREQUENCY * SAMPLING_FACTOR,
-    LENGTH_CM = LENGTH /10,
-    SIZE = LENGTH_CM
-  ) |>
-  # Use haul data to calculate length-based CPUE
-  dplyr::inner_join(
-    dplyr::select(catch_data$haul, HAULJOIN, DISTANCE_FISHED, NET_WIDTH, VESSEL, CRUISE, HAUL) |>
-      dplyr::mutate(AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000)
-  ) |>
-  dplyr::inner_join(catch_treatments)
+fish_length_freq <- readRDS(here::here("data", "06_catch_data", "size_freq_fish.rds"))
 
-fish_length_freq <-
-  fish_length_data |>
-  dplyr::mutate(CPUE_NOKM2 = TOTAL_FREQUENCY/AREA_SWEPT_KM2) |>
-  dplyr::inner_join(dplyr::select(cc_species_codes, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB)) |>
-  dplyr::mutate(
-    COMMON_NAME = factor(
-      COMMON_NAME, 
-      levels = cc_species_codes$COMMON_NAME)
-  )
-
-agg_cpue_fish <- fish_length_freq |>
-  dplyr::group_by(SIZE, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB, GEAR_NAME) |>
-  dplyr::summarise(
-    TOTAL_CPUE_NOKM2 = mean(TOTAL_FREQUENCY/AREA_SWEPT_KM2)
-  )
-
-agg_cpue_target_filled  <- 
-  dplyr::bind_rows(agg_cpue_fish, agg_cpue_crab) |> 
-  tidyr::pivot_wider(
-    values_from = TOTAL_CPUE_NOKM2,
-    names_from = GEAR_NAME,
-    values_fill = 1e-3) |>
-  tidyr::pivot_longer(
-    cols = c(RRT, `83-112`),
-    names_to = "GEAR_NAME",
-    values_to = "TOTAL_CPUE_NOKM2"
-  ) |>
-  dplyr::mutate(COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME))
-
-# Numerical CPUE for 40-60 mm crab ----
-
-crab_40_60_freq <- 
-  crab_size_data |>
-  dplyr::filter(SIZE <= 60 & SIZE >=40) |>
-  dplyr::group_by(HAULJOIN) |>
-  dplyr::summarize(FREQUENCY = sum(SAMPLING_FACTOR)) |>
-  dplyr::inner_join(
-    dplyr::select(catch_data$haul, HAULJOIN, DISTANCE_FISHED, NET_WIDTH, VESSEL, CRUISE, HAUL) |>
-      dplyr::mutate(
-        AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000)
-  ) |>
-  dplyr::inner_join(catch_treatments) |>
-  dplyr::mutate(CPUE_NOKM2 = FREQUENCY/AREA_SWEPT_KM2)
-
-crab_40_60_stats <- 
-  crab_40_60_freq |>
-  dplyr::group_by(GEAR_NAME) |>
-  dplyr::summarise(
-    MEAN_CPUE_NOKM2 = mean(CPUE_NOKM2),
-    SD_CPUE_NOKM2 = sd(CPUE_NOKM2),
-    N = n()
-  ) |>
-  dplyr::mutate(SE_CPUE_NOKM2 = SD_CPUE_NOKM2/sqrt(N))
-
-crab_40_60_paired <- 
-  crab_40_60_freq |>
-  dplyr::select(BLOCK, CPUE_NOKM2, GEAR_NAME) |>
-  tidyr::pivot_wider(
-    values_from = CPUE_NOKM2,
-    names_from = GEAR_NAME,
-    names_prefix = "CPUE_NOKM2_",
-    values_fill = 0)
-
-p_crab_40_60 <- 
-  ggplot() +
-  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "grey60") +
-  geom_point(
-    data = crab_40_60_paired,
-    mapping = aes(
-      x = `CPUE_NOKM2_83-112`,
-      y = CPUE_NOKM2_RRT),
-    size = 1.1
-  ) +
-  scale_x_continuous(name = expression(CPUE[83-112]*' '*('#'%.%km^-2)), limits = c(0, max(crab_40_60_freq$CPUE_NOKM2))) +
-  scale_y_continuous(name = expression(CPUE[RRT]*' '*('#'%.%km^-2)), limits = c(0, max(crab_40_60_freq$CPUE_NOKM2))) +
-  facet_wrap(~"Chinoecetes spp. (40-60 mm)") +
-  theme_bw() +
-  theme(strip.background = element_blank(),
-        strip.text = element_text(size = 9, face = "bold"),
-        axis.text = element_text(size = 8),
-        axis.title = element_text(size = 8),
-        plot.margin = ggplot2::unit(c(2, 5, 2, 2), units = "mm"))
-
-png(filename = here::here("plots", "catch_comparison", "cpue_chinoecetes_40_60.png"), width = 80, height = 80, units = "mm", res = 300)
-print(p_crab_40_60)
-dev.off()
-
-
-# Summary table for size-frequency composition 
-
-weighted_mean <- function(x, w, na.rm = TRUE) {
-  if (length(x) != length(w)) {
-    stop("`x` and `w` must be the same length.")
-  }
-  
-  if (na.rm) {
-    valid <- !is.na(x) & !is.na(w)
-    x <- x[valid]
-    w <- w[valid]
-  }
-  
-  total_weight <- sum(w)
-  
-  if (length(x) == 0 || total_weight == 0) {
-    return(NA_real_)
-  }
-  
-  sum(x * w) / total_weight
-}
+# Summary table for size-frequency composition ----
 
 crab_size_table_by_sex <- 
   dplyr::select(catch_data$haul, HAULJOIN, VESSEL, CRUISE, HAUL) |>
@@ -761,23 +356,108 @@ write.csv(size_table,
           file = here::here("plots", "catch_comparison", "size_summary_table.csv"), 
           row.names = FALSE)
 
+# Numerical CPUE for 40-60 mm crab ----
+
+crab_40_60_freq <- 
+  crab_size_freq |>
+  dplyr::filter(SIZE <= 60 & SIZE >=40) |>
+  dplyr::group_by(HAULJOIN, DISTANCE_FISHED, NET_WIDTH, VESSEL, CRUISE, HAUL, GEAR_NAME, BLOCK) |>
+  dplyr::summarise(CPUE_NOKM2 = sum(CPUE_NOKM2), .groups = "drop")
+
+crab_40_60_stats <- 
+  crab_40_60_freq |>
+  dplyr::group_by(GEAR_NAME) |>
+  dplyr::summarise(
+    MEAN_CPUE_NOKM2 = mean(CPUE_NOKM2),
+    SD_CPUE_NOKM2 = sd(CPUE_NOKM2),
+    N = n()
+  ) |>
+  dplyr::mutate(SE_CPUE_NOKM2 = SD_CPUE_NOKM2/sqrt(N))
+
+crab_40_60_paired <- 
+  crab_40_60_freq |>
+  dplyr::select(BLOCK, CPUE_NOKM2, GEAR_NAME) |>
+  tidyr::pivot_wider(
+    values_from = CPUE_NOKM2,
+    names_from = GEAR_NAME,
+    names_prefix = "CPUE_NOKM2_",
+    values_fill = 0)
+
+p_crab_40_60 <- 
+  ggplot() +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "grey60") +
+  geom_point(
+    data = crab_40_60_paired,
+    mapping = aes(
+      x = `CPUE_NOKM2_83-112`,
+      y = CPUE_NOKM2_RRT),
+    size = 1.1
+  ) +
+  scale_x_continuous(name = expression(CPUE[83-112]*' '*('#'%.%km^-2)), limits = c(0, max(crab_40_60_freq$CPUE_NOKM2))) +
+  scale_y_continuous(name = expression(CPUE[RRT]*' '*('#'%.%km^-2)), limits = c(0, max(crab_40_60_freq$CPUE_NOKM2))) +
+  facet_wrap(~"Chinoecetes spp. (40-60 mm)") +
+  theme_bw() +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 9, face = "bold"),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 8),
+        plot.margin = ggplot2::unit(c(2, 5, 2, 2), units = "mm"))
+
+ggsave(
+  p_crab_40_60, 
+  filename = here::here("plots", "catch_comparison", "cpue_chinoecetes_40_60.png"), 
+  width = 80, 
+  height = 80, 
+  units = "mm", 
+  dpi = 300
+)
+
+# Total CPUE 
+
+agg_cpue_crab <-
+  crab_size_freq |>
+  dplyr::group_by(SIZE, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB, GEAR_NAME) |>
+  dplyr::summarise(
+    TOTAL_CPUE_NOKM2 = sum(FREQUENCY)/sum(AREA_SWEPT_KM2)
+  )
+
+agg_cpue_fish <- fish_length_freq |>
+  dplyr::group_by(SIZE, SPECIES_CODE, REPORT_NAME_SCIENTIFIC, COMMON_NAME, FAMILY, GROUP_NAME, FISH_CRAB, GEAR_NAME) |>
+  dplyr::summarise(
+    TOTAL_CPUE_NOKM2 = mean(TOTAL_FREQUENCY/AREA_SWEPT_KM2)
+  )
+
+agg_cpue_focal_filled  <- 
+  dplyr::bind_rows(agg_cpue_fish, agg_cpue_crab) |> 
+  tidyr::pivot_wider(
+    values_from = TOTAL_CPUE_NOKM2,
+    names_from = GEAR_NAME,
+    values_fill = 1e-3) |>
+  tidyr::pivot_longer(
+    cols = c(RRT, `83-112`),
+    names_to = "GEAR_NAME",
+    values_to = "TOTAL_CPUE_NOKM2"
+  ) |>
+  dplyr::mutate(COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME))
+
+
 p_agg_size_comp <-
   ggplot() +
   geom_bar(
     data = dplyr::mutate(
-      agg_cpue_target_filled, 
+      agg_cpue_focal_filled, 
       FLIPPED_CPUE_NOKM2 = ifelse(GEAR_NAME == "83-112", TOTAL_CPUE_NOKM2*-1, TOTAL_CPUE_NOKM2)),
     mapping = aes(x = SIZE, y = FLIPPED_CPUE_NOKM2, fill = GEAR_NAME),
     stat = "identity",
     width = 1,
     alpha = 0.7
   ) +
-  geom_point(data = dplyr::group_by(agg_cpue_target_filled, COMMON_NAME) |>
+  geom_point(data = dplyr::group_by(agg_cpue_focal_filled, COMMON_NAME) |>
                dplyr::summarise(MAX_CPUE_NOKM2 = max(TOTAL_CPUE_NOKM2),
                                 MIN_SIZE = min(SIZE)),
              mapping = aes(x = MIN_SIZE, y = MAX_CPUE_NOKM2*1.25),
              color = NA) +
-  geom_point(data = dplyr::group_by(agg_cpue_target_filled, COMMON_NAME) |>
+  geom_point(data = dplyr::group_by(agg_cpue_focal_filled, COMMON_NAME) |>
                dplyr::summarise(MAX_CPUE_NOKM2 = max(TOTAL_CPUE_NOKM2),
                                 MIN_SIZE = min(SIZE)),
              mapping = aes(x = MIN_SIZE, y = -1*MAX_CPUE_NOKM2*1.25),
@@ -814,14 +494,14 @@ p_agg_size_comp <-
         axis.title = element_text(size = 8),
         panel.grid = element_line(linewidth = 0.1, color = "grey85"))
 
-png(here::here("plots", "catch_comparison", "agg_size_comp.png"), width = 169, height = 169, units = "mm",
-    res = 300)
-print(p_agg_size_comp)
-dev.off()
-
-no_fill <- dplyr::bind_rows(agg_cpue_fish, agg_cpue_crab)
-spp_codes <- unique(no_fill$SPECIES_CODE)
-p_values <- numeric(length = length(spp_codes))
+ggsave(
+  p_agg_size_comp, 
+  filename = here::here("plots", "catch_comparison", "agg_size_comp.png"), 
+  width = 169, 
+  height = 169, 
+  units = "mm", 
+  dpi = 300
+)
 
 
 # Weighted ECDF
@@ -829,13 +509,13 @@ p_values <- numeric(length = length(spp_codes))
 weighted_ecdf <- 
   data.frame(
     SIZE = 
-      rep(agg_cpue_target_filled$SIZE, agg_cpue_target_filled$TOTAL_CPUE_NOKM2),
+      rep(agg_cpue_focal_filled$SIZE, agg_cpue_focal_filled$TOTAL_CPUE_NOKM2),
     SPECIES_CODE =
-      rep(agg_cpue_target_filled$SPECIES_CODE, agg_cpue_target_filled$TOTAL_CPUE_NOKM2),
+      rep(agg_cpue_focal_filled$SPECIES_CODE, agg_cpue_focal_filled$TOTAL_CPUE_NOKM2),
     COMMON_NAME = 
-      rep(agg_cpue_target_filled$COMMON_NAME, agg_cpue_target_filled$TOTAL_CPUE_NOKM2),
+      rep(agg_cpue_focal_filled$COMMON_NAME, agg_cpue_focal_filled$TOTAL_CPUE_NOKM2),
     GEAR_NAME = 
-      rep(agg_cpue_target_filled$GEAR_NAME, agg_cpue_target_filled$TOTAL_CPUE_NOKM2)
+      rep(agg_cpue_focal_filled$GEAR_NAME, agg_cpue_focal_filled$TOTAL_CPUE_NOKM2)
   ) |>
   dplyr::mutate(
     COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME)
@@ -878,185 +558,17 @@ size_quantiles <-
     COMMON_NAME = factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME)
   )
 
-png(here::here("plots", "catch_comparison", "ecdf_size_by_gear.png"), 
-    width = 169, 
-    height = 169, 
-    units = "mm",
-    res = 300)
-print(p_ecdf_size_by_gear)
-dev.off()
-
-# LGCP (Thygesen et al., 2019) on size data ----
-
-library(sratio)
-
-lgcp_taxa <- 
-  data.frame(
-    SPECIES_CODE = c(10110, 10112, 10130, 10210, 10261, 10285, 21720, 21740, 68580, 68560, 68580, 68560),
-    SEX = c(rep(3, 8), 1, 1, 2, 2)
-  )
-
-# Make wide format size frequency data frame
-size_freq_wide <- 
-  dplyr::mutate(fish_length_freq, SEX = 3) |>
-  dplyr::bind_rows(
-    dplyr::mutate(crab_size_sex_freq, TOTAL_FREQUENCY = FREQUENCY)
-  ) |>
-  dplyr::select(SPECIES_CODE, COMMON_NAME, SEX, HAUL, BLOCK, GEAR_NAME, TOTAL_FREQUENCY, SIZE, AREA_SWEPT_KM2) |>
-  dplyr::group_by(
-    SPECIES_CODE, COMMON_NAME, SEX, HAUL, BLOCK, GEAR_NAME, SIZE, AREA_SWEPT_KM2
-  ) |>
-  dplyr::summarise(
-    TOTAL_FREQUENCY = sum(TOTAL_FREQUENCY, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-lgcp_fits <- vector(mode = "list", length = nrow(lgcp_taxa))
-lgcp_boot <- vector(mode = "list", length = nrow(lgcp_taxa))
-
-for(ii in 1:nrow(lgcp_taxa)) {
-  
-  sel_species_code <- lgcp_taxa$SPECIES_CODE[ii]
-  
-  sel_sex <- lgcp_taxa$SEX[ii]
-
-  sel_size_freq <- 
-    size_freq_wide |>
-    dplyr::filter(SPECIES_CODE == sel_species_code, SEX == sel_sex) |> 
-    dplyr::mutate(
-    ) |>
-    tidyr::pivot_wider(
-      names_from = SIZE, 
-      values_from = TOTAL_FREQUENCY, 
-      values_fill = 0,
-      names_expand = TRUE,
-      names_sort = TRUE
-    ) |>
-    dplyr::arrange(
-      desc(GEAR_NAME)
-    )
-  
-  d_input <- 
-    list(
-      N = as.matrix(sel_size_freq[, 8:ncol(sel_size_freq)]),
-      SweptArea = sel_size_freq$AREA_SWEPT_KM2,
-      group = factor(sel_size_freq$BLOCK),
-      Gear = factor(sel_size_freq$GEAR_NAME),
-      Lvec = as.numeric(names(sel_size_freq)[8:ncol(sel_size_freq)])
-    )
-  
-  d_fit  <- 
-    sratio::gearcalib_fit(
-      d = d_input,
-      model = "poisson"
-    )
-  
-  lgcp_fits[[ii]] <- 
-    data.frame(
-      SPECIES_CODE = sel_species_code,
-      SEX = sel_sex,
-      SIZE = d_input$Lvec,
-      fit = d_fit$est,
-      se_fit = d_fit$sd,
-      pdHess = d_fit$rep$pdHess,
-      max_grad = max(d_fit$rep$gradient.fixed)
-    )
-  
-  # Bootstrap estimates
-  d_boot <-
-    sratio::gearcalib_boot(
-      d = d_input,
-      nboot = 1000
-    )
-  
-  n_quantiles <- nrow(d_boot$BootQuantiles)
-  
-  boot_quantiles <-
-    d_boot$BootQuantiles |>
-    t() |>
-    as.data.frame() |>
-    dplyr::mutate(
-      SPECIES_CODE = sel_species_code,
-      SEX = sel_sex,
-      SIZE = d_input$Lvec
-    ) |> 
-    tidyr::pivot_longer(
-      cols = 1:n_quantiles,
-      values_to = "RCE",
-      names_to = "quantile"
-    )
-  
-  lgcp_boot[[ii]] <- boot_quantiles
-  
-}
+ggsave(
+  p_ecdf_size_by_gear, 
+  filename = here::here("plots", "catch_comparison", "ecdf_size_by_gear.png"), 
+  width = 169, 
+  height = 169, 
+  units = "mm", 
+  dpi = 300
+)
 
 
 
-lgcp_fits <- 
-  lgcp_fits |>
-  do.call(what = rbind) |>
-  dplyr::inner_join(cc_species_codes)
-
-
-lgcp_boot <- 
-  lgcp_boot |>
-  do.call(what = rbind) |>
-  dplyr::inner_join(cc_species_codes)
-
-
-p_lgcp <- 
-  ggplot() +
-  geom_ribbon(
-    data = lgcp_fits,
-    mapping = aes(
-      x = SIZE, 
-      ymin = exp(fit - 2*se_fit),
-      ymax = exp(fit + 2*se_fit),
-      fill = factor(SEX, levels = 3:1, labels = c("All", "Female", "Male"))
-    ),
-    alpha = 0.3,
-    color = NA
-  ) +
-  geom_path(
-    data = lgcp_fits,
-    mapping = aes(
-      x = SIZE, 
-      y = exp(fit),
-      color = factor(SEX, levels = 3:1, labels = c("All", "Female", "Male"))
-    )
-  ) +
-  
-  geom_point(
-    data = dplyr::filter(lgcp_boot, quantile == "50%"),
-    mapping = aes(
-      x = SIZE, 
-      y = RCE,
-      color = factor(SEX, levels = 3:1, labels = c("All", "Female", "Male"))
-    ),
-    size = 0.8
-  ) +
-  geom_hline(yintercept = 1, linetype = 2) +
-  scale_y_continuous(name = "Relative catch efficiency", limits = c(0, 4), oob = scales::squish, expand = c(0,0)) +
-  scale_x_continuous(name = "Size") +
-  scale_fill_manual(name = "Sex", values = c('All' = 'grey30', 'Female' = "#DFC27D", 'Male' = "#80CDC1")) +
-  scale_color_manual(name = "Sex", values = c('All' = 'grey30', 'Female' = "#DFC27D", 'Male' = "#80CDC1")) +
-  facet_wrap(~factor(COMMON_NAME, levels = cc_species_codes$COMMON_NAME), scales = "free", ncol = 2) +
-  theme_bw() +
-  theme(
-    strip.background = element_blank(),
-    strip.text = element_text(hjust = 0, face = "bold", size = 8),
-    axis.text = element_text(size = 8),
-    axis.title = element_text(size = 9),
-    legend.text = element_text(size = 8, face = "bold"),
-    legend.title = element_text(size = 9),
-    panel.spacing = unit(1, unit = "mm"),
-    legend.position = "bottom",
-    legend.direction = "horizontal"
-  )
-
-png(here::here("plots", "catch_comparison", "lgcp_rce_by_size.png"), width = 169, height = 169, res = 300, units = "mm")
-print(p_lgcp)
-dev.off()
 
 
 # Catch attributed to bridle herding (Somerton and Munro, 2001)
