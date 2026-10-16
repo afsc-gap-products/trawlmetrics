@@ -43,6 +43,10 @@ for(ii in 1:length(bcs_paths)) {
     time_buffer_s = 30
   )
   
+  if(nrow(bcs_with_haul) < 1) {
+    next
+  }
+  
   header <- readLines(bcs_paths[ii], 2)[2]
   
   unique_bcs_hauls <- unique(bcs_with_haul$haul)
@@ -103,6 +107,7 @@ for(ii in 1:nrow(bcs_haul_data)) {
   }
   
   bc$haul <- bcs_haul_data$haul[ii]
+  bc$bcs_id <- bcs_haul_data$bcs_id[ii]
   bc$position <- bcs_haul_data$position[ii]
   bc$distance <-  as.numeric(gsub("\\D", "", bc$position))
   bc$side <- gsub("[0-9]", "", bc$position)
@@ -123,11 +128,13 @@ bcs_heights <- lapply(
   X = bcs_bc_data, 
   FUN = 
     function(x) {
-      x[c("dt", "haul", "position", "distance", "side", "height_fit", "x_g")]
+      x[c("dt", "bcs_id", "haul", "position", "distance", "side", "height_fit", "x_g", "x_g_original")]
     }
 ) |>
   do.call(what = dplyr::bind_rows) |>
-  dplyr::filter(height_fit > -0.1)
+  dplyr::filter(height_fit > -1.5) |> # Predictions below -1.5 cm are removed
+  # Predicted heights > 40 cm are changed to 40 cm, corresponding to maxiumum calibration value
+  dplyr::mutate(height_fit = ifelse(height_fit > 40, 40, height_fit))
 
 
 saveRDS(bcs_heights, file = here::here("data", "01_bcs_data", "bcs_heights.rds"))
@@ -159,49 +166,32 @@ unique_haul_scope <-
 
 dir.create(here::here("plots", "dtb_haul_scope"), recursive = TRUE, showWarnings = FALSE)
 
-for(ii in 1:nrow(unique_haul_scope)) {
-  
-  sel_hsp <- unique_haul_scope[ii, ]
-  
-  p_trt <- ggplot() + 
-    geom_point(
-      data = bcs_height_summary |>
-        dplyr::inner_join(sel_hsp, by = c("haul", "scope")),
-      mapping = aes(
-        x = ifelse(side == "P", distance*-1, distance),
-        y = median_height)
-    ) +
-    ggtitle(paste0("Haul: ", sel_hsp$haul, ", Scope: ", sel_hsp$scope, " fm")) +
-    geom_vline(xintercept = 0, linetype = 2) +
-    scale_x_continuous(name = "Distance from center (m)") +
-    scale_y_continuous(name = "Distance off bottom (cm)", limits = c(-0.1, 60), expand = c(0,0)) +
-    theme_bw()
-  
-  png(filename = here::here("plots", "dtb_haul_scope", paste0("dist_to_bottom_", sel_hsp$haul, "_", sel_hsp$scope, ".png")),
-      width = 4, height = 4, units = "in", res = 300)
-  print(p_trt)
-  dev.off()
-  
-  
-}
-
-p_dtb_all <-
-  ggplot() +
-  geom_point(
-    data = bcs_height_summary,
-    mapping = aes(
-      x = ifelse(side == "P", distance*-1, distance),
-      y = median_height)
-  ) +
-  geom_vline(xintercept = 0, linetype = 2) +
-  scale_x_continuous(name = "Distance from center (m)") +
-  scale_y_continuous(name = "Distance off bottom (cm)", limits = c(-0.1, 60), expand = c(0,0)) +
-  theme_bw()
-
-png(filename = here::here("plots", "dtb_haul_scope", paste0("dist_to_bottom_all_hauls.png")),
-    width = 4, height = 4, units = "in", res = 300)
-print(p_trt)
-dev.off()
+# for(ii in 1:nrow(unique_haul_scope)) {
+# 
+#   sel_hsp <- unique_haul_scope[ii, ]
+# 
+#   p_trt <- ggplot() +
+#     geom_point(
+#       data = bcs_height_summary |>
+#         dplyr::inner_join(sel_hsp, by = c("haul", "scope")),
+#       mapping = aes(
+#         x = ifelse(side == "P", distance*-1, distance),
+#         y = median_height)
+#     ) +
+#     ggtitle(paste0("Haul: ", sel_hsp$haul, ", Scope: ", sel_hsp$scope, " fm")) +
+#     geom_vline(xintercept = 0, linetype = 2) +
+#     scale_x_continuous(name = "Distance from center (m)") +
+#     scale_y_continuous(name = "Distance off bottom (cm)", limits = c(-2.1, 40), expand = c(0,0)) +
+#     theme_bw()
+# 
+#   png(filename = here::here("plots", "dtb_haul_scope", paste0("dist_to_bottom_", sel_hsp$haul, "_", sel_hsp$scope, ".png")),
+#       width = 4, height = 4, units = "in", res = 300)
+#   print(p_trt)
+#   dev.off()
+# 
+# 
+# }
 
 saveRDS(bcs_height_summary, file = here::here("output", "bcs_height_summary.rds"))
 saveRDS(bcs_segments, file = here::here("output", "bcs_segments.rds"))
+
