@@ -1,24 +1,10 @@
 # Assign door size treatments to blocks
-
 library(trawlmetrics)
 library(akgfmaps)
 library(ggthemes)
 library(shadowtext)
 
-# Review door trials and assign to hauls
-channel <- trawlmetrics::get_connected(schema = "AFSC")
-
-locs <- 
-  RODBC::sqlQuery(
-    query = "select * from racebase.haul where vessel = 134 and cruise = 202601 and haul_type in (7, 23)", 
-    channel = channel) |>
-  sf::st_as_sf(crs = "WGS84", coords = c("START_LONGITUDE", "START_LATITUDE")) |>
-  sf::st_transform(crs = "EPSG:3338") |>
-  dplyr::mutate(
-    Phase = dplyr::case_when(HAUL_TYPE == 7 & HAUL < 531 ~ "Phase 1: Door sizing",
-                             HAUL_TYPE == 7 & HAUL > 530 ~ "Phase 1: Scope table",
-                             HAUL_TYPE == 23 ~ "Phase 2: Catch comparison")
-  )
+locs <- sf::st_read(here::here("data", "haul_locations.GeoJSON"))
 
 map_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "EPSG:3338")
 
@@ -71,6 +57,7 @@ door_locs <- dplyr::inner_join(
   locs, door_clusters
 )
 
+# Check door block assignments
 ggplot() +
   geom_sf(
     data = dplyr::filter(locs, HAUL < 526), 
@@ -114,42 +101,39 @@ ggplot() +
   ) +
   scale_shape(solid = FALSE) +
   theme_bw() +
-  theme(legend.position = "inside", 
-        legend.position.inside = c(0.75, 0.08),
+  theme(legend.position = "bottom", 
         legend.title = element_blank(),
         legend.background = element_blank(),
         axis.title = element_blank()) +
   facet_wrap(~BLOCK)
 
-dplyr::filter(locs, HAUL %in% c(500:501, 529, 530), PERFORMANCE >=0)
 
-
-# Review data from door trial blocks to determine which treatments to use for analysis
-
-haul_log <- 
-  readxl::read_xlsx(
-    path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
-    sheet = "treatments"
-  ) |>
-  dplyr::select(Haul, Scope, Time_AKDT, Door_size_m2, Pass,
-                Port_Tension, Port_Door_Depth, Port_Door_Pitch, Port_Door_Roll,
-                Stbd_Tension, Stbd_Door_Depth, Stbd_Door_Pitch, Stbd_Door_Roll) |>
-  dplyr::filter(!is.na(Port_Tension),
-                Haul < 527)
-
-door_blocks <-
-  readxl::read_xlsx(
-    path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
-    sheet = "door_blocks"
-  ) 
-
-door_blocks <- 
-  dplyr::inner_join(
-    door_blocks,
-    haul_log
-  ) |>
-  dplyr::arrange(Block, Haul, Time_AKDT) |>
-  dplyr::select(-Time_AKDT)
-
-write.csv(door_blocks, file = here::here("data", "door_blocks_qa_qc.csv"), row.names = FALSE)
+# # Review data from door trial blocks to determine which treatments to use for analysis
+# 
+# haul_log <-
+#   readxl::read_xlsx(
+#     path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
+#     sheet = "treatments"
+#   ) |>
+#   dplyr::select(Haul, Scope, Time_AKDT, Door_size_m2, Pass,
+#                 Port_Tension, Port_Door_Depth, Port_Door_Pitch, Port_Door_Roll,
+#                 Stbd_Tension, Stbd_Door_Depth, Stbd_Door_Pitch, Stbd_Door_Roll) |>
+#   dplyr::filter(!is.na(Port_Tension),
+#                 Haul < 527)
+# 
+# door_blocks <-
+#   readxl::read_xlsx(
+#     path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
+#     sheet = "door_blocks"
+#   )
+# 
+# door_blocks <-
+#   dplyr::inner_join(
+#     door_blocks,
+#     haul_log
+#   ) |>
+#   dplyr::arrange(Block, Haul, Time_AKDT) |>
+#   dplyr::select(-Time_AKDT)
+# 
+# write.csv(door_blocks, file = here::here("data", "door_blocks_qa_qc.csv"), row.names = FALSE)
 

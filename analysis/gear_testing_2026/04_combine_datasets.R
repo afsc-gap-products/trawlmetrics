@@ -1,3 +1,6 @@
+library(dplyr)
+library(readxl)
+
 # Gear configuration spreadsheet
 gear_config <- 
   readxl::read_xlsx(path = here::here("data", "2026_gear_config.xlsx")) |>
@@ -34,11 +37,20 @@ trawl_measurement_summary <-
   dplyr::slice_max(pass, n = 1) |>
   dplyr::ungroup() |>
   dplyr::rename_with(toupper) |>
-  dplyr::rename(WIRE_LENGTH_FM = SCOPE) |>
+  dplyr::rename(
+    WIRE_LENGTH_FM = SCOPE,
+    NET_WIDTH = MEAN_NET_SPREAD,
+    SD_NET_WIDTH = SD_NET_SPREAD,
+    NET_HEIGHT = MEAN_NET_HEIGHT,
+    SD_NET_HEIGHT = SD_NET_HEIGHT,
+    DOOR_SPREAD = MEAN_DOOR_SPREAD,
+    SD_DOOR_SPREAD = SD_DOOR_SPREAD,
+    GEAR_DEPTH = BT_DEPTH_M,
+    GEAR_DEPTH_FM = BT_DEPTH_FM,
+    SCOPE_RATIO = SCOPE_TO_DEPTH) |>
   dplyr::mutate(
     WIRE_LENGTH = WIRE_LENGTH_FM * 1.8288,
     BOTTOM_DEPTH = BOTTOM_DEPTH_FM * 1.8288,
-    SCOPE_RATIO = WIRE_LENGTH_FM/BOTTOM_DEPTH_FM,
     INV_SCOPE = 1/SCOPE_RATIO
   ) |>
   dplyr::select(-PASS)
