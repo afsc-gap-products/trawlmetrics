@@ -17,11 +17,24 @@ bale_blocks <- readxl::read_xlsx(
 ) |>
   dplyr::select(-DOOR_SETTINGS)
 
+bcs_13m_height <- readRDS(here::here("data", "bcs_data_by_haul.rds")) |>
+  dplyr::filter(
+    DISTANCE == 13
+  ) |>
+  dplyr::group_by(HAUL, WIRE_LENGTH_FM) |>
+  dplyr::summarise(
+    BCS_13MHEIGHT_CM = mean(BCS_HEIGHT_CM, na.rm = TRUE)
+  )
+
 bale_settings_data_open <- trawl_data_by_haul |>
   dplyr::inner_join(
     bale_blocks
   ) |>
-  dplyr::filter(CODEND == "Open")
+  dplyr::filter(CODEND == "Open") |>
+  dplyr::left_join(
+    bcs_13m_height
+  )
+
 
 bale_mapping_open <- aes(
   x = SCOPE_RATIO,
@@ -48,7 +61,7 @@ p_bale_doors_open <-
   geom_point(size = 1.2) +
   aes(y = DOOR_SPREAD) +
   scale_color_manual(name = "Door angle of attack", values = legend_colors) +
-  scale_shape(name = "Tow direction") +
+  scale_shape(name = "Tow direction", solid = FALSE) +
   scale_x_continuous(name = NULL) + 
   scale_y_continuous(name = "Door\nspread (m)") +
   bale_theme
@@ -59,7 +72,7 @@ p_bale_wing_open <-
   geom_point(size = 1.2) +
   aes(y = NET_WIDTH) +
   scale_color_manual(name = "Door angle of attack", values = legend_colors) +
-  scale_shape(name = "Tow direction") +
+  scale_shape(name = "Tow direction", solid = FALSE) +
   scale_x_continuous(name = NULL) + 
   scale_y_continuous(name = "Upper wing\nspread (m)") +
   bale_theme
@@ -70,20 +83,20 @@ p_bale_height_open <-
   geom_point(size = 1.2) +
   aes(y = NET_HEIGHT) +
   scale_color_manual(name = "Door angle of attack", values = legend_colors) +
-  scale_shape(name = "Tow direction") +
+  scale_shape(name = "Tow direction", solid = FALSE) +
   scale_x_continuous(name = NULL) + 
   scale_y_continuous(name = "Opening\nheight (m)") +
   bale_theme
 
-p_bale_tension_open <- 
+p_bale_footrope_ele_open <- 
   ggplot(data = bale_settings_data_open, mapping = bale_mapping_open) +
   geom_path(linewidth = 0.4) +
   geom_point(size = 1.2) +
-  aes(y = WINCH_TENSION_TOTAL) +
+  aes(y = BCS_13MHEIGHT_CM) +
   scale_color_manual(name = "Door angle of attack", values = legend_colors) +
-  scale_shape(name = "Tow direction") +
-  scale_x_continuous(name = "Scope/Depth") +
-  scale_y_continuous(name = "Total winch\ntension (t)") +
+  scale_shape(name = "Tow direction", solid = FALSE) +
+  scale_x_continuous(name = NULL) + 
+  scale_y_continuous(name = "Footrope 13-m\nelevation (cm)") +
   bale_theme
 
 p_bale_door_roll_open <- 
@@ -92,102 +105,41 @@ p_bale_door_roll_open <-
   geom_point(size = 1.2) +
   aes(y = DOOR_ROLL_MAX) +
   scale_color_manual(name = "Door angle of attack", values = legend_colors) +
-  scale_shape(name = "Tow direction") +
-  scale_x_continuous(name = "Scope/Depth") +
+  scale_shape(name = "Tow direction", solid = FALSE) +
+  scale_x_continuous(name = NULL) +
   scale_y_continuous(name = "Maximum\ndoor roll (\u00B0)") +
   bale_theme
 
-p_bale_multipanel_open <- (p_bale_doors_open / p_bale_wing_open / p_bale_height_open / p_bale_door_roll_open / p_bale_tension_open ) + 
+p_bale_tension_open <- 
+  ggplot(data = bale_settings_data_open, mapping = bale_mapping_open) +
+  geom_path(linewidth = 0.4) +
+  geom_point(size = 1.2) +
+  aes(y = WINCH_TENSION_TOTAL) +
+  scale_color_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_shape(name = "Tow direction", solid = FALSE) +
+  scale_x_continuous(name = "Scope/Depth") +
+  scale_y_continuous(name = "Total winch\ntension (t)") +
+  bale_theme
+
+p_bale_multipanel_open <- (p_bale_doors_open / p_bale_wing_open / p_bale_height_open / p_bale_footrope_ele_open / p_bale_door_roll_open / p_bale_tension_open ) + 
   plot_layout(guides = "collect")
 
 ggsave(p_bale_multipanel_open,
        filename = here::here("plots", "rigging_comparison", "door_bale_settings_open.png"),
-       width = 100, height = 120, units = "mm", dpi = 300)
+       width = 140, height = 140, units = "mm", dpi = 300)
 
-
-
-# Bottom contact sensor data for center (0), outboard footrope (8), and wing tip (13)
-bcs_timeseries <- 
-  readRDS(file = here::here("output", "bcs_segments.rds")) |>
-  dplyr::rename(WIRE_LENGTH_FM = scope) |>
-  dplyr::rename_with(toupper) |>
-  dplyr::filter(!is.na(WIRE_LENGTH_FM), DISTANCE %in% c(0, 8, 13)) |>
-  dplyr::select(DT, BCS_ID, POSITION, DISTANCE, SIDE, HEIGHT_FIT, HAUL, WIRE_LENGTH_FM) |>
-  dplyr::left_join(
-    door_footrope_bc
-  ) |>
-  dplyr::left_join(
-    gear_config
-  )
-# 
-# # Load trawl measurement timeseries
-# 
-# cc_trawl_measurement_summary <-
-#   readRDS(file = here::here("output", "haul_summary.rds")) |>
-#   dplyr::filter(haul >= 600) |> # Use fully processed means for paired hauls
-#   dplyr::group_by(scope, haul) |>
-#   dplyr::slice_max(pass, n = 1) |>
-#   dplyr::ungroup() |>
-#   dplyr::select(
-#     HAUL = haul,
-#     WIRE_LENGTH_FM = scope,
-#     NET_WIDTH = MEAN_NET_SPREAD,
-#     SD_NET_WIDTH = SD_NET_SPREAD,
-#     NET_HEIGHT = MEAN_NET_HEIGHT,
-#     SD_NET_HEIGHT = SD_NET_HEIGHT,
-#     DOOR_SPREAD = MEAN_DOOR_SPREAD,
-#     SD_DOOR_SPREAD = SD_DOOR_SPREAD,
-#     BOTTOM_DEPTH_FM,
-#     GEAR_DEPTH = BT_DEPTH_M,
-#     GEAR_DEPTH_FM = BT_DEPTH_FM
-#   ) |>
-#   dplyr::mutate(
-#     WIRE_LENGTH = WIRE_LENGTH_FM * 1.8288,
-#     BOTTOM_DEPTH = BOTTOM_DEPTH_FM * 1.8288,
-#     SCOPE_RATIO = WIRE_LENGTH_FM/BOTTOM_DEPTH_FM,
-#     INV_SCOPE = 1/SCOPE_RATIO
-#   ) |>
-#   dplyr::inner_join(
-#     gear_config
-#   )
-# 
-# cc_doors <-
-#   readxl::read_xlsx(
-#   path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
-#   sheet = "treatments"
-# )  |>
-#   dplyr::filter(Haul >= 600) |> # Use fully processed means for paired hauls
-#   dplyr::group_by(Scope, Haul) |>
-#   dplyr::slice_max(Pass, n = 1) |>
-#   dplyr::ungroup() |>
-#   dplyr::filter(Event == "EQ") |>
-#   dplyr::select(
-#     HAUL = Haul,
-#     WIRE_LENGTH_FM = Scope,
-#     WINCH_TENSION_P = Port_Tension,
-#     WINCH_TENSION_S = Stbd_Tension,
-#     DOOR_PITCH_P = Port_Door_Pitch,
-#     DOOR_ROLL_P = Port_Door_Roll,
-#     DOOR_DEPTH_P = Port_Door_Depth,
-#     DOOR_PITCH_S = Stbd_Door_Pitch,
-#     DOOR_ROLL_S = Stbd_Door_Roll,
-#     DOOR_DEPTH_S = Stbd_Door_Depth
-#   ) |>
-#   dplyr::rename_with(toupper) |>
-#   dplyr::mutate(
-#     WINCH_TENSION_TOTAL = WINCH_TENSION_S + WINCH_TENSION_P,
-#     DOOR_ROLL_MAX = pmax(abs(DOOR_ROLL_S), abs(DOOR_ROLL_P), na.rm = TRUE)
-#   ) |>
-#   dplyr::inner_join(gear_config) |>
-#   dplyr::inner_join(cc_trawl_measurement_summary) |>
-#   dplyr::filter(DOOR_ROLL_MAX < 45) # Remove the bad haul where the doors tipped over
-
-bale_settings_data_closed <- trawl_data_by_haul |>
+bale_settings_data_closed <- 
+  trawl_data_by_haul |>
   dplyr::inner_join(
     bale_blocks
   ) |>
-  dplyr::filter(CODEND == "Closed",
-                DOOR_ROLL_MAX < 45)
+  dplyr::filter(
+    CODEND == "Closed",
+    DOOR_ROLL_MAX < 45
+  ) |>
+  dplyr::left_join(
+    bcs_13m_height
+  )
 
 bale_summary_closed <- 
   bale_settings_data_closed |>
@@ -200,6 +152,7 @@ bale_summary_closed <-
     NET_HEIGHT = mean(NET_HEIGHT, na.rm = TRUE),
     DOOR_ROLL_MAX = mean(DOOR_ROLL_MAX, na.rm = TRUE),
     WINCH_TENSION_TOTAL = mean(WINCH_TENSION_P, na.rm = TRUE),
+    BCS_13MHEIGHT_CM = mean(BCS_13MHEIGHT_CM, na.rm = TRUE),
     .groups = "drop"
   ) |>
   dplyr::arrange(DOOR_SETTINGS) |>
@@ -211,7 +164,7 @@ bale_summary_closed <-
   )
 
 # Compare responses based on linear regression models
-responses <- c("DOOR_ROLL_MAX", "DOOR_SPREAD", "WINCH_TENSION_TOTAL", "NET_HEIGHT", "NET_WIDTH")
+responses <- c("DOOR_ROLL_MAX", "DOOR_SPREAD", "WINCH_TENSION_TOTAL", "NET_HEIGHT", "NET_WIDTH" , "BCS_13MHEIGHT_CM")
 rhs_formulas <- c("1", 
                   "BOTTOM_DEPTH", 
                   "DOOR_SETTINGS",
@@ -366,6 +319,17 @@ p_bale_height_closed <-
   scale_y_continuous(name = "Opening\nheight (m)") +
   bale_theme
 
+p_bale_footrope_ele_closed <- 
+  ggplot(data = bale_settings_data_closed, mapping = bale_mapping_closed) +
+  add_best_fit("BCS_13MHEIGHT_CM") +
+  geom_point(size = 1.2) +
+  aes(y = BCS_13MHEIGHT_CM) +
+  scale_color_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_fill_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_x_continuous(name = NULL) + 
+  scale_y_continuous(name = "Footrope 13-m\nelevation (cm)") +
+  bale_theme
+
 p_bale_tension_closed <- 
   ggplot(data = bale_settings_data_closed, mapping = bale_mapping_closed) +
   add_best_fit("WINCH_TENSION_TOTAL") +
@@ -389,11 +353,11 @@ p_bale_door_roll_closed <-
   bale_theme
 
 p_bale_multipanel_closed <- (p_bale_doors_closed / p_bale_wing_closed / 
-                               p_bale_height_closed / p_bale_door_roll_closed / p_bale_tension_closed ) + 
+                               p_bale_height_closed / p_bale_footrope_ele_closed / p_bale_door_roll_closed / p_bale_tension_closed ) + 
   plot_layout(guides = "collect")
 
 ggsave(
   p_bale_multipanel_closed,
   filename = here::here("plots", "rigging_comparison", "door_bale_settings_closed.png"),
-  width = 100, height = 120, units = "mm", dpi = 300
+  width = 140, height = 140, units = "mm", dpi = 300
 )

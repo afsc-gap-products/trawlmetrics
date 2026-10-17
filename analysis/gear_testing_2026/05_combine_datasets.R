@@ -94,8 +94,7 @@ bcs_heights <-
   dplyr::rename_with(toupper) |>
   dplyr::rename(
     WIRE_LENGTH_FM = SCOPE,
-    BCS_MEAN_HEIGHT_CM = MEAN_HEIGHT,
-    BCS_MEDIAN_HEIGHT_CM = MEAN_HEIGHT,
+    BCS_HEIGHT_CM = MEAN_HEIGHT,
     BCS_HEIGHT_SD_CM = SD_HEIGHT
                 ) |>
   dplyr::select(-PASS)
@@ -103,7 +102,7 @@ bcs_heights <-
 # Effort data from closed codend hauls
 
 closed_effort <- 
-  readRDS(here::here("data", "catch_records.rds")) |>
+  readRDS(here::here("data", "06_catch_data", "catch_records.rds")) |>
   dplyr::filter(VESSEL == 134) |>
   dplyr::group_by(AREA_SWEPT_KM2, HAUL) |>
   dplyr::summarise(TOTAL_CATCH_KG = sum(WEIGHT))
@@ -123,7 +122,8 @@ trawl_data_by_haul <-
     BRIDLE_ANGLE_DEG = trawlmetrics::calc_bridle_angle(
       door_spread_m = DOOR_SPREAD, 
       wing_spread_m = NET_WIDTH, 
-      total_bridle_length_m = (TOTAL_BRIDLE_LENGTH_FT + DOOR_LEG_TAIL_CHAIN_LENGTH_FT + BRIDLE_CHAIN_LENGTH_FT)/3.281)
+      total_bridle_length_m = TOTAL_GEAR_LENGTH_M
+    )
   ) |>
   dplyr::left_join(
     closed_effort
@@ -142,3 +142,54 @@ bcs_data_by_haul <-
 
 saveRDS(trawl_data_by_haul, here::here("data", "trawl_data_by_haul.rds"))
 saveRDS(bcs_data_by_haul, here::here("data", "bcs_data_by_haul.rds"))
+
+
+#
+
+bcs_pings <- 
+  readRDS(file = here::here("output", "bcs_segments.rds")) |>
+  dplyr::filter(!is.na(scope)) |>
+  dplyr::group_by(scope, haul) |>
+  dplyr::slice_max(pass, n = 1) |>
+  dplyr::ungroup() |>
+  dplyr::rename(WIRE_LENGTH_FM = scope) |>
+  dplyr::rename_with(toupper) |>
+  dplyr::select(DT, BCS_ID, POSITION, DISTANCE, SIDE, X_G, X_G_ORIGINAL, HEIGHT_FIT, HAUL, WIRE_LENGTH_FM) |>
+  dplyr::inner_join(door_footrope_bc) |>
+  dplyr::left_join(
+    gear_config
+  )
+
+saveRDS(bcs_pings, here::here("data", "bcs_pings.rds"))
+
+# Load trawl measurement timeseries 
+
+marport_pings <-
+  readRDS(here::here("output", "trawl_measurements.rds")) |>
+  dplyr::group_by(scope, haul) |>
+  dplyr::slice_max(pass, n = 1) |>
+  dplyr::ungroup() |>
+  dplyr::rename(
+    WIRE_LENGTH_FM = scope,
+    DOOR_SPREAD = DOOR_SPREAD_M,
+    NET_WIDTH = NET_SPREAD_M,
+    NET_HEIGHT = NET_HEIGHT_M) |>
+  dplyr::rename_with(toupper) |>
+  dplyr::inner_join(
+    dplyr::select(
+      gear_config,
+      HAUL,
+      TOTAL_GEAR_LENGTH_M
+    )
+  ) |>
+  dplyr::mutate(
+    BRIDLE_ANGLE_DEG =
+      trawlmetrics::calc_bridle_angle(
+        door_spread_m = DOOR_SPREAD,
+        wing_spread_m = NET_WIDTH,
+        total_bridle_length_m = TOTAL_GEAR_LENGTH_M
+      )
+  ) |>
+  dplyr::inner_join(door_footrope_bc)
+
+saveRDS(marport_pings, here::here("data", "marport_pings.rds"))

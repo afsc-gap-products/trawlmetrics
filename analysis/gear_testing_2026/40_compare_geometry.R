@@ -1,3 +1,5 @@
+# Compare RRT and 83-112 geometry in closed codend catch comparison tows
+
 library(trawlmetrics)
 library(akgfmaps)
 library(ggthemes)
@@ -9,63 +11,14 @@ library(readxl)
 
 # Data prep ----------------------------------------------------------------------------------------
 
-# Matched catch treatments
-catch_treatments <- 
+# Haul pairs
+catch_treatments <-
   readxl::read_xlsx(
     path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
     sheet = "catch_treatments"
   )
 
-# Door and footrope bottom contact evaluation
-
-door_footrope_bc <- 
-  readxl::read_xlsx(
-    path = here::here("data", "scope_performance.xlsx"),
-    sheet = "consensus"
-  )
-
-# Review door trials and assign to hauls
-channel <- trawlmetrics::get_connected(schema = "AFSC")
-
-catch_records <- RODBC::sqlQuery(
-  channel = channel,
-  query = "SELECT 
-  C.SPECIES_CODE,
-  C.WEIGHT,
-  C.NUMBER_FISH,
-  C.VESSEL,
-  C.CRUISE,
-  C.HAUL,
-  RDH.DOOR_SPREAD, 
-  H.BOTTOM_DEPTH,
-  H.HAULJOIN,
-  H.NET_WIDTH, 
-  H.DISTANCE_FISHED, 
-  H.NET_HEIGHT, 
-  H.DURATION,
-  H.WIRE_LENGTH,
-  H.START_LONGITUDE,
-  H.START_LATITUDE,
-  H.START_TIME
-  FROM RACEBASE.HAUL H, 
-  RACEBASE.CATCH C,
-  RACE_DATA.HAULS RDH,
-  RACE_DATA.CRUISES RDC
-    WHERE C.CRUISE = 202601 
-  AND H.HAUL_TYPE = 23
-  AND H.PERFORMANCE >= 0
-  AND H.HAULJOIN = C.HAULJOIN 
-  AND H.HAUL = RDH.HAUL 
-  AND RDH.CRUISE_ID = RDC.CRUISE_ID
-  AND H.VESSEL = RDC.VESSEL_ID
-  AND RDC.CRUISE = C.CRUISE
-  "
-) |>
-  dplyr::mutate(
-    AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH/1000,
-    BRIDLE_ANGLE = 
-      trawlmetrics::calc_bridle_angle(door_spread_m = DOOR_SPREAD, wing_spread_m = NET_WIDTH, total_bridle_length_m = (184/3.281)+10)
-  )
+catch_records <- readRDS(file = here::here("data", "06_catch_data", "catch_records.rds"))
 
 # Distance between tow pairs
 tow_pair_distance <- 
@@ -183,24 +136,16 @@ m0_cc_spread <- lm(NET_WIDTH ~ BOTTOM_DEPTH, data = cc_haul_geom)
 m1_cc_spread <- lm(NET_WIDTH ~ BOTTOM_DEPTH + GEAR_NAME, data = cc_haul_geom)
 m2_cc_spread <- lm(NET_WIDTH ~ 0 + GEAR_NAME + BOTTOM_DEPTH:GEAR_NAME, data = cc_haul_geom)
 
-AIC(m0_cc_spread, m1_cc_spread, m2_cc_spread) # m2 best
-summary(m2_cc_spread)
-
 # Net height models
 m0_cc_height <- lm(NET_HEIGHT ~ 0 + BOTTOM_DEPTH, data = cc_haul_geom)
 m1_cc_height <- lm(NET_HEIGHT ~ 0 + BOTTOM_DEPTH + GEAR_NAME, data = cc_haul_geom)
 m2_cc_height <- lm(NET_HEIGHT ~ 0 + GEAR_NAME + BOTTOM_DEPTH:GEAR_NAME, data = cc_haul_geom)
 
-AIC(m0_cc_height, m1_cc_height, m2_cc_height) #m1 best
-summary(m2_cc_height)
-
 # Door spread model
 m0_cc_doors <- lm(DOOR_SPREAD ~ BOTTOM_DEPTH, data = cc_haul_geom)
-summary(m0_cc_doors)
 
 # Bridle angle model
 m0_cc_bridles <- lm(BRIDLE_ANGLE ~ BOTTOM_DEPTH, data = cc_haul_geom)
-summary(m0_cc_bridles)
 
 # Model table
 # Helper function to extract summary statistics for a group of models
@@ -215,11 +160,11 @@ summarize_model_block <- function(block_label, model_list) {
     Adj_R2         = sapply(model_list, function(m) summary(m)$adj.r.squared),
     AIC            = sapply(model_list, AIC),
     stringsAsFactors = FALSE
-  ) %>%
-    mutate(
+  ) |>
+    dplyr::mutate(
       deltaAIC = AIC - min(AIC)
-    ) %>%
-    arrange(deltaAIC)
+    ) |>
+    dplyr::arrange(deltaAIC)
 }
 
 # Organize models by response
@@ -302,15 +247,11 @@ p_cc_gear_geom <-
         legend.title = element_blank(),
         legend.background = element_blank())
 
-png(filename = here::here("plots", "catch_comparison", "cc_gear_geometry.png"),
-    width = 169, height = 50, units = "mm", res = 300)
-print(p_cc_gear_geom)
-dev.off()
-
-
-ggplot() +
-  geom_point(
-    data = cc_haul_geom,
-    mapping = aes(x = BOTTOM_DEPTH, y = WIRE_LENGTH/BOTTOM_DEPTH, color = GEAR_NAME)
-  )
-
+ggsave(
+  p_cc_gear_geom,
+  filename = here::here("plots", "catch_comparison", "cc_gear_geometry.png"),
+  width = 169, 
+  height = 50, 
+  units = "mm", 
+  dpi = 300
+)
