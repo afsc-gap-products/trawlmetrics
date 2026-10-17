@@ -1,10 +1,5 @@
 parse_nmea_xml <- function(xml_file, door_range_m = c(20, 60), wing_range_m = c(8,23), height_range_m = c(1,10)) {
   
-  # xml_file = scs_xml
-  # door_range_m = c(20, 60)
-  # wing_range_m = c(8,23)
-  # height_range_m = c(1,10)
-  
   # 1. Extract numeric haul number from the filename (e.g., "haul0521.xml" -> 521)
   file_name <- basename(xml_file)
   haul_num <- as.integer(gsub("[^0-9]", "", file_name))
@@ -20,7 +15,7 @@ parse_nmea_xml <- function(xml_file, door_range_m = c(20, 60), wing_range_m = c(
   payloads <- xml_text(nodes)
   timestamps_raw <- xml_attr(nodes, "timestamp")
   
-  # 5. Regex matching ONLY the 3 target NMEA sentence prefixes
+  # 5. Regex matching ONLY the 3 target NMEA sentence prefixess
   pattern <- "^(HR,10,DTB|PW,18,XST|PD,23,XST),([^,]+),([-+]?[0-9]*\\.?[0-9]+)"
   
   # Filter out non-matching NMEA tags

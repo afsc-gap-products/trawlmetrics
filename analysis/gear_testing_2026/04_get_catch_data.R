@@ -7,6 +7,20 @@ catch_treatments <-
     sheet = "catch_treatments"
   )
 
+gear_config <- 
+  readxl::read_xlsx(path = here::here("data", "2026_gear_config.xlsx")) |>
+  dplyr::mutate(
+    TOTAL_GEAR_LENGTH_M = (total_bridle_length_ft + door_leg_tail_chain_length_ft + bridle_chain_length_ft)/3.281
+  ) |>
+  dplyr::rename_with(toupper)|>
+  dplyr::mutate(DOOR_SETTINGS =  factor(
+    DOOR_SETTINGS, 
+    levels = c("B-D", "B-E"), 
+    labels = c("30.25\u00B0 (B-D)", "32.60\u00B0 (B-E)"),
+  )) |>
+  dplyr::mutate(DOOR_SIZE_M2 = factor(DOOR_SIZE_M2, levels = c(4, 4.5), labels = c("4.0", "4.5")),
+                BRIDLE_OPTION = factor(BRIDLE_OPTION))
+
 # Focal species
 
 analysis_species <- read.csv(here::here("data", "analysis_species.csv"))
@@ -24,13 +38,16 @@ catch_records <- RODBC::sqlQuery(
   C.CRUISE,
   C.HAUL,
   RDH.DOOR_SPREAD,
-  H.HAULJOIN,
   H.BOTTOM_DEPTH,
+  H.HAULJOIN,
   H.NET_WIDTH,
   H.DISTANCE_FISHED,
   H.NET_HEIGHT,
   H.DURATION,
-  H.WIRE_LENGTH
+  H.WIRE_LENGTH,
+  H.START_LONGITUDE,
+  H.START_LATITUDE,
+  H.START_TIME
   FROM RACEBASE.HAUL H,
   RACEBASE.CATCH C,
   RACE_DATA.HAULS RDH,
@@ -42,12 +59,30 @@ catch_records <- RODBC::sqlQuery(
   AND H.HAUL = RDH.HAUL
   AND RDH.CRUISE_ID = RDC.CRUISE_ID
   AND H.VESSEL = RDC.VESSEL_ID
-  AND RDC.CRUISE = C.CRUISE
-  "
+  AND RDC.CRUISE = C.CRUISE"
 ) |>
   dplyr::mutate(
     AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH/1000
+  ) |>
+  dplyr::left_join(
+    gear_config  |>
+      dplyr::select(
+        HAUL, 
+        DOOR_SETTINGS,
+        DOOR_SIZE_M2,
+        BRIDLE_OPTION,
+        TOTAL_GEAR_LENGTH_M
+      ) |>
+      dplyr::mutate(
+        VESSEL = 134,
+        CRUISE = 202601
+      )
+  ) |>
+  dplyr::mutate(
+    BRIDLE_ANGLE =
+      trawlmetrics::calc_bridle_angle(door_spread_m = DOOR_SPREAD, wing_spread_m = NET_WIDTH, total_bridle_length_m = TOTAL_GEAR_LENGTH_M
   )
+)
 
 saveRDS(catch_records, here::here("data", "06_catch_data", "catch_records.rds"))
 

@@ -1,0 +1,46 @@
+---
+output: 
+  word_document:
+    reference_docx: "appendix_template.docx"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Review data from each haul -----------------------------------------------------------------------
+
+fig_paths <- list.files(here::here("plots", "geometry_by_haul"), full.names = TRUE, pattern = "geom_by_haul_")
+
+unique_hauls <- sort(as.numeric(gsub("[^0-9]", "", basename(fig_paths))))
+
+chunk_text <- c()
+
+for(uu in 1:length(unique_hauls)) {
+  
+  sel_haul <- unique_hauls[uu]
+  
+  fig_path <- fig_paths[uu]
+    
+  caption_text <- paste0("Trawl geometry and bottom contact sensor data time series for haul ", sel_haul, ". Left panels: Gear depth (m), door roll (°), upper wing spread (m), opening height (m), door spread (m), and bridle angle of attack (m). Text labels show the difference between average door depth and headline depth (gear depth panel), maximum average door roll between the port and starboard door (door roll), mean wing spread (upper wing spread), mean door spread, and mean bridle angle of attack. Dashed lines denote performance targets. Right panels: Footrope and bridle elevation estimated from bottom contact sensor data. Dashed lines show 0-cm and 7.62 cm (3\"), the approximate radius of the footrope. Text labels show the mean elevation at each distance.")
+  
+  # 3. Dynamically write out the knitr chunk as text
+  chunk <- paste0(
+    "```{r fig-haul-", sel_haul, ", echo=FALSE}\n",
+    "knitr::include_graphics('", fig_path, "')\n",
+    "```\n\n",
+    "::: {custom-style=\"Caption\"}\n",
+    "[**Figure B", uu, ".**]{#fig:haul-", sel_haul, "} ", caption_text, "\n",
+    ":::\n\n",
+    "\\newpage\n\n"
+  )
+  
+  chunk_text <- c(chunk_text, chunk)
+
+}
+```
+
+```{r render-chunks, results='asis', echo=FALSE}
+# Evaluate the dynamically generated chunks as if they were written in the document
+res <- knitr::knit_child(text = paste(chunk_text, collapse = "\n"), quiet = TRUE)
+cat(res)
+```

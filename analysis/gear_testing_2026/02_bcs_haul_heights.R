@@ -132,9 +132,12 @@ bcs_heights <- lapply(
     }
 ) |>
   do.call(what = dplyr::bind_rows) |>
-  dplyr::filter(height_fit > -1.5) |> # Predictions below -1.5 cm are removed
-  # Predicted heights > 40 cm are changed to 40 cm, corresponding to maxiumum calibration value
-  dplyr::mutate(height_fit = ifelse(height_fit > 40, 40, height_fit))
+  # heights -3 to -5 are changed to -3
+  # heights > 40 cm are changed to 40 cm, corresponding to maximum calibration value
+  # heights < -5 are removed
+  dplyr::mutate(height_fit == ifelse(height_fit <= -3 & height_fit >= -5, -3, height_fit),
+                height_fit = ifelse(height_fit > 40, 40, height_fit)) |>
+  dplyr::filter(height_fit > -5)
 
 
 saveRDS(bcs_heights, file = here::here("data", "01_bcs_data", "bcs_heights.rds"))
@@ -161,36 +164,6 @@ unique_haul_scope <-
   dplyr::ungroup() |>
   dplyr::select(haul, scope) |>
   unique()
-
-# Plot scope results
-
-dir.create(here::here("plots", "dtb_haul_scope"), recursive = TRUE, showWarnings = FALSE)
-
-# for(ii in 1:nrow(unique_haul_scope)) {
-# 
-#   sel_hsp <- unique_haul_scope[ii, ]
-# 
-#   p_trt <- ggplot() +
-#     geom_point(
-#       data = bcs_height_summary |>
-#         dplyr::inner_join(sel_hsp, by = c("haul", "scope")),
-#       mapping = aes(
-#         x = ifelse(side == "P", distance*-1, distance),
-#         y = median_height)
-#     ) +
-#     ggtitle(paste0("Haul: ", sel_hsp$haul, ", Scope: ", sel_hsp$scope, " fm")) +
-#     geom_vline(xintercept = 0, linetype = 2) +
-#     scale_x_continuous(name = "Distance from center (m)") +
-#     scale_y_continuous(name = "Distance off bottom (cm)", limits = c(-2.1, 40), expand = c(0,0)) +
-#     theme_bw()
-# 
-#   png(filename = here::here("plots", "dtb_haul_scope", paste0("dist_to_bottom_", sel_hsp$haul, "_", sel_hsp$scope, ".png")),
-#       width = 4, height = 4, units = "in", res = 300)
-#   print(p_trt)
-#   dev.off()
-# 
-# 
-# }
 
 saveRDS(bcs_height_summary, file = here::here("output", "bcs_height_summary.rds"))
 saveRDS(bcs_segments, file = here::here("output", "bcs_segments.rds"))

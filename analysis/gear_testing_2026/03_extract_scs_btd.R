@@ -20,20 +20,14 @@ scs_xml <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, patt
 
 # Load gear configuration data
 
+# scs_xml = c(here::here("data", "04_scs_data", "haul0610.xml"), here::here("data", "04_scs_data", "haul0609.xml")) 
+
 trawl_measurements <- 
-  lapply(X = scs_xml, FUN = parse_nmea_xml) |>
+  lapply(X = scs_xml, FUN = parse_nmea_xml, door_range_m = c(20, 65), wing_range_m = c(8,23), height_range_m = c(1,10)) |>
   do.call(what = dplyr::bind_rows) |> 
   isolate_treatments() |>
   dplyr::filter(!is.na(scope)) |>
-  dplyr::select(haul, dt, NET_HEIGHT_M, NET_SPREAD_M, DOOR_SPREAD_M, pass, scope) |>
-  dplyr::mutate(
-    NET_SPREAD_M = ifelse(NET_HEIGHT_M > 24, NA, NET_SPREAD_M),
-    NET_HEIGHT_M = ifelse(NET_HEIGHT_M > 15, NA, NET_HEIGHT_M),
-    DOOR_SPREAD_M = ifelse(DOOR_SPREAD_M > 80, NA, DOOR_SPREAD_M),
-    NET_SPREAD_M = ifelse(NET_HEIGHT_M < 8, NA, NET_SPREAD_M),
-    NET_HEIGHT_M = ifelse(NET_HEIGHT_M < 3, NA, NET_HEIGHT_M),
-    DOOR_SPREAD_M = ifelse(DOOR_SPREAD_M < 20, NA, DOOR_SPREAD_M),
-  )
+  dplyr::select(haul, dt, NET_HEIGHT_M, NET_SPREAD_M, DOOR_SPREAD_M, pass, scope)
 
 trawl_measurement_summary <- 
   trawl_measurements |>
@@ -60,6 +54,19 @@ trawl_measurement_summary <-
 # Parse BT and calculate averages for each treatment
 
 btd_path <- list.files(here::here("data", "05_btd_data"), pattern = ".BTD", full.names = TRUE)
+
+pings_by_treatment <- trawl_measurements |>
+  dplyr::group_by(scope, haul) |>
+  dplyr::slice_max(pass, n = 1) |>
+  dplyr::ungroup() |>
+  dplyr::select(-dt, -pass) |>
+  tidyr::pivot_longer(cols = c(NET_HEIGHT_M, NET_SPREAD_M, DOOR_SPREAD_M )) |>
+  dplyr::filter(!is.na(value)) |>
+  dplyr::group_by(haul, scope, name) |>
+  dplyr::summarise(n = n()) |>
+  tidyr::pivot_wider(values_from = n, names_from = name, values_fill = 0)
+
+write.csv(pings_by_treatment, here::here("plots", "pings_by_treatment.csv"), row.names = FALSE)
 
 btd_data <- 
   lapply(X = btd_path, FUN = read.csv) |>
