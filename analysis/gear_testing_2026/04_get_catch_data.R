@@ -217,3 +217,41 @@ fish_length_freq <-
   )
 
 saveRDS(fish_length_freq, here::here("data", "06_catch_data", "size_freq_fish.rds"))
+
+# Get position data ----
+
+channel <- trawlmetrics::get_connected(schema = "AFSC")
+
+locs <- 
+  RODBC::sqlQuery(
+    query = "select * from racebase.haul where vessel = 134 and cruise = 202601 and haul_type in (7, 23)", 
+    channel = channel) 
+
+start_points <- locs |>
+  sf::st_as_sf(crs = "WGS84", coords = c("START_LONGITUDE", "START_LATITUDE")) |>
+  sf::st_transform(crs = "EPSG:3338") |>
+  dplyr::mutate(
+    Phase = dplyr::case_when(HAUL_TYPE == 7 ~ "Phase 1: Gear trials",
+                             HAUL_TYPE == 23 ~ "Phase 2: Catch comparison")
+  )
+
+file.remove(here::here("data", "haul_start_locations.GeoJSON"))
+
+sf::st_write(start_points, here::here("data", "haul_start_locations.GeoJSON"), append = FALSE)
+
+towpaths <- locs |>
+  dplyr::mutate(LONGITUDE = START_LONGITUDE,
+                LATITUDE = START_LATITUDE) |>
+  dplyr::select(-START_LONGITUDE, START_LATITUDE) |>
+  dplyr::bind_rows(
+    locs |>
+      dplyr::mutate(LONGITUDE = END_LONGITUDE,
+                    LATITUDE = END_LATITUDE)
+  ) |>
+  sf::st_as_sf(crs = "WGS84", coords = c("LONGITUDE", "LATITUDE")) |>
+  dplyr::group_by(VESSEL, CRUISE, HAUL, HAUL_TYPE, PERFORMANCE, START_TIME, DURATION, NET_WIDTH, GEAR_DEPTH, BOTTOM_DEPTH, STATIONID) |>
+  dplyr::summarise(do_union = TRUE) |>
+  sf::st_cast(to = "LINESTRING")
+
+sf::st_write(towpaths, here::here("data", "haul_towpaths.GeoJSON"), append = FALSE)
+

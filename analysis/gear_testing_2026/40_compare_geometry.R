@@ -8,7 +8,6 @@ library(dplyr)
 library(ggpp)
 library(readxl)
 
-
 # Data prep ----------------------------------------------------------------------------------------
 
 # Haul pairs

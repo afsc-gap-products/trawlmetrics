@@ -10,13 +10,31 @@ channel <- trawlmetrics::get_connected(schema = "AFSC")
 locs <- 
   RODBC::sqlQuery(
     query = "select * from racebase.haul where vessel = 134 and cruise = 202601 and haul_type in (7, 23)", 
-    channel = channel) |>
+    channel = channel) 
+
+loc_points <- locs |>
   sf::st_as_sf(crs = "WGS84", coords = c("START_LONGITUDE", "START_LATITUDE")) |>
   sf::st_transform(crs = "EPSG:3338") |>
   dplyr::mutate(
     Phase = dplyr::case_when(HAUL_TYPE == 7 ~ "Phase 1: Gear trials",
                              HAUL_TYPE == 23 ~ "Phase 2: Catch comparison")
   )
+
+locs |>
+  dplyr::mutate(LONGITUDE = START_LONGITUDE,
+                LATITUDE = START_LATITUDE) |>
+  dplyr::select(-START_LONGITUDE, START_LATITUDE) |>
+  dplyr::bind_rows(
+    locs |>
+      dplyr::mutate(LONGITUDE = END_LONGITUDE,
+                    LATITUDE = END_LATITUDE)
+  ) |>
+  sf::st_as_sf(crs = "WGS84", coords = c("LONGITUDE", "LATITUDE")) |>
+  dplyr::group_by(VESSEL, CRUISE, HAUL, HAUL_TYPE, PERFORMANCE, START_TIME, DURATION, NET_WIDTH, GEAR_DEPTH, BOTTOM_DEPTH, STATIONID) |>
+  dplyr::summarise(do_union = TRUE) |>
+  sf::st_cast(to = "LINESTRING")
+
+
 
 map_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "EPSG:3338")
 

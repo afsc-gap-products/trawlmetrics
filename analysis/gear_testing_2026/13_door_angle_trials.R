@@ -1,4 +1,4 @@
-# Comparing bale settings
+# Comparing door angle settings
 
 library(trawlmetrics)
 library(dplyr)
@@ -7,15 +7,21 @@ library(readxl)
 
 # Get data ------------
 
-# Closed codend bale trial analysis ----
+# Closed codend door angle of attack trial analysis ----
 
 trawl_data_by_haul <- readRDS(here::here("data", "trawl_data_by_haul.rds"))
 
-bale_blocks <- readxl::read_xlsx(
+da_blocks <- readxl::read_xlsx(
   path = here::here("data", "2026_gear_testing_haul_log.xlsx"),
-  sheet = "bale_blocks"
+  sheet = "door_angle_blocks"
 ) |>
   dplyr::select(-DOOR_SETTINGS)
+
+trawl_data_by_haul |>
+  dplyr::inner_join(da_blocks) |>
+dplyr::group_by(CODEND) |>
+  dplyr::summarise(MIN_DEPTH = min(BOTTOM_DEPTH),
+                   MAX_DEPTH = max(BOTTOM_DEPTH))
 
 bcs_13m_height <- readRDS(here::here("data", "bcs_data_by_haul.rds")) |>
   dplyr::filter(
@@ -26,112 +32,128 @@ bcs_13m_height <- readRDS(here::here("data", "bcs_data_by_haul.rds")) |>
     BCS_13MHEIGHT_CM = mean(BCS_HEIGHT_CM, na.rm = TRUE)
   )
 
-bale_settings_data_open <- trawl_data_by_haul |>
+da_settings_data_open <- 
+  trawl_data_by_haul |>
   dplyr::inner_join(
-    bale_blocks
+    da_blocks
   ) |>
   dplyr::filter(CODEND == "Open") |>
   dplyr::left_join(
     bcs_13m_height
-  )
+  ) |>
+  dplyr::mutate(
+    WIRE_LENGTH_FAC = factor(WIRE_LENGTH_FM),
+                DOOR_SETTINGS_LABEL = as.character(DOOR_SETTINGS),
+    DOOR_SETTINGS_LABEL = gsub(x = DOOR_SETTINGS_LABEL, replacement = "\n", pattern = " "))
 
-
-bale_mapping_open <- aes(
-  x = SCOPE_RATIO,
-  group = HAUL,
-  color = DOOR_SETTINGS,
+da_mapping_open <- aes(
+  x = DOOR_SETTINGS_LABEL,
+  group = interaction(TOW_DIRECTION, WIRE_LENGTH_FM),
+  color = WIRE_LENGTH_FAC,
   shape = TOW_DIRECTION
 )
 
-legend_colors <- c("#000000", "#999999")
+legend_colors <- viridis_pal()(length(unique(da_settings_data_open$WIRE_LENGTH_FM))+1)
 
-bale_theme <- theme_bw() + 
+da_theme <- theme_bw() + 
   theme(
-    axis.text = element_text(size = 7),
-    axis.title = element_text(size = 8),
-    legend.text = element_text(size = 7),
-    legend.title = element_text(size = 8),
+    axis.text = element_text(size = 8),
+    axis.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.title = element_text(size = 9),
     legend.position = "bottom",
     legend.direction = "vertical"
   )
 
-p_bale_doors_open <- 
-  ggplot(data = bale_settings_data_open, mapping = bale_mapping_open) +
+p_da_doors_open <- 
+  ggplot(data = da_settings_data_open, mapping = da_mapping_open) +
   geom_path(linewidth = 0.4) +
   geom_point(size = 1.2) +
   aes(y = DOOR_SPREAD) +
-  scale_color_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_color_manual(name = "Scope (fm)", values = legend_colors) +
   scale_shape(name = "Tow direction", solid = FALSE) +
-  scale_x_continuous(name = NULL) + 
+  scale_x_discrete(name = NULL) +
   scale_y_continuous(name = "Door\nspread (m)") +
-  bale_theme
+  da_theme
 
-p_bale_wing_open <- 
-  ggplot(data = dplyr::filter(bale_settings_data_open, !is.na(NET_WIDTH)), mapping = bale_mapping_open) +
+p_da_wing_open <- 
+  ggplot(data = dplyr::filter(da_settings_data_open, !is.na(NET_WIDTH)), mapping = da_mapping_open) +
   geom_path(linewidth = 0.4) +
   geom_point(size = 1.2) +
   aes(y = NET_WIDTH) +
-  scale_color_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_color_manual(name = "Scope (fm)", values = legend_colors) +
   scale_shape(name = "Tow direction", solid = FALSE) +
-  scale_x_continuous(name = NULL) + 
+  scale_x_discrete(name = NULL) +
   scale_y_continuous(name = "Upper wing\nspread (m)") +
-  bale_theme
+  da_theme
 
-p_bale_height_open <- 
-  ggplot(data = bale_settings_data_open, mapping = bale_mapping_open) +
+p_da_height_open <- 
+  ggplot(data = da_settings_data_open, mapping = da_mapping_open) +
   geom_path(linewidth = 0.4) +
   geom_point(size = 1.2) +
   aes(y = NET_HEIGHT) +
-  scale_color_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_color_manual(name = "Scope (fm)", values = legend_colors) +
   scale_shape(name = "Tow direction", solid = FALSE) +
-  scale_x_continuous(name = NULL) + 
+  scale_x_discrete(name = NULL) + 
   scale_y_continuous(name = "Opening\nheight (m)") +
-  bale_theme
+  da_theme
 
-p_bale_footrope_ele_open <- 
-  ggplot(data = bale_settings_data_open, mapping = bale_mapping_open) +
+p_da_footrope_ele_open <- 
+  ggplot(data = da_settings_data_open, mapping = da_mapping_open) +
   geom_path(linewidth = 0.4) +
   geom_point(size = 1.2) +
   aes(y = BCS_13MHEIGHT_CM) +
-  scale_color_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_color_manual(name = "Scope (fm)", values = legend_colors) +
   scale_shape(name = "Tow direction", solid = FALSE) +
-  scale_x_continuous(name = NULL) + 
+  scale_x_discrete(name = NULL) +
   scale_y_continuous(name = "Footrope 13-m\nelevation (cm)") +
-  bale_theme
+  da_theme
 
-p_bale_door_roll_open <- 
-  ggplot(data = bale_settings_data_open, mapping = bale_mapping_open) +
+p_da_door_roll_open <- 
+  ggplot(data = da_settings_data_open, mapping = da_mapping_open) +
   geom_path(linewidth = 0.4) +
   geom_point(size = 1.2) +
   aes(y = DOOR_ROLL_MAX) +
-  scale_color_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_color_manual(name = "Scope (fm)", values = legend_colors) +
   scale_shape(name = "Tow direction", solid = FALSE) +
-  scale_x_continuous(name = NULL) +
-  scale_y_continuous(name = "Maximum\ndoor roll (\u00B0)") +
-  bale_theme
+  scale_x_discrete(name = "Door angle of attack setting") +
 
-p_bale_tension_open <- 
-  ggplot(data = bale_settings_data_open, mapping = bale_mapping_open) +
+  scale_y_continuous(name = "Maximum\ndoor roll (\u00B0)") +
+  da_theme
+
+p_da_door_pitch_open <- 
+  ggplot(data = da_settings_data_open, mapping = da_mapping_open) +
+  geom_path(linewidth = 0.4) +
+  geom_point(size = 1.2) +
+  aes(y = DOOR_PITCH_MEAN) +
+  scale_color_manual(name = "Scope (fm)", values = legend_colors) +
+  scale_shape(name = "Tow direction", solid = FALSE) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Door pitch (\u00B0)") +
+  da_theme
+
+p_da_tension_open <- 
+  ggplot(data = da_settings_data_open, mapping = da_mapping_open) +
   geom_path(linewidth = 0.4) +
   geom_point(size = 1.2) +
   aes(y = WINCH_TENSION_TOTAL) +
-  scale_color_manual(name = "Door angle of attack", values = legend_colors) +
+  scale_color_manual(name = "Scope (fm)", values = legend_colors) +
   scale_shape(name = "Tow direction", solid = FALSE) +
-  scale_x_continuous(name = "Scope/Depth") +
+  scale_x_discrete(name = NULL) +
   scale_y_continuous(name = "Total winch\ntension (t)") +
-  bale_theme
+  da_theme
 
-p_bale_multipanel_open <- (p_bale_doors_open / p_bale_wing_open / p_bale_height_open / p_bale_footrope_ele_open / p_bale_door_roll_open / p_bale_tension_open ) + 
-  plot_layout(guides = "collect")
+p_da_multipanel_open <- (p_da_doors_open + p_da_wing_open + p_da_height_open + p_da_footrope_ele_open + p_da_door_roll_open + p_da_door_pitch_open ) + 
+  plot_layout(guides = "collect", nrow = 2, ncol = 3)
 
-ggsave(p_bale_multipanel_open,
-       filename = here::here("plots", "rigging_comparison", "door_bale_settings_open.png"),
-       width = 140, height = 140, units = "mm", dpi = 300)
+ggsave(p_da_multipanel_open,
+       filename = here::here("plots", "rigging_comparison", "door_da_settings_open.png"),
+       width = 169, height = 100, units = "mm", dpi = 300)
 
-bale_settings_data_closed <- 
+da_settings_data_closed <- 
   trawl_data_by_haul |>
   dplyr::inner_join(
-    bale_blocks
+    da_blocks
   ) |>
   dplyr::filter(
     CODEND == "Closed",
@@ -141,8 +163,8 @@ bale_settings_data_closed <-
     bcs_13m_height
   )
 
-bale_summary_closed <- 
-  bale_settings_data_closed |>
+da_summary_closed <- 
+  da_settings_data_closed |>
   dplyr::group_by(DOOR_SETTINGS) |>
   dplyr::summarise(
     N_HAUL = dplyr::n(),
@@ -163,8 +185,8 @@ bale_summary_closed <-
     )
   )
 
-# Compare responses based on linear regression models
-responses <- c("DOOR_ROLL_MAX", "DOOR_SPREAD", "WINCH_TENSION_TOTAL", "NET_HEIGHT", "NET_WIDTH" , "BCS_13MHEIGHT_CM")
+# Compare responses based on linear regression models using AICc
+responses <- c("DOOR_ROLL_MAX", "DOOR_SPREAD", "WINCH_TENSION_TOTAL", "NET_HEIGHT", "NET_WIDTH", "BCS_13MHEIGHT_CM")
 rhs_formulas <- c("1", 
                   "BOTTOM_DEPTH", 
                   "DOOR_SETTINGS",
@@ -181,28 +203,30 @@ model_eval <- model_grid |>
   dplyr::rowwise() |>
   dplyr::mutate(
     Formula_full = paste(Response, "~", Predictors),
-    Model = list(lm(as.formula(Formula_full), data = bale_settings_data_closed )),
-    AIC = AIC(Model),
+    Model = list(lm(as.formula(Formula_full), data = da_settings_data_closed)),
+    k = attr(logLik(Model), "df"), # Number of parameters (including variance)
+    n = nobs(Model),                # Sample size
+    AICc = AIC(Model) + (2 * k * (k + 1)) / (n - k - 1), # Bias-corrected AIC
     n_parameters = length(coef(Model))
   ) |>
   dplyr::ungroup() |>
   dplyr::group_by(Response) |>
   dplyr::mutate(
-    Delta_AIC = AIC - min(AIC),
-    Top_Tier = Delta_AIC < 2,
-    Parsimony_Score = ifelse(Top_Tier, n_parameters * 1000 + Delta_AIC, Inf),
+    Delta_AICc = AICc - min(AICc),
+    Top_Tier = Delta_AICc < 2,
+    Parsimony_Score = ifelse(Top_Tier, n_parameters * 1000 + Delta_AICc, Inf),
     Evaluation = ifelse(Parsimony_Score == min(Parsimony_Score), "Best", "")
   ) |>
   dplyr::ungroup()
 
 final_table <- model_eval |>
   dplyr::mutate(Formula = paste0("~", Predictors)) |>
-  dplyr::select(-Formula_full, -Model, -Top_Tier, -Parsimony_Score, -Predictors) |>
-  dplyr::arrange(Response, AIC)
+  dplyr::select(-Formula_full, -Model, -Top_Tier, -Parsimony_Score, -Predictors, -k, -n) |>
+  dplyr::arrange(Response, AICc)
 
 write.csv(
   final_table,
-  here::here("plots", "rigging_comparison", "door_bale_models_closed.csv"),
+  here::here("plots", "rigging_comparison", "door_da_models_closed.csv"),
   row.names = FALSE
 )
 
@@ -210,11 +234,11 @@ best_models <- model_eval |> dplyr::filter(Evaluation == "Best")
 
 pred_grid <- expand.grid(
   BOTTOM_DEPTH = seq(
-    min(bale_settings_data_closed$BOTTOM_DEPTH, na.rm = TRUE),
-    max(bale_settings_data_closed$BOTTOM_DEPTH, na.rm = TRUE),
+    min(da_settings_data_closed$BOTTOM_DEPTH, na.rm = TRUE),
+    max(da_settings_data_closed$BOTTOM_DEPTH, na.rm = TRUE),
     length.out = 100
   ),
-  DOOR_SETTINGS = unique(bale_settings_data_closed$DOOR_SETTINGS[!is.na(bale_settings_data_closed$DOOR_SETTINGS)])
+  DOOR_SETTINGS = unique(da_settings_data_closed$DOOR_SETTINGS[!is.na(da_settings_data_closed$DOOR_SETTINGS)])
 )
 
 # Populate grid with predicted values and standard errors across all best models
@@ -280,14 +304,14 @@ add_best_fit <- function(resp_name) {
 
 # Plots of closed codend tows
 
-bale_mapping_closed <- aes(
+da_mapping_closed <- aes(
   x = BOTTOM_DEPTH,
   color = DOOR_SETTINGS
 )
 
 
-p_bale_doors_closed <- 
-  ggplot(data = bale_settings_data_closed, mapping = bale_mapping_closed) +
+p_da_doors_closed <- 
+  ggplot(data = da_settings_data_closed, mapping = da_mapping_closed) +
   add_best_fit("DOOR_SPREAD") +
   geom_point(size = 1.2) +
   aes(y = DOOR_SPREAD) +
@@ -295,10 +319,10 @@ p_bale_doors_closed <-
   scale_fill_manual(name = "Door angle of attack", values = legend_colors) +
   scale_x_continuous(name = NULL) + 
   scale_y_continuous(name = "Door\nspread (m)") +
-  bale_theme
+  da_theme
 
-p_bale_wing_closed <- 
-  ggplot(data = dplyr::filter(bale_settings_data_closed, !is.na(NET_WIDTH)), mapping = bale_mapping_closed) +
+p_da_wing_closed <- 
+  ggplot(data = dplyr::filter(da_settings_data_closed, !is.na(NET_WIDTH)), mapping = da_mapping_closed) +
   add_best_fit("NET_WIDTH") +
   geom_point(size = 1.2) +
   aes(y = NET_WIDTH) +
@@ -306,10 +330,10 @@ p_bale_wing_closed <-
   scale_fill_manual(name = "Door angle of attack", values = legend_colors) +
   scale_x_continuous(name = NULL) + 
   scale_y_continuous(name = "Upper wing\nspread (m)") +
-  bale_theme
+  da_theme
 
-p_bale_height_closed <- 
-  ggplot(data = bale_settings_data_closed, mapping = bale_mapping_closed) +
+p_da_height_closed <- 
+  ggplot(data = da_settings_data_closed, mapping = da_mapping_closed) +
   add_best_fit("NET_HEIGHT") +
   geom_point(size = 1.2) +
   aes(y = NET_HEIGHT) +
@@ -317,10 +341,10 @@ p_bale_height_closed <-
   scale_fill_manual(name = "Door angle of attack", values = legend_colors) +
   scale_x_continuous(name = NULL) + 
   scale_y_continuous(name = "Opening\nheight (m)") +
-  bale_theme
+  da_theme
 
-p_bale_footrope_ele_closed <- 
-  ggplot(data = bale_settings_data_closed, mapping = bale_mapping_closed) +
+p_da_footrope_ele_closed <- 
+  ggplot(data = da_settings_data_closed, mapping = da_mapping_closed) +
   add_best_fit("BCS_13MHEIGHT_CM") +
   geom_point(size = 1.2) +
   aes(y = BCS_13MHEIGHT_CM) +
@@ -328,36 +352,36 @@ p_bale_footrope_ele_closed <-
   scale_fill_manual(name = "Door angle of attack", values = legend_colors) +
   scale_x_continuous(name = NULL) + 
   scale_y_continuous(name = "Footrope 13-m\nelevation (cm)") +
-  bale_theme
+  da_theme
 
-p_bale_tension_closed <- 
-  ggplot(data = bale_settings_data_closed, mapping = bale_mapping_closed) +
+p_da_tension_closed <- 
+  ggplot(data = da_settings_data_closed, mapping = da_mapping_closed) +
   add_best_fit("WINCH_TENSION_TOTAL") +
   geom_point(size = 1.2) +
   aes(y = WINCH_TENSION_TOTAL) +
   scale_color_manual(name = "Door angle of attack", values = legend_colors) +
   scale_fill_manual(name = "Door angle of attack", values = legend_colors) +
-  scale_x_continuous(name = NULL) +
+  scale_x_continuous(name = "Bottom depth (m)") +
   scale_y_continuous(name = "Total winch\ntension (t)") +
-  bale_theme
+  da_theme
 
-p_bale_door_roll_closed <- 
-  ggplot(data = bale_settings_data_closed, mapping = bale_mapping_closed) +
+p_da_door_roll_closed <- 
+  ggplot(data = da_settings_data_closed, mapping = da_mapping_closed) +
   add_best_fit("DOOR_ROLL_MAX") +
   geom_point(size = 1.2) +
   aes(y = DOOR_ROLL_MAX) +
   scale_color_manual(name = "Door angle of attack", values = legend_colors) +
   scale_fill_manual(name = "Door angle of attack", values = legend_colors) +
-  scale_x_continuous(name = "Bottom depth (m)") +
+  scale_x_continuous(name = NULL) +
   scale_y_continuous(name = "Maximum\ndoor roll (\u00B0)") +
-  bale_theme
+  da_theme
 
-p_bale_multipanel_closed <- (p_bale_doors_closed / p_bale_wing_closed / 
-                               p_bale_height_closed / p_bale_footrope_ele_closed / p_bale_door_roll_closed / p_bale_tension_closed ) + 
+p_da_multipanel_closed <- (p_da_doors_closed / p_da_wing_closed / 
+                               p_da_height_closed / p_da_footrope_ele_closed / p_da_door_roll_closed / p_da_tension_closed ) + 
   plot_layout(guides = "collect")
 
 ggsave(
-  p_bale_multipanel_closed,
-  filename = here::here("plots", "rigging_comparison", "door_bale_settings_closed.png"),
+  p_da_multipanel_closed,
+  filename = here::here("plots", "rigging_comparison", "door_da_settings_closed.png"),
   width = 140, height = 140, units = "mm", dpi = 300
 )
