@@ -1,4 +1,5 @@
 library(trawlmetrics)
+source("00_functions.R")
 
 # Matched catch treatments
 catch_treatments <- 
@@ -237,21 +238,27 @@ start_points <- locs |>
 
 file.remove(here::here("data", "haul_start_locations.GeoJSON"))
 
-sf::st_write(start_points, here::here("data", "haul_start_locations.GeoJSON"), append = FALSE)
+sf::st_write(start_points, here::here("data", "haul_start_locations.gpkg"), append = FALSE)
 
 towpaths <- locs |>
-  dplyr::mutate(LONGITUDE = START_LONGITUDE,
-                LATITUDE = START_LATITUDE) |>
-  dplyr::select(-START_LONGITUDE, START_LATITUDE) |>
-  dplyr::bind_rows(
-    locs |>
-      dplyr::mutate(LONGITUDE = END_LONGITUDE,
-                    LATITUDE = END_LATITUDE)
+  dplyr::mutate(
+    BEARING = calc_bearing(START_LATITUDE, START_LONGITUDE, END_LATITUDE, END_LONGITUDE),
+    DIRECTION = dplyr::case_when(
+      START_LATITUDE == END_LATITUDE & START_LONGITUDE == END_LONGITUDE ~ NA_character_,
+      TRUE ~ bearing_to_compass16(BEARING)
+    ),
+    geometry = sf::st_sfc(
+      mapply(
+        function(x1, y1, x2, y2) {
+          sf::st_linestring(matrix(c(x1, y1, x2, y2), ncol = 2, byrow = TRUE))
+        },
+        START_LONGITUDE, START_LATITUDE, END_LONGITUDE, END_LATITUDE,
+        SIMPLIFY = FALSE
+      ),
+      crs = "EPSG:4326"
+    )
   ) |>
-  sf::st_as_sf(crs = "WGS84", coords = c("LONGITUDE", "LATITUDE")) |>
-  dplyr::group_by(VESSEL, CRUISE, HAUL, HAUL_TYPE, PERFORMANCE, START_TIME, DURATION, NET_WIDTH, GEAR_DEPTH, BOTTOM_DEPTH, STATIONID) |>
-  dplyr::summarise(do_union = TRUE) |>
-  sf::st_cast(to = "LINESTRING")
+  sf::st_as_sf()
 
-sf::st_write(towpaths, here::here("data", "haul_towpaths.GeoJSON"), append = FALSE)
+sf::st_write(towpaths, here::here("data", "haul_towpaths.gpkg"), append = FALSE)
 

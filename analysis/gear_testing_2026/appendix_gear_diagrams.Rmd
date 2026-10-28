@@ -1,0 +1,52 @@
+---
+output: word_document
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(
+      inputFile,
+      encoding = encoding,
+      output_dir = here::here("paper")
+    )
+  })
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(pdftools)
+library(knitr)
+```
+
+```{r convert-and-insert, results='asis'}
+# 1. Locate all single-page PDFs (adjust path or pattern as needed)
+pdf_files <- list.files(path = here::here("doc", "gear_diagrams"), pattern = "\\.pdf$", full.names = TRUE)
+
+# Sort files if order matters (e.g., numerically or alphabetically)
+pdf_files <- sort(pdf_files)
+
+# 2. Define an output directory for converted images
+temp_img_dir <- file.path(tempdir(), "pdf_images")
+dir.create(temp_img_dir, showWarnings = FALSE)
+
+# 3. OpenXML snippet for inserting page breaks into Word (.docx)
+page_break <- "\n\n```{=openxml}\n<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>\n```\n\n"
+
+# 4. Loop through each PDF, convert to PNG, and output markdown
+for (i in seq_along(pdf_files)) {
+  pdf_path <- pdf_files[i]
+  
+  img_path <- pdf_convert(
+    pdf = pdf_path,
+    pages = 1,
+    format = "png",
+    dpi = 300,
+    filenames = file.path(temp_img_dir, paste0("page_", i, ".png")),
+    verbose = FALSE
+  )
+  
+  cat(sprintf("![](%s)\n", normalizePath(img_path, winslash = "/")))
+  
+  # # Insert a page break after each page except the last
+  # if (i < length(pdf_files)) {
+  #   cat(page_break)
+  # }
+}
+```

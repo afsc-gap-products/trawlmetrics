@@ -74,7 +74,7 @@ btd_data <-
   dplyr::mutate(dt = as.POSIXct(DATE_TIME, tz = "America/Anchorage", format = "%m/%d/%Y %H:%M:%S")) |>
   dplyr::rename_with(tolower) |>
   isolate_treatments() |>
-  dplyr::select(dt, haul, depth, pass, scope)
+  dplyr::select(dt, haul, depth, temperature, pass, scope)
   
 haul_summary <- 
   btd_data |>
