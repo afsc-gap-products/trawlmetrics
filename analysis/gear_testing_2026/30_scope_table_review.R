@@ -8,6 +8,7 @@ library(dplyr)
 library(ggpp)
 library(ggrepel)
 library(scales)
+library(ggnewscale)
 
 # Load haul summary statistics and time series
 trawl_data_by_haul <- readRDS(here::here("data", "trawl_data_by_haul.rds"))
@@ -18,8 +19,6 @@ bcs_pings <-
   readRDS(here::here("data", "bcs_pings.rds"))
 
 marport_pings <- readRDS(here::here("data", "marport_pings.rds"))
-
-dir.create(here::here("plots", "geometry_by_haul"), recursive = TRUE)
 
 # PNE and 83-112 scope tables
 scope_tables <- 
@@ -46,8 +45,6 @@ sdr_labels <- c("<2.5", "2.5-3", "3.0-3.5", "3.5-4.0", "4-5", "5-6", "6-7", ">7"
 depth_breaks <- c(20, 30, 50, 75, 100, 150, 250)
 depth_labels <- c("20-30 m", "30-50 m", "50-75 m", "75-100 m", "100-150 m", "150-250 m")
 
-codend_symbols <- c('Open' = 1, 'Closed' = 16)
-codend_symbol_size <- c("Closed" = 3.5, "Open" = 1.8)
 
 geom_levels <- 
   data.frame(
@@ -116,293 +113,24 @@ gt_bcs_data <-
 
 # Review data from each haul -----------------------------------------------------------------------
 
-unique_hauls <- sort(unique(gt_data$HAUL))
-
-for(uu in 1:length(unique_hauls)) {
-  
-  sel_haul <- unique_hauls[uu]
-  
-  sel_bcs <- 
-    bcs_pings |> 
-    dplyr::filter(HAUL == sel_haul) |>
-    dplyr::inner_join(
-      bcs_position_labels
-    )
-  
-  bcs_panel_labels <- 
-    sel_bcs  |>
-    dplyr::select(HAUL, DISTANCE, DISTANCE_FAC, DISTANCE_DETAIL) |>
-    unique()
-  
-  bcs_mean <-
-    sel_bcs  |>
-    dplyr::group_by(HAUL, DISTANCE, DISTANCE_FAC, DISTANCE_DETAIL, WIRE_LENGTH_FM) |>
-    dplyr::summarise(
-      MEAN_DT = mean(DT),
-      MEAN_HEIGHT_FIT = mean(HEIGHT_FIT, na.rm = TRUE)
-    ) |>
-    dplyr::ungroup()
-  
-  time_mean <- 
-    sel_bcs  |>
-    dplyr::group_by(HAUL, WIRE_LENGTH_FM) |>
-    dplyr::summarise(
-      MEAN_DT = mean(DT),
-    ) |>
-    dplyr::ungroup()
-  
-  sel_gt_data <- 
-    gt_data |>
-    dplyr::filter(HAUL == sel_haul)
-  
-  sel_door_depth <- 
-    sel_gt_data |>
-    dplyr::select(HAUL, WIRE_LENGTH_FM, GEAR_DEPTH, DOOR_DEPTH_P, DOOR_DEPTH_S) |>
-    tidyr::pivot_longer(
-      cols = c("GEAR_DEPTH", "DOOR_DEPTH_P", "DOOR_DEPTH_S"),
-      names_to = "var"
-    ) |>
-    dplyr::inner_join(data.frame(
-      var = c("GEAR_DEPTH", "DOOR_DEPTH_P", "DOOR_DEPTH_S"),
-      text = c("Headline", "Port door", "Starboard door"))) |>
-    dplyr::mutate(name = "GEAR_DEPTH") |>
-    dplyr::inner_join(geom_levels) |>
-    dplyr::inner_join(time_mean) |>
-    dplyr::select(-min_value, -max_value)
-  
-  sel_door_roll <- sel_gt_data |>
-    dplyr::mutate(DOOR_ROLL_S = DOOR_ROLL_S * -1) |>
-    dplyr::select(HAUL, WIRE_LENGTH_FM, DOOR_ROLL_P, DOOR_ROLL_S) |>
-    tidyr::pivot_longer(
-      cols = c("DOOR_ROLL_P", "DOOR_ROLL_S"),
-      names_to = "var"
-    ) |>
-    dplyr::inner_join(data.frame(
-      var = c("DOOR_ROLL_P", "DOOR_ROLL_S"),
-      text = c("Port door", "Starboard door"))) |>
-    dplyr::mutate(name = "DOOR_ROLL") |>
-    dplyr::inner_join(geom_levels) |>
-    dplyr::inner_join(time_mean)
-  
-  sel_door_roll_labels <-
-    sel_door_roll |>
-    dplyr::select(HAUL, WIRE_LENGTH_FM, label, value, var, min_value, max_value) |>
-    tidyr::pivot_wider(
-      values_from = "value",
-      names_from = "var"
-    ) |>
-    dplyr::inner_join(
-      time_mean
-    ) |>
-    dplyr::mutate(text = sprintf("%.1f", pmax(DOOR_ROLL_P, DOOR_ROLL_S, na.rm = TRUE)))
-  
-  door_depth_range <- 
-    sel_door_depth |>
-    dplyr::group_by(label) |>
-    dplyr::summarise(
-      min_value = min(value, na.rm = TRUE)*0.85,
-      max_value = max(value, na.rm = TRUE)*1.02
-    )
-  
-  sel_door_depth <-
-    sel_door_depth |>
-    dplyr::inner_join(
-      door_depth_range
-    )
-  
-  sel_door_depth_labels <-
-    sel_door_depth |>
-    dplyr::select(HAUL, WIRE_LENGTH_FM, label, value, var, min_value, max_value) |>
-    tidyr::pivot_wider(
-      values_from = "value",
-      names_from = "var"
-    ) |>
-    dplyr::inner_join(
-      time_mean
-    ) |>
-    dplyr::mutate(text = sprintf("%.1f", GEAR_DEPTH-(DOOR_DEPTH_P+DOOR_DEPTH_S)/2))
-  
-  sel_trawl_geom <- 
-    sel_gt_data |>
-    dplyr::select(HAUL, WIRE_LENGTH_FM, NET_WIDTH, NET_HEIGHT, DOOR_SPREAD, BRIDLE_ANGLE_DEG) |>
-    tidyr::pivot_longer(
-      cols = c(NET_WIDTH, NET_HEIGHT, DOOR_SPREAD, BRIDLE_ANGLE_DEG)
-    ) |>
-    dplyr::inner_join(
-      geom_levels
-    ) |>
-    dplyr::inner_join(time_mean)
-  
-  anchor_trawl_geom <-
-    sel_trawl_geom |>
-    dplyr::bind_rows(sel_door_roll) |>
-    dplyr::select(label, MEAN_DT, min_value, max_value) |>
-    tidyr::pivot_longer(cols = c(min_value, max_value)) |>
-    dplyr::bind_rows(
-      door_depth_range |>
-        tidyr::pivot_longer(
-          cols = c(min_value, max_value)
-        )
-    )
-  
-  targets_trawl_geom <-
-    sel_trawl_geom |>
-    dplyr::bind_rows(sel_door_roll) |>
-    dplyr::select(label, MEAN_DT, min_target, max_target) |>
-    tidyr::pivot_longer(cols = c(min_target, max_target))
-  
-  sel_marport_pings <- 
-    marport_pings |>
-    dplyr::filter(HAUL == sel_haul) |>
-    tidyr::pivot_longer(
-      cols = c(NET_WIDTH, NET_HEIGHT, DOOR_SPREAD, BRIDLE_ANGLE_DEG)
-    ) |>
-    dplyr::inner_join(
-      geom_levels
-    ) |>
-    dplyr::select(HAUL, DT, WIRE_LENGTH_FM, name, value, label) |>
-    dplyr::arrange(DT)
-  
-  # test <- dplyr::filter(sel_marport_pings, name == "NET_WIDTH")
-  
-  scope_palette <- viridis_pal(direction = -1)(length(unique(sel_marport_pings$WIRE_LENGTH_FM)) + 1)[-1]
-  
-  p_trawl_geometry <- 
-    ggplot() +
-    geom_point(
-      data = sel_marport_pings,
-      mapping = aes(
-        x = DT,
-        y = value,
-        color = factor(WIRE_LENGTH_FM)
-      ),
-      size = 0.15
-    ) +
-    geom_point(
-      data = sel_door_depth,
-      mapping = aes(x = MEAN_DT, y = value, color = factor(WIRE_LENGTH_FM), shape = text),
-      size = 2.2) +
-    geom_point(sel_door_roll,
-               mapping = aes(x = MEAN_DT, y = value, color = factor(WIRE_LENGTH_FM), shape = text)) +
-    geom_hline(
-      data = targets_trawl_geom,
-      mapping = aes(yintercept = value),
-      linetype = 2,
-      color = "grey30",
-      size = 0.3
-    ) +
-    geom_shadowtext(
-      data = sel_trawl_geom,
-      mapping = aes(x = MEAN_DT, y = min_value*1.09, label = sprintf("%.1f", value)),
-      size = 2.2,
-      color = "black",
-      bg.color = "white") +
-    geom_point(
-      data = anchor_trawl_geom,
-      mapping = aes(x = MEAN_DT, y = value),
-      color = NA) +
-    geom_shadowtext(
-      data = sel_door_depth_labels,
-      mapping = aes(x = MEAN_DT, y = min_value*1.05, label = text),
-      size = 2.2,
-      hjust = 0.5,
-      color = "black",
-      bg.color = "white") +
-    geom_shadowtext(
-      data = sel_door_roll_labels,
-      mapping = aes(x = MEAN_DT, y = -10, label = text),
-      size = 2.2,
-      hjust = 0.5,
-      color = "black",
-      bg.color = "white") +
-    ggtitle(paste0("Haul ", sel_haul)) +
-    scale_color_manual(name = "Scope (fm)", values = scope_palette) +
-    scale_shape_manual(name = "Sensor", values = c('Port door' = 0, 'Starboard door' = 2, 'Headline' = 16)) +
-    scale_x_datetime(name = "Date/time") +
-    scale_y_continuous(name = "Value", oob = squish_infinite) +
-    facet_wrap(~label, scales = "free_y", nrow = 6) +
-    theme_bw() +
-    theme(
-      strip.background = element_blank(),
-      strip.text = element_text(face = "bold", hjust = 0, size = 9),
-      axis.text = element_text(size = 8),
-      axis.title = element_text(size = 8),
-      legend.text = element_text(size = 8),
-      legend.title = element_text(size = 8),
-      legend.key.size = unit(4, "mm")
-    )
-  
-  p_bcs_pings <- 
-    ggplot() +
-    geom_hline(
-      yintercept = c(0, 2.54*3), 
-      linetype = 2,
-      color = "grey30",
-      linewidth = 0.3
-    ) +
-    geom_point(
-      data = sel_bcs,
-      mapping = aes(x = DT, y = HEIGHT_FIT, color = factor(WIRE_LENGTH_FM)), 
-      size = 0.15
-    ) +
-    geom_shadowtext(
-      data = bcs_mean,
-      mapping = aes(
-        x = MEAN_DT,
-        y = -3.5,
-        label = sprintf("%.1f", MEAN_HEIGHT_FIT)
-      ),
-      size = 2.2,
-      color = "black",
-      bg.color = "white"
-    ) +
-    ggtitle(" ") +
-    scale_x_datetime(name = "Date/time (AKDT)") +
-    scale_y_continuous(name = "Elevation (cm)", limits = c(-5, 40), oob = squish) +
-    scale_color_manual(name = "Scope (fm)", values = scope_palette, guide = "none") +
-    scale_linetype(name = "Side") +
-    facet_wrap(~DISTANCE_DETAIL, ncol = 1) +
-    theme_bw() +
-    theme(
-      strip.text = element_text(face = "bold", hjust = 0, size = 9),
-      strip.background = element_blank(),
-      axis.text = element_text(size = 8),
-      axis.title = element_text(size = 8),
-      legend.text = element_text(size = 8),
-      legend.title = element_text(size = 8),
-      legend.key.size = unit(4, "mm")
-    )
-  
-  p_grid_performance <- 
-    cowplot::plot_grid(
-      p_trawl_geometry +
-        theme(legend.position = "bottom", 
-              legend.box = "vertical",
-              legend.spacing = unit(1, "mm")),
-      p_bcs_pings +
-        theme(legend.position = "bottom"), 
-      ncol = 2,
-      align = "hv"
-    )
-  
-  
-  ggsave(
-    p_grid_performance,
-    filename = here::here("plots", "geometry_by_haul", paste0("geom_by_haul_", sel_haul, ".png")),
-    width = 6.5,
-    height = 6.5,
-    units = "in",
-    dpi = 300
+bcs_hline <- 
+  dplyr::filter(
+    bcs_position_labels, DISTANCE < 16
+  ) |>
+  dplyr::mutate(
+    min = 0,
+    max = 2.54*3
   )
-  
-}
-
 
 # Plots
 
 depth_range <- range(gt_data$BOTTOM_DEPTH, na.rm = TRUE)
 sdr_axis_breaks <- 2:9
 max_sdr <- max(gt_data$WIRE_LENGTH/gt_data$BOTTOM_DEPTH, na.rm = TRUE)
+
+codend_symbols <- c('Open' = 1, 'Closed' = 16)
+codend_symbol_size <- c("Closed" = 3.5, "Open" = 1.8)
+
 
 # Select hauls after door trials
 gt_subset <- 
@@ -411,57 +139,47 @@ gt_subset <-
 gt_bcs_subset <- 
   dplyr::filter(gt_bcs_data, !is.na(SDR_FAC))
 
-bcs_closed_open_summary <- bcs_summary |>
-  dplyr::mutate(
-    CODEND = ifelse(HAUL < 600, "Open", "Closed")
-    ) |>
+bcs_closed_open_summary <- bcs_data_by_haul |>
   dplyr::filter(GEAR_ON_BOTTOM == "Yes") |>
   dplyr::group_by(DISTANCE, CODEND, DOOR_SIZE_M2, BRIDLE_CHAIN_WEIGHT) |>
   dplyr::summarise(
-    MIN_HEIGHT = min(MEAN_BCS_HEIGHT, na.rm = TRUE),
-    MAX_HEIGHT = max(MEAN_BCS_HEIGHT, na.rm = TRUE),
-    MEAN_HEIGHT = mean(MEAN_BCS_HEIGHT, na.rm = TRUE)
+    BCS_HEIGHT_CM = mean(BCS_HEIGHT_CM, na.rm = TRUE)
   )
 
-bcs_closed_open <- bcs_summary |>
-  dplyr::mutate(
-    CODEND = ifelse(HAUL < 600, "Open", "Closed")
-  )
-
-p_mean_bcs_height_45 <- 
-  ggplot() + 
-  geom_point(
-    data = dplyr::filter(bcs_closed_open_summary, DOOR_SIZE_M2 == 4.5),
-    mapping = 
-      aes(
-        x = DISTANCE,
-        y = MEAN_HEIGHT,
-        shape = CODEND,
-        color = factor(BRIDLE_CHAIN_WEIGHT)
-      ),
-    size = 2.3
-  ) +
-  geom_hline(yintercept = c(0, 2.54*3), linetype = 2) +
-  scale_x_continuous(name = "Distance from center (m)", breaks = c(0, 2, 8, 13, 16, 18, 21, 29)) +
-  scale_y_continuous(name = "Footrope/bridle elevation (cm)") +
-  scale_shape_manual(name = "Codend", values = codend_symbols) +
-  scale_color_manual(name = "Addl. bridle weight (kg)", values = viridis_pal(option = "C", direction = -1)(4)[2:4]) +
-  theme_bw() +
-  theme(
-    strip.text = element_text(face = "bold", hjust = 0, size = 9),
-    strip.background = element_blank(),
-    axis.text = element_text(size = 8),
-    axis.title = element_text(size = 8),
-    legend.text = element_text(size = 8),
-    legend.title = element_text(size = 8),
-    legend.key.size = unit(4, "mm"),
-    panel.grid = element_line(linewidth = 0.25)
-  )
-
-png(here::here("plots", "bcs_dtb", "bcs_dtb_45m2_doors.png"), width = 120, height = 80, units = "mm", res = 300)
-print(p_mean_bcs_height_45)
-dev.off()
-
+# p_mean_bcs_height_45 <- 
+#   ggplot() + 
+#   geom_point(
+#     data = dplyr::filter(bcs_closed_open_summary, DOOR_SIZE_M2 == 4.5),
+#     mapping = 
+#       aes(
+#         x = DISTANCE,
+#         y = BCS_HEIGHT_CM,
+#         shape = CODEND,
+#         color = factor(BRIDLE_CHAIN_WEIGHT)
+#       ),
+#     size = 2.3
+#   ) +
+#   geom_hline(yintercept = c(0, 2.54*3), linetype = 2) +
+#   scale_x_continuous(name = "Distance from center (m)", breaks = c(0, 2, 8, 13, 16, 18, 21, 29)) +
+#   scale_y_continuous(name = "Footrope/bridle elevation (cm)") +
+#   scale_shape_manual(name = "Codend", values = codend_symbols) +
+#   scale_color_manual(name = "Addl. bridle weight (kg)", values = viridis_pal(option = "C", direction = -1)(4)[2:4]) +
+#   theme_bw() +
+#   theme(
+#     strip.text = element_text(face = "bold", hjust = 0, size = 9),
+#     strip.background = element_blank(),
+#     axis.text = element_text(size = 8),
+#     axis.title = element_text(size = 8),
+#     legend.text = element_text(size = 8),
+#     legend.title = element_text(size = 8),
+#     legend.key.size = unit(4, "mm"),
+#     panel.grid = element_line(linewidth = 0.25)
+#   )
+# 
+# png(here::here("plots", "bcs_dtb", "bcs_dtb_45m2_doors.png"), width = 120, height = 80, units = "mm", res = 300)
+# print(p_mean_bcs_height_45)
+# dev.off()
+# 
 
 # Examine BCS height data
 
@@ -479,19 +197,21 @@ p_dtb_by_side <-
   geom_vline(xintercept = 533.5, linetype = 2) +
   geom_path(
     data = 
-      dplyr::filter(bcs_summary, !is.na(GEAR_ON_BOTTOM)),
+      dplyr::filter(bcs_data_by_haul, !is.na(GEAR_ON_BOTTOM)),
     mapping =
       aes(
         x = HAUL,
-        y = MEAN_HEIGHT,
+        y = BCS_HEIGHT_CM,
         group = interaction(HAUL, WIRE_LENGTH_FM),
         alpha =  DOORS_ON_BOTTOM),
     color = "grey30"
   ) +
   geom_point(
-    data =  dplyr::filter(bcs_summary, !is.na(GEAR_ON_BOTTOM)),
+    data =  dplyr::filter(bcs_data_by_haul, !is.na(GEAR_ON_BOTTOM)),
     mapping =
-      aes(x = HAUL, y = MEAN_HEIGHT, color = SIDE,
+      aes(x = HAUL, 
+          y = BCS_HEIGHT_CM, 
+          color = SIDE,
           alpha = DOORS_ON_BOTTOM),
     size = 0.6
   ) +
@@ -512,20 +232,21 @@ dev.off()
   
 events <-
   data.frame(
-  event_number = c(1:7),
+  event_number = c(1:8),
   event = c(
-    "(1) Bridle 2",
-    "(2) Bridle 1.2,\nremove half-bobbin",
-    "(3) 120 kg bridle weight,\n8-in door setback", 
-    "(4) 68 kg bridle weight", 
-    "(5) Change scope\nprocedure",
-    "(6) 4-in door setback",
-    "(7) Remove 8 floats"),
-  haul = c(526.5, 530.5, 533.5, 535.5, 539.5, 543.5, 550.5)
+    "1: Bridle 1.2\n    Half-bobbin\n    Door setback 4-in\n    Headline 349.2 kgf",
+    "2: Bridle 2\n    Half-bobbin\n    Door setback 4-in\n    Headline 349.2 kgf",
+    "3: Bridle 1.2\n    Bare\n    Door setback 4-in\n    Headline 349.2 kgf",
+    "4: Bridle 1.2\n    Chain 120 kg\n    Door setback 8-in\n    Headline 349.2 kgf", 
+    "5: Bridle 1.2\n    Chain 68 kg\n    Door setback 8-in\n    Headline 349.2 kgf", 
+    "6: Change scope\n    procedure",
+    "7: Bridle 1.2\n    Chain 68 kg\n    Door setback 4-in\n    Headline 349.2 kgf",
+    "8: Bridle 1.2\n    Chain 68 kg\n    Door setback 4-in\n    Headline 271.6 kgf"),
+  haul = c(499.5, 526.5, 530.5, 533.5, 535.5, 539.5, 543.5, 550.5)
 )
 
 
-p_dtb_events <- 
+p_dtb_events <-
   ggplot() +
   annotate(
     "rect", 
@@ -543,28 +264,28 @@ p_dtb_events <-
       color = factor(event, levels = events$event)
     ),
     linetype = 2,
-    linewidth = 0.65
-             ) +
+    linewidth = 0.5
+  ) +
+  scale_color_discrete(name = "Change") +
+  new_scale_color() +
   geom_text(
-    data = dplyr::mutate(events, DISTANCE = 0) |>
-      dplyr::inner_join(
-        bcs_position_labels
-      ),
+    data = events,
     mapping = aes(
       x = haul,
-      y = 48,
+      y = 46.5,
       label = event_number
     ),
     hjust = -0.3,
-    color = "grey30"
+    color = "grey30",
+    size = 2.8
   ) +
   geom_path(
     data = 
       dplyr::filter(
-        bcs_summary, 
+        bcs_data_by_haul, 
         !is.na(GEAR_ON_BOTTOM),
         !(DISTANCE %in% c(2, 18)),
-        HAUL < 600
+        CODEND == "Open"
       ) |>
       dplyr::inner_join(
         bcs_position_labels
@@ -572,45 +293,61 @@ p_dtb_events <-
     mapping = 
       aes(
         x = HAUL, 
-        y = MEAN_HEIGHT, 
+        y = BCS_HEIGHT_CM, 
         group = interaction(HAUL, WIRE_LENGTH_FM), 
-        alpha =  DOORS_ON_BOTTOM),
-    color = "grey30"
+        color = DOORS_ON_BOTTOM,
+        alpha = DOORS_ON_BOTTOM
+        ),
+    linewidth = 0.25
   ) +
   geom_point(
     data =
       dplyr::filter(
-        bcs_summary, 
+        bcs_data_by_haul, 
         !is.na(GEAR_ON_BOTTOM),
         !(DISTANCE %in% c(2, 18)),
-        HAUL < 600
+        CODEND == "Open"
       ) |>
       dplyr::inner_join(
         bcs_position_labels
       ),
     mapping = 
       aes(x = HAUL, 
-          y = MEAN_HEIGHT,
-          alpha =  DOORS_ON_BOTTOM),
-    size = 0.7
+          y = BCS_HEIGHT_CM,
+          color = DOORS_ON_BOTTOM,
+          alpha = DOORS_ON_BOTTOM
+          ),
+    size = 0.3
   ) +
-  scale_color_discrete(name = "Change") +
-  scale_alpha_manual("Doors on bottom?", values = c('Yes' = 1, 'No' = 0.2)) +
+  scale_color_manual("Doors on bottom?", values = c('Yes' = "black", 'No' = "red", 'Inconclusive' = "grey40")) +
+  scale_alpha_manual("Doors on bottom?", values = c('Yes' = 1, 'No' = 0.2, 'Inconclusive' = 0.5)) +
   scale_y_continuous("Elevation (cm)", 
-                     limits = c(-2, 50), 
-                     oob = scales::squish_infinite) +
+                     limits = c(-5, 50), 
+                     oob = scales::squish_infinite,
+                     breaks = seq(0,40, 10)) +
   scale_x_continuous(name = "Haul") +
   facet_wrap(~DISTANCE_DETAIL, nrow = 7) +
   theme_bw() +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(face = "bold", hjust = 0)
+    strip.text = element_text(size = 9, face = "bold", hjust = 0),
+    axis.text = element_text(size = 8),
+    axis.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.title = element_text(size = 9),
+    legend.key.size = unit(4, "mm"),
+    panel.grid = element_line(linewidth = 0.25)
   )
 
-png(here::here("plots", "bcs_dtb", "bcs_dtb_events_open.png"), 
-    width = 169, height = 169, units = "mm", res = 300)
-print(p_dtb_events)
-dev.off()
+
+ggsave(
+  p_dtb_events,
+  filename = here::here("plots", "bcs_dtb", "bcs_dtb_open.png"), 
+  width = 169, 
+  height = 169, 
+  units = "mm", 
+  dpi = 300  
+)
 
 
 p_dtb_closed <- 
@@ -627,41 +364,41 @@ p_dtb_closed <-
   geom_path(
     data = 
       dplyr::filter(
-        bcs_summary, 
+        bcs_data_by_haul, 
         !is.na(GEAR_ON_BOTTOM),
         DISTANCE %in% c(0, 8, 13, 16, 21),
-        HAUL >= 600
+        CODEND == "Closed"
       ) |>
-      dplyr::inner_join(dplyr::select(cc_hauls, HAUL, PERFORMANCE, BOTTOM_DEPTH)) |>
-      # dplyr::filter(PERFORMANCE >= 0) |>
+      dplyr::inner_join(dplyr::select(trawl_data_by_haul, HAUL, BOTTOM_DEPTH)) |>
       dplyr::inner_join(
         bcs_position_labels
       ),
     mapping = 
       aes(
         x = HAUL, 
-        y = MEAN_HEIGHT, 
-        group = HAUL, 
-        color = BOTTOM_DEPTH)
+        y = BCS_HEIGHT_CM, 
+        group = HAUL 
+        # color = BOTTOM_DEPTH
+        )
   ) +
   geom_point(
     data =
       dplyr::filter(
-        bcs_summary, 
+        bcs_data_by_haul, 
         !is.na(GEAR_ON_BOTTOM),
         DISTANCE %in% c(0, 8, 13, 16, 21),
         HAUL >= 600
       ) |>
-      dplyr::inner_join(dplyr::select(cc_hauls, HAUL, PERFORMANCE, BOTTOM_DEPTH)) |>
-      # dplyr::filter(PERFORMANCE >= 0) |>
+      dplyr::inner_join(dplyr::select(trawl_data_by_haul, HAUL, BOTTOM_DEPTH)) |>
       dplyr::inner_join(
         bcs_position_labels
       ),
     mapping = 
       aes(
         x = HAUL, 
-          y = MEAN_HEIGHT,
-        fill = BOTTOM_DEPTH),
+        y = BCS_HEIGHT_CM
+        # fill = BOTTOM_DEPTH
+        ),
     shape = 21
   ) +
   scale_fill_viridis_c(name = "Bottom depth (m)", direction = -1, option = "E") +
@@ -677,10 +414,15 @@ p_dtb_closed <-
     strip.text = element_text(face = "bold", hjust = 0)
   )
 
-png(here::here("plots", "bcs_dtb", "bcs_dtb_closed.png"), 
-    width = 120, height = 120, units = "mm", res = 300)
-print(p_dtb_closed)
-dev.off()
+
+ggsave(
+  p_dtb_closed,
+  filename = here::here("plots", "bcs_dtb", "bcs_dtb_closed.png"),
+  width = 169, 
+  height = 120, 
+  units = "mm", 
+  dpi = 300
+)
 
 
 
@@ -691,7 +433,7 @@ ggplot() +
     data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes"),
     mapping = aes(
       x = BOTTOM_DEPTH, 
-      y = MAX_DOOR_ROLL, 
+      y = DOOR_ROLL_MAX, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
     ),
@@ -835,8 +577,8 @@ ggplot() +
   geom_point(
     data = gt_subset, 
     mapping = aes(
-      x = SDR, 
-      y = MAX_DOOR_ROLL, 
+      x = SCOPE_RATIO, 
+      y = DOOR_ROLL_MAX, 
       shape = CODEND, 
        
       color = factor(BRIDLE_CHAIN_WEIGHT)
@@ -856,7 +598,7 @@ ggplot() +
   geom_point(
     data = gt_subset, 
     mapping = aes(
-      x = SDR, 
+      x = SCOPE_RATIO, 
       y = NET_WIDTH, 
       shape = CODEND, 
        
@@ -880,7 +622,7 @@ ggplot() +
   geom_point(
     data = gt_subset, 
     mapping = aes(
-      x = SDR, 
+      x = SCOPE_RATIO, 
       y = DOOR_SPREAD, 
       shape = CODEND, 
        
@@ -905,7 +647,7 @@ ggplot() +
   geom_point(
     data = gt_subset, 
     mapping = aes(
-      x = SDR, 
+      x = SCOPE_RATIO, 
       y = NET_HEIGHT, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
@@ -929,7 +671,7 @@ ggplot() +
   geom_point(
     data = gt_subset, 
     mapping = aes(
-      x = SDR, 
+      x = SCOPE_RATIO, 
       y = BRIDLE_ANGLE_DEG, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
@@ -953,8 +695,8 @@ ggplot() +
   geom_point(
     data = gt_subset, 
     mapping = aes(
-      x = TOTAL_WINCH_TENSION, 
-      y = MAX_DOOR_ROLL, 
+      x = WINCH_TENSION_TOTAL, 
+      y = DOOR_ROLL_MAX, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
     ),
@@ -977,8 +719,8 @@ ggplot() +
   geom_point(
     data = gt_subset, 
     mapping = aes(
-      x = TOTAL_WINCH_TENSION, 
-      y = MAX_DOOR_ROLL, 
+      x = WINCH_TENSION_TOTAL, 
+      y = DOOR_ROLL_MAX, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
     ),
@@ -1001,8 +743,8 @@ ggplot() +
   geom_point(
     data = dplyr::filter(gt_bcs_subset, DISTANCE == 13),
     mapping = aes(
-      x = SDR, 
-      y = MEAN_HEIGHT, 
+      x = SCOPE_RATIO, 
+      y = BCS_HEIGHT_CM, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
     ),
@@ -1024,8 +766,8 @@ ggplot() +
   geom_point(
     data = dplyr::filter(gt_bcs_subset, DISTANCE == 16),
     mapping = aes(
-      x = SDR, 
-      y = MEAN_HEIGHT, 
+      x = SCOPE_RATIO, 
+      y = BCS_HEIGHT_CM, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
     ),
@@ -1047,8 +789,8 @@ ggplot() +
   geom_point(
     data = dplyr::filter(gt_bcs_subset, DISTANCE == 8),
     mapping = aes(
-      x = SDR, 
-      y = MEAN_HEIGHT, 
+      x = SCOPE_RATIO, 
+      y = BCS_HEIGHT_CM, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
     ),
@@ -1070,8 +812,8 @@ ggplot() +
   geom_point(
     data = dplyr::filter(gt_bcs_subset, DISTANCE == 0),
     mapping = aes(
-      x = SDR, 
-      y = MEAN_HEIGHT, 
+      x = SCOPE_RATIO, 
+      y = BCS_HEIGHT_CM, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
     ),
@@ -1094,8 +836,8 @@ ggplot() +
   geom_point(
     data = dplyr::filter(gt_bcs_subset, DISTANCE == 21),
     mapping = aes(
-      x = SDR, 
-      y = MEAN_HEIGHT, 
+      x = SCOPE_RATIO, 
+      y = BCS_HEIGHT_CM, 
       shape = CODEND, 
       color = factor(BRIDLE_CHAIN_WEIGHT)
     ),
@@ -1124,12 +866,12 @@ ggplot() +
     linewidth = 1.2
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)) |>
-      dplyr::arrange(MAX_DOOR_ROLL), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)) |>
+      dplyr::arrange(DOOR_ROLL_MAX), 
     mapping = aes(
       x = BOTTOM_DEPTH, 
       y = WIRE_LENGTH/BOTTOM_DEPTH, 
-      color = cut(MAX_DOOR_ROLL, breaks = door_roll_breaks, labels = door_roll_labels), 
+      color = cut(DOOR_ROLL_MAX, breaks = door_roll_breaks, labels = door_roll_labels), 
       shape = CODEND,
       size = CODEND),
     alpha = 0.8
@@ -1159,13 +901,13 @@ ggplot() +
     linewidth = 1.2
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)) |>
-      dplyr::arrange(MAX_DOOR_ROLL), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)) |>
+      dplyr::arrange(DOOR_ROLL_MAX), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
         y = WIRE_LENGTH/BOTTOM_DEPTH, 
-        color = cut(MAX_DOOR_ROLL, breaks = door_roll_breaks, labels = door_roll_labels), 
+        color = cut(DOOR_ROLL_MAX, breaks = door_roll_breaks, labels = door_roll_labels), 
         shape = CODEND),
     alpha = 0.8
   ) + 
@@ -1195,7 +937,7 @@ ggplot() +
     linewidth = 1.2
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1205,7 +947,7 @@ ggplot() +
     alpha = 0.8
   ) + 
   geom_text_repel(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1239,7 +981,7 @@ ggplot() +
     linewidth = 1.2
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1249,7 +991,7 @@ ggplot() +
     alpha = 0.8
   ) + 
   geom_text_repel(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1282,7 +1024,7 @@ ggplot() +
     linewidth = 1.2
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1292,7 +1034,7 @@ ggplot() +
     alpha = 0.8
   ) + 
   geom_text_repel(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1327,7 +1069,7 @@ ggplot() +
     linewidth = 1.2
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1337,7 +1079,7 @@ ggplot() +
     alpha = 0.8
   ) + 
   geom_text_repel(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1371,7 +1113,7 @@ ggplot() +
     linewidth = 1.02
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1381,7 +1123,7 @@ ggplot() +
     alpha = 0.8
   ) + 
   geom_text_repel(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1415,7 +1157,7 @@ ggplot() +
     linewidth = 1.02
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1425,7 +1167,7 @@ ggplot() +
     alpha = 0.8
   ) + 
   geom_text_repel(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1459,7 +1201,7 @@ ggplot() +
     linewidth = 1.02
   ) +
   geom_point(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1469,7 +1211,7 @@ ggplot() +
     alpha = 0.8
   ) + 
   geom_text_repel(
-    data = dplyr::filter(gt_data, !is.na(MAX_DOOR_ROLL)), 
+    data = dplyr::filter(gt_data, !is.na(DOOR_ROLL_MAX)), 
     mapping = 
       aes(
         x = BOTTOM_DEPTH, 
@@ -1740,6 +1482,33 @@ ggplot() +
   scale_shape_manual(name = "Codend", values = codend_symbols) +
   scale_x_continuous(name = "Bottom depth (m)") +
   scale_y_continuous(name = "Bridle angle of attack (\u00B0)") +
+  theme_bw()
+
+ggplot() +
+  geom_smooth(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = DOOR_SPREAD
+    ),
+    method = 'gam',
+    color = "blue3"
+  ) +
+  geom_point(
+    data = dplyr::filter(gt_subset, GEAR_ON_BOTTOM == "Yes", DOOR_SIZE_M2 == 4.5),
+    mapping = aes(
+      x = BOTTOM_DEPTH, 
+      y = DOOR_SPREAD, 
+      shape = CODEND, 
+      color = factor(BRIDLE_CHAIN_WEIGHT)
+    ),
+    alpha = 0.7,
+    size = 2.2
+  ) +
+  scale_color_colorblind(name = "Chain weight (kg)") +
+  scale_shape_manual(name = "Codend", values = codend_symbols) +
+  scale_x_continuous(name = "Bottom depth (m)") +
+  scale_y_continuous(name = "Door spread (m)") +
   theme_bw()
 
 ggplot() +

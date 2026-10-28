@@ -27,7 +27,8 @@ door_footrope_bc <-
   dplyr::rename_with(toupper) |>
   dplyr::mutate(
     GEAR_ON_BOTTOM = ifelse(FOOTROPE_ON_BOTTOM == "Yes" & DOORS_ON_BOTTOM == "Yes", "Yes", "No"),
-    GEAR_ON_BOTTOM = ifelse(FOOTROPE_ON_BOTTOM == "Inconclusive" | DOORS_ON_BOTTOM == "Inconclusive", "Inconclusive", GEAR_ON_BOTTOM)
+    GEAR_ON_BOTTOM = ifelse(FOOTROPE_ON_BOTTOM == "Inconclusive" | DOORS_ON_BOTTOM == "Inconclusive", "Inconclusive", GEAR_ON_BOTTOM),
+    GEAR_ON_BOTTOM = factor(GEAR_ON_BOTTOM, levels = c("Yes", "Inconclusive", "No"))
   )
 
 # Net and door measurements
@@ -80,7 +81,8 @@ treatments <-
   ) |>
   dplyr::mutate(
     WINCH_TENSION_TOTAL = WINCH_TENSION_S + WINCH_TENSION_P,
-    DOOR_ROLL_MAX = pmax(abs(DOOR_ROLL_S), abs(DOOR_ROLL_P), na.rm = TRUE)
+    DOOR_ROLL_MAX = pmax(abs(DOOR_ROLL_S), abs(DOOR_ROLL_P), na.rm = TRUE),
+    DOOR_PITCH_MEAN = rowMeans(dplyr::pick(DOOR_PITCH_P, DOOR_PITCH_S), na.rm = TRUE)
   ) |>
   dplyr::rename_with(toupper) |>
   dplyr::select(-DOOR_SIZE_M2, -PASS, -DATE_AKDT, -TIME_AKDT)
@@ -144,7 +146,7 @@ saveRDS(trawl_data_by_haul, here::here("data", "trawl_data_by_haul.rds"))
 saveRDS(bcs_data_by_haul, here::here("data", "bcs_data_by_haul.rds"))
 
 
-#
+# Bottom contact sensor data
 
 bcs_pings <- 
   readRDS(file = here::here("output", "bcs_segments.rds")) |>

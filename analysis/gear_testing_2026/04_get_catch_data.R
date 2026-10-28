@@ -1,4 +1,5 @@
 library(trawlmetrics)
+source("00_functions.R")
 
 # Matched catch treatments
 catch_treatments <- 
@@ -217,3 +218,47 @@ fish_length_freq <-
   )
 
 saveRDS(fish_length_freq, here::here("data", "06_catch_data", "size_freq_fish.rds"))
+
+# Get position data ----
+
+channel <- trawlmetrics::get_connected(schema = "AFSC")
+
+locs <- 
+  RODBC::sqlQuery(
+    query = "select * from racebase.haul where vessel = 134 and cruise = 202601 and haul_type in (7, 23)", 
+    channel = channel) 
+
+start_points <- locs |>
+  sf::st_as_sf(crs = "WGS84", coords = c("START_LONGITUDE", "START_LATITUDE")) |>
+  sf::st_transform(crs = "EPSG:3338") |>
+  dplyr::mutate(
+    Phase = dplyr::case_when(HAUL_TYPE == 7 ~ "Phase 1: Gear trials",
+                             HAUL_TYPE == 23 ~ "Phase 2: Catch comparison")
+  )
+
+file.remove(here::here("data", "haul_start_locations.GeoJSON"))
+
+sf::st_write(start_points, here::here("data", "haul_start_locations.gpkg"), append = FALSE)
+
+towpaths <- locs |>
+  dplyr::mutate(
+    BEARING = calc_bearing(START_LATITUDE, START_LONGITUDE, END_LATITUDE, END_LONGITUDE),
+    DIRECTION = dplyr::case_when(
+      START_LATITUDE == END_LATITUDE & START_LONGITUDE == END_LONGITUDE ~ NA_character_,
+      TRUE ~ bearing_to_compass16(BEARING)
+    ),
+    geometry = sf::st_sfc(
+      mapply(
+        function(x1, y1, x2, y2) {
+          sf::st_linestring(matrix(c(x1, y1, x2, y2), ncol = 2, byrow = TRUE))
+        },
+        START_LONGITUDE, START_LATITUDE, END_LONGITUDE, END_LATITUDE,
+        SIMPLIFY = FALSE
+      ),
+      crs = "EPSG:4326"
+    )
+  ) |>
+  sf::st_as_sf()
+
+sf::st_write(towpaths, here::here("data", "haul_towpaths.gpkg"), append = FALSE)
+

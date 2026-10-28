@@ -2,6 +2,7 @@ library(lubridate)
 library(dplyr)
 library(tidyr)
 library(ggpp)
+library(scales)
 
 # Function to split hauls based on a date time field and logged event times
 
@@ -65,65 +66,6 @@ split_hauls <-
     
   }
 
-# 
-# # Process data from multi-pass hauls
-# 
-# dir.create(here::here("data", "01_bcs_data", "split_files"), recursive = TRUE)
-# 
-# bcs_paths <- 
-#   list.files(
-#     path = here::here("data", "01_bcs_data", "combined_files"), 
-#     recursive = TRUE, pattern = ".csv", full.names = TRUE
-#   )
-# 
-# bcs_basename <- basename(bcs_paths)
-# 
-# for(ii in 1:length(bcs_paths)) {
-#   
-#   bcs_with_haul <- split_hauls(
-#     data_to_split <- read.csv(
-#       file = bcs_paths[ii],
-#       fileEncoding = "latin1",
-#       skip = 1),
-#     date_time_field = "Date.Time..GMT.08.00",
-#     date_time_format = "%m/%d/%y %H:%M:%S",
-#     date_time_tz = "America/Anchorage",
-#     haul_log_path = here::here("data", "2026_gear_testing_haul_start_end.xlsx"),
-#     time_buffer_s = 30
-#   )
-#   
-#   header <- readLines(bcs_paths[ii], 2)[2]
-#   
-#   unique_bcs_hauls <- unique(bcs_with_haul$haul)
-#   
-#   for(jj in 1:length(unique_bcs_hauls)) {
-#     
-#     sel_haul <- bcs_with_haul |>
-#       dplyr::filter(haul == unique_bcs_hauls[jj]) |>
-#       dplyr::select(-haul)
-#     
-#     new_basename <- sub("^\\d+", replacement = unique_bcs_hauls[jj], x = bcs_basename[ii])
-#     
-#     fpath <- here::here("data", "01_bcs_data", "split_files", new_basename)
-#     
-#     writeLines(paste0("Plot Title: ", new_basename, " \n"), con = fpath)
-#     writeLines(header, con = fpath)
-#     
-#     write.table(
-#       x = sel_haul,
-#       file = fpath,
-#       append = TRUE,
-#       sep = ",",
-#       row.names = FALSE,
-#       col.names = FALSE,
-#       quote = FALSE
-#     )
-#     
-#   }
-#   
-#   
-# }
-
 
 # Function to isolate individual treatments within a haul
 isolate_treatments <-
@@ -184,3 +126,57 @@ isolate_treatments <-
     return(output)
     
   }
+
+gear_block_theme <- theme_bw() + 
+  theme(
+    axis.text = element_text(size = 8),
+    axis.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.title = element_text(size = 9),
+    legend.position = "bottom",
+    legend.direction = "vertical"
+  )
+
+
+plot_gear_block_metric <- function(data, x_var, y_var, x_axis_lab = NULL, y_axis_lab = NULL, hlines = NULL) {
+  
+  n_colors <- length(unique(data$WIRE_LENGTH_FM))
+  
+  ggplot(
+    data = data,
+    mapping = aes(
+      x = {{ x_var }},
+      y = {{ y_var }},
+      color = factor(WIRE_LENGTH_FM),
+      shape = TOW_DIRECTION,
+      group = interaction(WIRE_LENGTH_FM, TOW_DIRECTION)
+    )
+  ) +
+    geom_hline(yintercept = hlines, linetype = 2, linewidth = 0.5) +
+    geom_point() +
+    geom_path() +
+    scale_y_continuous(name = y_axis_lab) +
+    scale_x_discrete(name = x_axis_lab) +
+    scale_color_manual(name = "Scope (fm)", values = scales::viridis_pal()(n_colors+1)[1:n_colors]) +
+    scale_shape(name = "Tow direction", solid = FALSE) +
+    gear_block_theme
+}
+
+
+calc_bearing <- function(lat1, lon1, lat2, lon2) {
+  rad <- pi / 180
+  phi1 <- lat1 * rad
+  phi2 <- lat2 * rad
+  dlam <- (lon2 - lon1) * rad
+  
+  y <- sin(dlam) * cos(phi2)
+  x <- cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(dlam)
+  (atan2(y, x) * 180 / pi + 360) %% 360
+}
+
+bearing_to_compass16 <- function(bearing) {
+  dirs <- c("N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW")
+  idx <- floor(((bearing %% 360) + 11.25) / 22.5) %% 16 + 1
+  dirs[idx]
+}

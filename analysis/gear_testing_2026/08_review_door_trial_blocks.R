@@ -1,4 +1,4 @@
-# Assign door size treatments to blocks
+# Assign door size treatments to blocks based on haul paths
 library(trawlmetrics)
 library(akgfmaps)
 library(ggthemes)
