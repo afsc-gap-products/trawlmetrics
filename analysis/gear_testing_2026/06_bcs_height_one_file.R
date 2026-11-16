@@ -2,19 +2,12 @@
 
 # Analyze bottom contact sensor data for each haul
 
-library(trawlmetrics)
-library(readxl)
-library(here)
-library(lubridate)
-library(cowplot)
-library(mgcv)
-library(ggpp)
-
 # Load Kalman filter
 source("./functions/multi_pass_kalman.R")
 source("./functions/parse_bcs_paths.R")
 source("./functions/split_hauls.R")
 source("./functions/isolate_treatments.R")
+source("00_functions.R")
 
 haul_log_path <- here::here("data", "2026_gear_testing_haul_log.xlsx")
 

@@ -1,8 +1,5 @@
 # Assign door size treatments to blocks based on haul paths
-library(trawlmetrics)
-library(akgfmaps)
-library(ggthemes)
-library(shadowtext)
+source("00_functions.R")
 
 locs <- sf::st_read(here::here("data", "haul_locations.GeoJSON"))
 

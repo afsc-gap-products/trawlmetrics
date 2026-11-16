@@ -1,4 +1,3 @@
-library(trawlmetrics)
 source("00_functions.R")
 
 # Matched catch treatments
@@ -232,11 +231,9 @@ start_points <- locs |>
   sf::st_as_sf(crs = "WGS84", coords = c("START_LONGITUDE", "START_LATITUDE")) |>
   sf::st_transform(crs = "EPSG:3338") |>
   dplyr::mutate(
-    Phase = dplyr::case_when(HAUL_TYPE == 7 ~ "Phase 1: Gear trials",
-                             HAUL_TYPE == 23 ~ "Phase 2: Catch comparison")
+    Phase = dplyr::case_when(HAUL_TYPE == 7 ~ "Open codend",
+                             HAUL_TYPE == 23 ~ "Closed codend")
   )
-
-file.remove(here::here("data", "haul_start_locations.GeoJSON"))
 
 sf::st_write(start_points, here::here("data", "haul_start_locations.gpkg"), append = FALSE)
 

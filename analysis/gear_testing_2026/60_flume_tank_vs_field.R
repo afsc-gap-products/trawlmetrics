@@ -1,6 +1,4 @@
-library(ggplot2)
-library(dplyr)
-library(trawlmetrics)
+source("00_functions.R")
 
 flume_data <- trawlmetrics::flume_tank |>
   dplyr::filter(

@@ -1,12 +1,6 @@
 # Develop bottom contact sensor height models for 2026 prototype gear testing experiments
 
-library(trawlmetrics)
-library(readxl)
-library(here)
-library(lubridate)
-library(cowplot)
-library(mgcv)
-library(ggthemes)
+source("00_functions.R")
 
 # Read calibration event data containing time-referenced height and tilt data
 

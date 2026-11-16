@@ -1,8 +1,4 @@
-library(trawlmetrics)
-library(patchwork)
-library(readxl)
-library(dplyr)
-library(car)
+source("00_functions.R")
 
 # Door trial data ------------
 

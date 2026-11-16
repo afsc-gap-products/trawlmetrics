@@ -1,12 +1,6 @@
 # Compare RRT and 83-112 geometry in closed codend catch comparison tows
 
-library(trawlmetrics)
-library(akgfmaps)
-library(ggthemes)
-library(shadowtext)
-library(dplyr)
-library(ggpp)
-library(readxl)
+source("00_functions.R")
 
 # Data prep ----------------------------------------------------------------------------------------
 

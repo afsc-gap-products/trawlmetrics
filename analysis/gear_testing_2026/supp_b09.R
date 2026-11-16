@@ -1,9 +1,4 @@
-library(sf)
-library(trawlmetrics)
-library(dplyr)
-library(ggplot2)
-library(akgfmaps)
-library(ggrepel)
+source("00_functions.R")
 
 load(here::here("data", "07_door_experiment_2023", "spread_height_data.rda"))
 

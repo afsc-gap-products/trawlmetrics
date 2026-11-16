@@ -1,5 +1,4 @@
-library(DBI)
-library(RSQLite)
+source("00_functions.R")
 
 marport_pings <- readRDS( here::here("data", "marport_pings.rds")) |>
   dplyr::select(DT, HAUL, NET_HEIGHT, NET_WIDTH, DOOR_SPREAD, WIRE_LENGTH_FM, BRIDLE_ANGLE_DEG)

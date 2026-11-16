@@ -1,11 +1,6 @@
 # Review scope table hauls
 
-library(trawlmetrics)
-library(ggthemes)
-library(shadowtext)
-library(dplyr)
-library(ggpp)
-library(scales)
+source("00_functions.R")
 
 # Load data
 trawl_data_by_haul <- readRDS(here::here("data", "trawl_data_by_haul.rds"))
@@ -26,15 +21,15 @@ gt_bcs_data <-
 # Plot settings
 geom_levels <- 
   data.frame(
-    name = c("GEAR_DEPTH", "DOOR_ROLL", "NET_WIDTH", "NET_HEIGHT", "DOOR_SPREAD", "BRIDLE_ANGLE_DEG"),
+    name = c("GEAR_DEPTH", "DOOR_ROLL", "DOOR_PITCH", "NET_WIDTH", "NET_HEIGHT", "DOOR_SPREAD", "BRIDLE_ANGLE_DEG"),
     label = factor(
-      c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)"),
-      levels = c("Gear depth (m)", "Door roll (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)")
+      c("Gear depth (m)", "Door roll (\u00B0)", "Door pitch (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)"),
+      levels = c("Gear depth (m)", "Door roll (\u00B0)", "Door pitch (\u00B0)", "Upper wing spread (m)", "Opening height (m)", "Door spread (m)", "Bridle angle of attack (\u00B0)")
     ),
-    min_value = c(NA, -15, 8, 4, 20, 6),
-    max_value = c(NA, 40, 22, 10, 56, 21.5),
-    min_target = c(NA, NA, 15, 5, NA, 18),
-    max_target = c(NA, 30, 20, 6, NA, 21)
+    min_value = c(NA, -15, -15, 8, 4, 20, 6),
+    max_value = c(NA, 40, 8, 22, 10, 56, 21.5),
+    min_target = c(NA, NA, 0, 15, 5, NA, 18),
+    max_target = c(NA, 30, NA, 20, 6, NA, 21)
   )
 
 bcs_position_labels <-
@@ -159,6 +154,32 @@ for(uu in 1:length(unique_hauls)) {
     ) |>
     dplyr::mutate(text = sprintf("%.1f", pmax(DOOR_ROLL_P, DOOR_ROLL_S, na.rm = TRUE)))
   
+  sel_door_pitch <- 
+    sel_gt_data |>
+    dplyr::select(HAUL, WIRE_LENGTH_FM, DOOR_PITCH_P, DOOR_PITCH_S, GEAR_ON_BOTTOM) |>
+    tidyr::pivot_longer(
+      cols = c("DOOR_PITCH_P", "DOOR_PITCH_S"),
+      names_to = "var"
+    ) |>
+    dplyr::inner_join(data.frame(
+      var = c("DOOR_PITCH_P", "DOOR_PITCH_S"),
+      text = c("Port door", "Starboard door"))) |>
+    dplyr::mutate(name = "DOOR_PITCH") |>
+    dplyr::inner_join(geom_levels) |>
+    dplyr::inner_join(time_mean)
+  
+  sel_door_pitch_labels <-
+    sel_door_pitch |>
+    dplyr::select(HAUL, WIRE_LENGTH_FM, label, value, var, min_value, max_value) |>
+    tidyr::pivot_wider(
+      values_from = "value",
+      names_from = "var"
+    ) |>
+    dplyr::inner_join(
+      time_mean
+    ) |>
+    dplyr::mutate(text = sprintf("%.1f", pmax(DOOR_PITCH_P, DOOR_PITCH_S, na.rm = TRUE)))
+  
   door_depth_range <- 
     sel_door_depth |>
     dplyr::group_by(label) |>
@@ -199,6 +220,7 @@ for(uu in 1:length(unique_hauls)) {
   anchor_trawl_geom <-
     sel_trawl_geom |>
     dplyr::bind_rows(sel_door_roll) |>
+    dplyr::bind_rows(sel_door_pitch) |>
     dplyr::select(label, MEAN_DT, min_value, max_value) |>
     tidyr::pivot_longer(cols = c(min_value, max_value)) |>
     dplyr::bind_rows(
@@ -217,6 +239,7 @@ for(uu in 1:length(unique_hauls)) {
   targets_trawl_geom <-
     sel_trawl_geom |>
     dplyr::bind_rows(sel_door_roll) |>
+    dplyr::bind_rows(sel_door_pitch) |>
     dplyr::select(label, MEAN_DT, min_target, max_target) |>
     tidyr::pivot_longer(cols = c(min_target, max_target))
   
@@ -255,6 +278,8 @@ for(uu in 1:length(unique_hauls)) {
       size = 2.2) +
     geom_point(sel_door_roll,
                mapping = aes(x = MEAN_DT, y = value, color = factor(WIRE_LENGTH_FM), shape = text)) +
+    geom_point(sel_door_pitch,
+               mapping = aes(x = MEAN_DT, y = value, color = factor(WIRE_LENGTH_FM), shape = text)) +
     geom_hline(
       data = targets_trawl_geom,
       mapping = aes(yintercept = value),
@@ -286,12 +311,19 @@ for(uu in 1:length(unique_hauls)) {
       hjust = 0.5,
       color = "black",
       bg.color = "white") +
+    geom_shadowtext(
+      data = sel_door_pitch_labels,
+      mapping = aes(x = MEAN_DT, y = -12, label = text),
+      size = 2.2,
+      hjust = 0.5,
+      color = "black",
+      bg.color = "white") +
     ggtitle(paste0("Haul ", sel_haul)) +
     scale_color_manual(name = "Scope (fm)", values = scope_palette) +
     scale_shape_manual(name = "Sensor", values = c('Port door' = 0, 'Starboard door' = 2, 'Headline' = 16)) +
     scale_x_datetime(name = "Time") +
     scale_y_continuous(name = "Value", oob = squish_infinite) +
-    facet_wrap(~label, scales = "free_y", nrow = 6) +
+    facet_wrap(~label, scales = "free_y", ncol = 1) +
     theme_bw() +
     theme(
       strip.background = element_blank(),
@@ -369,7 +401,7 @@ for(uu in 1:length(unique_hauls)) {
     p_grid_performance,
     filename = here::here("plots", "geometry_by_haul", paste0("geom_by_haul_", sel_haul, ".png")),
     width = 6.5,
-    height = 6.5,
+    height = 7,
     units = "in",
     dpi = 300
   )

@@ -1,14 +1,6 @@
 # Review scope table hauls
 
-library(trawlmetrics)
-library(akgfmaps)
-library(ggthemes)
-library(shadowtext)
-library(dplyr)
-library(ggpp)
-library(ggrepel)
-library(scales)
-library(ggnewscale)
+source("00_functions.R")
 
 trawl_data_by_haul <- readRDS(here::here("data", "trawl_data_by_haul.rds")) |>
   dplyr::filter(GEAR_ON_BOTTOM == "Yes")

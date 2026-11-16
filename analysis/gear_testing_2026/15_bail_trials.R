@@ -1,11 +1,5 @@
 # Compare bridle treatments
 
-library(trawlmetrics)
-library(readxl)
-library(dplyr)
-library(ggthemes)
-library(patchwork)
-
 source("00_functions.R")
 
 bail_treatments <- 

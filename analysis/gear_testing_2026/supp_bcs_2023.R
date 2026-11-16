@@ -1,5 +1,6 @@
-library(trawlmetrics)
-library(ggthemes)
+# Examine data from 2023 door experiments
+
+source("00_functions.R")
 
 get_bcs_data <- function() {
   

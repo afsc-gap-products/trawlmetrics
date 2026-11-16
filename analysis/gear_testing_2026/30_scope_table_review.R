@@ -1,14 +1,6 @@
 # Review scope table hauls
 
-library(trawlmetrics)
-library(akgfmaps)
-library(ggthemes)
-library(shadowtext)
-library(dplyr)
-library(ggpp)
-library(ggrepel)
-library(scales)
-library(ggnewscale)
+source("00_functions.R")
 
 # Load haul summary statistics and time series
 trawl_data_by_haul <- readRDS(here::here("data", "trawl_data_by_haul.rds"))
@@ -27,6 +19,38 @@ scope_tables <-
                 mean_depth_m = mean_depth_fm * 1.8288,
                 scope_to_depth = wire_out_fm/mean_depth_fm) |>
   dplyr::inner_join(data.frame(table = c("GOA/AI", "EBS shelf", "EBS slope"), gear = c("PNE", "83-112", "PNE-S")))
+
+ggplot() +
+  geom_segment(
+    data = scope_tables,
+    mapping = aes(
+      x = min_depth_m, 
+      xend = max_depth_m, 
+      y = wire_out_m/min_depth_m, 
+      yend = wire_out_m/max_depth_m, 
+                  color = gear)
+  ) +
+  scale_y_continuous(limits = c(0,10)) +
+  scale_x_log10(limits = c(10, 700))
+
+ggplot() +
+  geom_path(
+    data = scope_tables,
+    mapping = aes(
+      x = mean_depth_m, 
+      y = scope_to_depth, 
+      color = gear),
+    linewidth = 1.1
+  ) +
+  geom_hline(yintercept = c(5,7), linetype = 2) +
+  geom_hline(yintercept = c(2.5,3), linetype = 3) +
+  scale_y_continuous(name = "Scope ratio", limits = c(0,10), oob = scales::oob_squish_infinite) +
+  scale_x_continuous(name = "Depth (m)", 
+                     limits = c(10, 500), 
+                     breaks = seq(0, 500, 50), 
+                     oob = scales::oob_squish_infinite) +
+  scale_color_tableau(name = "Gear") +
+  theme_bw()
 
 # Analysis and plot settings
 door_roll_breaks <- c(-Inf, -10, 0, 10, 25, Inf)

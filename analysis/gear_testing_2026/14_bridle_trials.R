@@ -1,8 +1,5 @@
 # Compare bridle treatments
-
-library(trawlmetrics)
-library(readxl)
-library(dplyr)
+source("00_functions.R")
 
 bridle_treatments <- 
   readxl::read_xlsx(path = here::here("data", "2026_gear_testing_haul_log.xlsx"),

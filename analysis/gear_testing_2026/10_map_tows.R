@@ -1,40 +1,13 @@
 # Sample map
+source("00_functions.R")
 
-library(trawlmetrics)
-library(akgfmaps)
-library(ggthemes)
-library(shadowtext)
+loc_points <- sf::st_read(here::here("data", "haul_start_locations.gpkg"))
 
-channel <- trawlmetrics::get_connected(schema = "AFSC")
-
-locs <- 
-  RODBC::sqlQuery(
-    query = "select * from racebase.haul where vessel = 134 and cruise = 202601 and haul_type in (7, 23)", 
-    channel = channel) 
-
-loc_points <- locs |>
-  sf::st_as_sf(crs = "WGS84", coords = c("START_LONGITUDE", "START_LATITUDE")) |>
-  sf::st_transform(crs = "EPSG:3338") |>
-  dplyr::mutate(
-    Phase = dplyr::case_when(HAUL_TYPE == 7 ~ "Phase 1: Gear trials",
-                             HAUL_TYPE == 23 ~ "Phase 2: Catch comparison")
-  )
-
-locs |>
-  dplyr::mutate(LONGITUDE = START_LONGITUDE,
-                LATITUDE = START_LATITUDE) |>
-  dplyr::select(-START_LONGITUDE, START_LATITUDE) |>
-  dplyr::bind_rows(
-    locs |>
-      dplyr::mutate(LONGITUDE = END_LONGITUDE,
-                    LATITUDE = END_LATITUDE)
-  ) |>
-  sf::st_as_sf(crs = "WGS84", coords = c("LONGITUDE", "LATITUDE")) |>
-  dplyr::group_by(VESSEL, CRUISE, HAUL, HAUL_TYPE, PERFORMANCE, START_TIME, DURATION, NET_WIDTH, GEAR_DEPTH, BOTTOM_DEPTH, STATIONID) |>
-  dplyr::summarise(do_union = TRUE) |>
-  sf::st_cast(to = "LINESTRING")
-
-
+loc_points <- dplyr::mutate(
+  loc_points,
+  CODEND = ifelse(HAUL_TYPE == 7, "Open", "Closed")
+  
+)
 
 map_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "EPSG:3338")
 
@@ -51,9 +24,11 @@ p_sample_map <-
   geom_sf(data = map_layers$bathymetry, color = "grey30", linewidth = 0.2) +
   geom_sf(data = map_layers$akland, color = NA, fill = "grey70") +
   geom_sf(
-    data = locs, 
-    mapping = aes(color = Phase, shape = Phase), 
-    size = rel(2.2)
+    data = loc_points, 
+    mapping = aes(shape = CODEND), 
+    size = rel(2.2),
+    alpha = 0.7,
+    color = "#F28E2B"
     ) +
   geom_shadowtext(
     data = bathy_labels,
@@ -61,18 +36,23 @@ p_sample_map <-
     size = 3) +
   scale_x_continuous(limits = map_layers$plot.boundary$x + c(2.5e5, -2e5)) + 
   scale_y_continuous(limits = map_layers$plot.boundary$y + c(-2e5, -5.5e5)) +
-  scale_color_tableau() +
-  scale_shape(solid = FALSE) +
+  scale_shape_manual(name = "Codend", values = c('Closed' = 19, 'Open' = 21)) +
   theme_bw() +
   theme(legend.position = "inside", 
-        legend.position.inside = c(0.75, 0.08),
-        legend.title = element_blank(),
-        legend.background = element_blank(),
+        legend.position.inside = c(0.84, 0.13),
+        legend.title = element_text(size = 9),
+        # legend.background = element_blank(),
         axis.title = element_blank(),
         plot.margin = unit(c(2, 8, 2, 2), "mm"),
         axis.text = element_text(size = 8),
         legend.text = element_text(size = 8))
 
-png(filename = here::here("plots", "map_sample_locations.png"), width = 120, height = 110, units = "mm", res = 300)
-print(p_sample_map)
-dev.off()
+ggsave(
+  p_sample_map,
+  filename = here::here("plots", "map_sample_locations.png"),
+  width = 120, 
+  height = 100, 
+  units = "mm", 
+  dpi = 300
+)
+

@@ -1,11 +1,6 @@
 # Catch comparison results
 
-library(trawlmetrics)
-library(akgfmaps)
-library(ggthemes)
-library(shadowtext)
-library(dplyr)
-library(ggpp)
+source("00_functions.R")
 
 # Matched catch treatments
 catch_treatments <- 

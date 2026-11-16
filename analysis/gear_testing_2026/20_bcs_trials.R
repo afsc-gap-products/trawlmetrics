@@ -1,11 +1,6 @@
 # Evaluating effects of rigging on footrope and bridle elevation
 
-library(trawlmetrics)
-library(ggthemes)
-library(dplyr)
-library(scales)
-library(ggnewscale)
-library(glmmTMB)
+source("00_functions.R")
 
 # Load data
 trawl_data_by_haul <- readRDS(here::here("data", "trawl_data_by_haul.rds"))

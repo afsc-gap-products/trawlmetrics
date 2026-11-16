@@ -1,9 +1,5 @@
 # Comparing door angle settings
-
-library(trawlmetrics)
-library(dplyr)
-library(patchwork)
-library(readxl)
+source("00_functions.R")
 
 # Get data ------------
 

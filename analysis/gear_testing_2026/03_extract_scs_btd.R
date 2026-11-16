@@ -1,16 +1,10 @@
 # Extract door spread from SCS xml files
-library(xml2)
-library(ggthemes)
-library(dplyr)
-library(ggplot2)
-library(glmmTMB)
-library(ggrepel)
-library(readxl)
 
 source("./functions/extract_and_rename_xml.R")
 source("./functions/parse_nmea_xml.R")
 source("./functions/isolate_treatments.R")
 source("./functions/bridle_angle_wes.R")
+source("00_functions.R")
 
 scs_zip <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, pattern = ".zip")
 
@@ -19,8 +13,6 @@ vapply(scs_zip, extract_and_rename_xml, FUN.VALUE = character(1))
 scs_xml <- list.files(here::here("data", "04_scs_data"), full.names = TRUE, pattern = ".xml")
 
 # Load gear configuration data
-
-# scs_xml = c(here::here("data", "04_scs_data", "haul0610.xml"), here::here("data", "04_scs_data", "haul0609.xml")) 
 
 trawl_measurements <- 
   lapply(X = scs_xml, FUN = parse_nmea_xml, door_range_m = c(20, 65), wing_range_m = c(8,23), height_range_m = c(1,10)) |>

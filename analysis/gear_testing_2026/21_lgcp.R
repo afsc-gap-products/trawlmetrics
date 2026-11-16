@@ -1,7 +1,5 @@
 # LGCP (Thygesen et al., 2019) on size data ----
 
-library(sratio)
-
 crab_size_sex_freq <- readRDS(here::here("data", "06_catch_data", "size_freq_crab.rds")) |>
   dplyr::filter(!is.na(SIZE_5MM))
 

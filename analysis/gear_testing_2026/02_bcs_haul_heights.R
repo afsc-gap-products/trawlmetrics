@@ -1,17 +1,11 @@
 # Analyze bottom contact sensor data for each haul
 
-library(trawlmetrics)
-library(readxl)
-library(here)
-library(lubridate)
-library(cowplot)
-library(mgcv)
-
 # Load functions
 source("./functions/multi_pass_kalman.R")
 source("./functions/parse_bcs_paths.R")
 source("./functions/split_hauls.R")
 source("./functions/isolate_treatments.R")
+source("00_functions.R")
 
 # Load bottom contact sensor height generalized additive models
 bcs_gam_2026 <- readRDS(file = here::here("output", "01_bcs_output", "bcs_calibration_gams_2026.rds"))

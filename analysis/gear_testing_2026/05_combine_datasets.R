@@ -1,5 +1,4 @@
-library(dplyr)
-library(readxl)
+source("00_functions.R")
 
 # Gear configuration spreadsheet
 gear_config <- 
